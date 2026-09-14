@@ -53,6 +53,14 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Shows landing page for guests, redirects to dashboard for logged-in users
+function RootRoute() {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="flex h-screen items-center justify-center"><div className="text-muted-foreground text-sm">Loading…</div></div>;
+  if (user) return <Navigate to="/dashboard" replace />;
+  return <LandingPage />;
+}
+
 // Redirects to /login if not authenticated
 function ProtectedRoutes() {
   const { user, loading } = useAuth();
@@ -76,13 +84,12 @@ export default function App() {
         <OrganizationProvider>
           <AppInitializer>
             <Routes>
-              <Route path="/" element={<LandingPage />} />
+              <Route path="/" element={<RootRoute />} />
               <Route path="/signup" element={<SignupPage />} />
               <Route path="/login" element={<LoginPage />} />
 
               <Route element={<ProtectedRoutes />}>
-                <Route path="/" element={<AppLayout />}>
-                  <Route index element={<Navigate to="/dashboard" replace />} />
+                <Route element={<AppLayout />}>
                   <Route path="dashboard" element={<DashboardPage />} />
                   <Route path="inventory" element={<InventoryPage />} />
                   <Route path="inventory/:id" element={<ItemDetailPage />} />
