@@ -1,0 +1,415 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+  ArrowLeft, Plus, RotateCcw, AlertTriangle, CheckCircle2, Clock,
+  XCircle, DollarSign, Package,
+} from 'lucide-react';
+import { useOrganization } from '@/context/OrganizationContext';
+import { useOrgConfig } from '@/hooks/useOrgConfig';
+import { recipientService, assignmentService, inventoryService, transactionService } from '@/services';
+import { PageHeader } from '@/components/shared/PageHeader';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import type { Recipient, Assignment, Item } from '@/types';
+
+const STATUS_BADGE: Record<string, { label: string; class: string }> = {
+  issued:           { label: 'Active',          class: 'bg-blue-50 text-blue-700 border-blue-200' },
+  returned:         { label: 'Returned',         class: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  returned_damaged: { label: 'Returned – Dmgd',  class: 'bg-orange-50 text-orange-700 border-orange-200' },
+  lost:             { label: 'Lost',             class: 'bg-red-50 text-red-700 border-red-200' },
+  fine_pending:     { label: 'Fine Pending',     class: 'bg-amber-50 text-amber-700 border-amber-200' },
+  fine_paid:        { label: 'Fine Paid',        class: 'bg-purple-50 text-purple-700 border-purple-200' },
+  closed:           { label: 'Closed',           class: 'bg-slate-50 text-slate-500 border-slate-200' },
+};
+
+function isOverdue(a: Assignment): boolean {
+  return a.status === 'issued' && !!a.expectedReturn && a.expectedReturn < new Date().toISOString().slice(0, 10);
+}
+
+export function RecipientDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { currentOrg } = useOrganization();
+  const config = useOrgConfig();
+  const { toast } = useToast();
+
+  const [recipient, setRecipient] = useState<Recipient | null>(null);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [items, setItems] = useState<Item[]>([]);
+
+  // Issue dialog
+  const [showIssue, setShowIssue] = useState(false);
+  const [issueForm, setIssueForm] = useState({ itemId: '', quantity: '1', conditionIssued: 'Good', expectedReturn: '' });
+
+  // Return dialog
+  const [returning, setReturning] = useState<Assignment | null>(null);
+  const [returnForm, setReturnForm] = useState({ returnReason: '', conditionReturned: 'Good', damageNotes: '', fineAmount: '0', receivedBy: '', notes: '' });
+
+  // Lost dialog
+  const [markingLost, setMarkingLost] = useState<Assignment | null>(null);
+  const [lostForm, setLostForm] = useState({ fineAmount: '0', notes: '' });
+
+  useEffect(() => {
+    if (!id || !currentOrg) return;
+    recipientService.getById(id).then((r) => setRecipient(r || null));
+    recipientService.getAssignments(currentOrg.id, id).then(setAssignments);
+    inventoryService.getByOrganization(currentOrg.id).then(setItems);
+  }, [id, currentOrg]);
+
+  const active = assignments.filter((a) => ['issued', 'fine_pending'].includes(a.status) || isOverdue(a));
+  const history = assignments.filter((a) => !['issued', 'fine_pending'].includes(a.status) && !isOverdue(a));
+  const totalFines = assignments.reduce((sum, a) => sum + (a.fineAmount || 0), 0);
+  const unpaidFines = assignments.filter((a) => a.fineAmount > 0 && !a.finePaid).reduce((sum, a) => sum + a.fineAmount, 0);
+
+  async function handleIssue(e: React.FormEvent) {
+    e.preventDefault();
+    if (!currentOrg || !recipient) return;
+    const item = items.find((i) => i.id === issueForm.itemId);
+    if (!item) return;
+    const qty = parseInt(issueForm.quantity) || 1;
+    const created = await assignmentService.create({
+      organizationId: currentOrg.id,
+      recipientId: recipient.id,
+      recipientName: recipient.name,
+      recipientIdentifier: recipient.identifier,
+      recipientGroup: recipient.group,
+      itemId: item.id,
+      itemName: item.name,
+      itemDetails: item.uniform ? `Size ${item.uniform.size}` : item.book ? item.book.classGrade : undefined,
+      quantity: qty,
+      conditionIssued: issueForm.conditionIssued,
+      issueDate: new Date().toISOString().slice(0, 10),
+      expectedReturn: issueForm.expectedReturn || undefined,
+      issuedBy: 'Store Manager',
+    });
+    await inventoryService.adjustStock(item.id, -qty);
+    await transactionService.create({
+      organizationId: currentOrg.id,
+      date: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      itemId: item.id,
+      itemName: item.name,
+      type: 'issued',
+      quantity: -qty,
+      user: 'Store Manager',
+      reference: `${config.assignmentLabel.toUpperCase()}-${Date.now()}`,
+      recipient: recipient.name,
+      recipientClass: recipient.group,
+    });
+    setAssignments((prev) => [created, ...prev]);
+    setShowIssue(false);
+    setIssueForm({ itemId: '', quantity: '1', conditionIssued: 'Good', expectedReturn: '' });
+    toast({ title: `${item.name} issued to ${recipient.name}` });
+  }
+
+  async function handleReturn(e: React.FormEvent) {
+    e.preventDefault();
+    if (!returning || !currentOrg) return;
+    const updated = await assignmentService.returnItem(returning.id, {
+      conditionReturned: returnForm.conditionReturned,
+      damageNotes: [returnForm.returnReason, returnForm.damageNotes].filter(Boolean).join(' — ') || undefined,
+      fineAmount: parseInt(returnForm.fineAmount) || 0,
+      receivedBy: returnForm.receivedBy || undefined,
+      notes: returnForm.notes || undefined,
+    });
+    await inventoryService.adjustStock(returning.itemId, returning.quantity);
+    setAssignments((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+    setReturning(null);
+    setReturnForm({ returnReason: '', conditionReturned: 'Good', damageNotes: '', fineAmount: '0', receivedBy: '', notes: '' });
+    toast({ title: `${returning.itemName} returned`, description: updated.status === 'fine_pending' ? `${config.fineLabel} of ${config.currencySymbol}${updated.fineAmount} raised` : 'Returned in good condition' });
+  }
+
+  async function handleLost(e: React.FormEvent) {
+    e.preventDefault();
+    if (!markingLost) return;
+    const updated = await assignmentService.markLost(markingLost.id, {
+      fineAmount: parseInt(lostForm.fineAmount) || 0,
+      notes: lostForm.notes || undefined,
+    });
+    setAssignments((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+    setMarkingLost(null);
+    setLostForm({ fineAmount: '0', notes: '' });
+    toast({ title: `${markingLost.itemName} marked as lost` });
+  }
+
+  async function handleFinePaid(assignmentId: string) {
+    const updated = await assignmentService.markFinePaid(assignmentId);
+    setAssignments((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+    toast({ title: `${config.fineLabel} marked as paid` });
+  }
+
+  if (!recipient) return <div className="p-8 text-muted-foreground">Loading…</div>;
+
+  return (
+    <div>
+      <Button variant="ghost" size="sm" onClick={() => navigate('/recipients')} className="mb-4 -ml-2">
+        <ArrowLeft className="h-4 w-4 mr-1" /> Back to {config.recipientPluralLabel}
+      </Button>
+
+      <PageHeader
+        title={recipient.name}
+        description={`${config.identifierLabel}: ${recipient.identifier || '—'} · ${config.groupLabel}: ${recipient.group || '—'}`}
+        actions={
+          <Button onClick={() => setShowIssue(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            {config.assignmentLabel} Item
+          </Button>
+        }
+      />
+
+      {/* KPI row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        {[
+          { label: 'Active', value: active.length, icon: Package, color: 'text-blue-600' },
+          { label: 'Returned', value: history.filter((a) => a.status === 'returned').length, icon: CheckCircle2, color: 'text-emerald-600' },
+          { label: 'Overdue', value: assignments.filter(isOverdue).length, icon: Clock, color: 'text-red-600' },
+          { label: `Unpaid ${config.fineLabel}s`, value: `${config.currencySymbol}${unpaidFines}`, icon: DollarSign, color: 'text-amber-600' },
+        ].map((kpi) => (
+          <Card key={kpi.label}>
+            <CardContent className="p-4 flex items-center gap-3">
+              <kpi.icon className={`h-5 w-5 ${kpi.color}`} />
+              <div>
+                <p className="text-xs text-muted-foreground">{kpi.label}</p>
+                <p className="text-xl font-bold">{kpi.value}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Active assignments */}
+      <Card className="mb-6">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Active {config.assignmentLabel}s</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {active.length === 0 ? (
+            <div className="p-6 text-center text-sm text-muted-foreground">
+              No active items with this {config.recipientLabel.toLowerCase()}
+            </div>
+          ) : (
+            <div className="divide-y">
+              {active.map((a) => {
+                const overdue = isOverdue(a);
+                return (
+                  <div key={a.id} className={`p-4 flex items-center justify-between gap-4 ${overdue ? 'bg-red-50/50' : ''}`}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium text-sm">{a.itemName}</p>
+                        {a.itemDetails && <span className="text-xs text-muted-foreground">{a.itemDetails}</span>}
+                        {overdue && <Badge className="bg-red-100 text-red-700 border-red-200 text-[10px]">Overdue</Badge>}
+                        {a.status === 'fine_pending' && <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[10px]">{config.fineLabel} Pending</Badge>}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Issued: {a.issueDate} · Condition: {a.conditionIssued}
+                        {a.expectedReturn && ` · Expected return: ${a.expectedReturn}`}
+                        {a.quantity > 1 && ` · Qty: ${a.quantity}`}
+                      </p>
+                      {a.status === 'fine_pending' && (
+                        <p className="text-xs font-medium text-amber-700 mt-0.5">
+                          {config.fineLabel}: {config.currencySymbol}{a.fineAmount}
+                          {a.damageNotes && ` — ${a.damageNotes}`}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      {a.status === 'fine_pending' ? (
+                        <Button size="sm" variant="outline" className="text-amber-700 border-amber-300" onClick={() => handleFinePaid(a.id)}>
+                          <DollarSign className="h-3.5 w-3.5 mr-1" /> Mark Paid
+                        </Button>
+                      ) : (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => { setReturning(a); setReturnForm({ returnReason: '', conditionReturned: 'Good', damageNotes: '', fineAmount: '0', receivedBy: '', notes: '' }); }}>
+                            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Return
+                          </Button>
+                          <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => { setMarkingLost(a); }}>
+                            <XCircle className="h-3.5 w-3.5 mr-1" /> Lost
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* History */}
+      {history.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base text-muted-foreground">History</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {history.map((a) => {
+                const badge = STATUS_BADGE[a.status] ?? STATUS_BADGE.closed;
+                return (
+                  <div key={a.id} className="p-4 flex items-center gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium text-sm">{a.itemName}</p>
+                        {a.itemDetails && <span className="text-xs text-muted-foreground">{a.itemDetails}</span>}
+                        <Badge variant="outline" className={`text-[10px] ${badge.class}`}>{badge.label}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Issued: {a.issueDate}
+                        {a.returnDate && ` · Returned: ${a.returnDate}`}
+                        {a.conditionReturned && ` · Condition: ${a.conditionReturned}`}
+                      </p>
+                      {a.damageNotes && (
+                        <p className="text-xs text-orange-700 mt-0.5 flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" /> {a.damageNotes}
+                        </p>
+                      )}
+                      {a.fineAmount > 0 && (
+                        <p className={`text-xs mt-0.5 font-medium ${a.finePaid ? 'text-emerald-600' : 'text-amber-600'}`}>
+                          {config.fineLabel}: {config.currencySymbol}{a.fineAmount} — {a.finePaid ? 'Paid' : 'Unpaid'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Issue Dialog ── */}
+      <Dialog open={showIssue} onOpenChange={setShowIssue}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{config.assignmentLabel} Item to {recipient.name}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleIssue} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Select Item</Label>
+              <Select value={issueForm.itemId} onValueChange={(v) => setIssueForm({ ...issueForm, itemId: v })}>
+                <SelectTrigger><SelectValue placeholder="Choose an item…" /></SelectTrigger>
+                <SelectContent>
+                  {items.filter((i) => i.available > 0).map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.name} <span className="text-muted-foreground ml-1 text-xs">({item.available} available)</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Quantity</Label>
+                <Input type="number" min={1} value={issueForm.quantity} onChange={(e) => setIssueForm({ ...issueForm, quantity: e.target.value })} />
+              </div>
+              {config.enableConditionTracking && (
+                <div className="space-y-1.5">
+                  <Label>Condition When Issued</Label>
+                  <Select value={issueForm.conditionIssued} onValueChange={(v) => setIssueForm({ ...issueForm, conditionIssued: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {['New', 'Good', 'Fair', 'Poor'].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Expected Return Date</Label>
+              <Input type="date" value={issueForm.expectedReturn} onChange={(e) => setIssueForm({ ...issueForm, expectedReturn: e.target.value })} />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowIssue(false)}>Cancel</Button>
+              <Button type="submit" disabled={!issueForm.itemId}>{config.assignmentLabel} Item</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Return Dialog ── */}
+      <Dialog open={!!returning} onOpenChange={(o) => !o && setReturning(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Return: {returning?.itemName}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleReturn} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Reason for Return</Label>
+              <Input
+                value={returnForm.returnReason}
+                onChange={(e) => setReturnForm({ ...returnForm, returnReason: e.target.value })}
+                placeholder="e.g. Wrong size, damaged, not needed…"
+              />
+            </div>
+            {config.enableConditionTracking && (
+              <div className="space-y-1.5">
+                <Label>Condition When Returned</Label>
+                <Select value={returnForm.conditionReturned} onValueChange={(v) => setReturnForm({ ...returnForm, conditionReturned: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {['Good', 'Damaged', 'Heavily Damaged'].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {returnForm.conditionReturned !== 'Good' && (
+              <div className="space-y-1.5">
+                <Label>Damage Description</Label>
+                <Textarea value={returnForm.damageNotes} onChange={(e) => setReturnForm({ ...returnForm, damageNotes: e.target.value })} placeholder="Describe the damage…" rows={3} />
+              </div>
+            )}
+            {config.enableFines && returnForm.conditionReturned !== 'Good' && (
+              <div className="space-y-1.5">
+                <Label>{config.fineLabel} Amount ({config.currencySymbol})</Label>
+                <Input type="number" min={0} value={returnForm.fineAmount} onChange={(e) => setReturnForm({ ...returnForm, fineAmount: e.target.value })} />
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label>Received By</Label>
+              <Input value={returnForm.receivedBy} onChange={(e) => setReturnForm({ ...returnForm, receivedBy: e.target.value })} placeholder="Staff name" />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setReturning(null)}>Cancel</Button>
+              <Button type="submit">Confirm Return</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Lost Dialog ── */}
+      <Dialog open={!!markingLost} onOpenChange={(o) => !o && setMarkingLost(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Report Lost: {markingLost?.itemName}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleLost} className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Mark this item as lost. A {config.fineLabel.toLowerCase()} may be raised.
+            </p>
+            {config.enableFines && (
+              <div className="space-y-1.5">
+                <Label>{config.fineLabel} Amount ({config.currencySymbol})</Label>
+                <Input type="number" min={0} value={lostForm.fineAmount} onChange={(e) => setLostForm({ ...lostForm, fineAmount: e.target.value })} />
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label>Notes</Label>
+              <Textarea value={lostForm.notes} onChange={(e) => setLostForm({ ...lostForm, notes: e.target.value })} placeholder="Any additional notes…" rows={2} />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setMarkingLost(null)}>Cancel</Button>
+              <Button type="submit" variant="destructive">Mark as Lost</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

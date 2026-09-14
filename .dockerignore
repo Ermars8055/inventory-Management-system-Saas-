@@ -1,0 +1,11 @@
+node_modules
+dist
+.git
+.env
+*.db
+*.log
+.DS_Store
+admin/node_modules
+admin/dist
+backend/
+backend-admin/

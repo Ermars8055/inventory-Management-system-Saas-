@@ -1,0 +1,72 @@
+services:
+
+  # ── Main FastAPI Backend ──────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL:  sqlite:////data/stockpilot.db
+      JWT_SECRET:    ${JWT_SECRET:-change-me-in-production}
+    volumes:
+      - db_data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── Admin FastAPI Backend ─────────────────────────────────────────────────
+  admin-backend:
+    build:
+      context: ./backend-admin
+    restart: unless-stopped
+    environment:
+      ADMIN_DB_URL:   sqlite:////data/admin.db
+      TENANT_DB_URL:  sqlite:////data/stockpilot.db
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET:-change-me-in-production}
+    volumes:
+      - db_data:/data
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── Main Frontend (React + Nginx) ─────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8060}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # ── Admin Frontend (React + Nginx) ────────────────────────────────────────
+  admin-frontend:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api
+    restart: unless-stopped
+    ports:
+      - "${ADMIN_PORT:-8061}:80"
+    depends_on:
+      admin-backend:
+        condition: service_healthy
+
+# ── Shared persistent volume for SQLite databases ────────────────────────────
+volumes:
+  db_data:
+    driver: local

@@ -1,0 +1,1746 @@
+For all designs I ask you to make, have them be beautiful, not cookie cutter. Make webpages that are fully featured and worthy for production.
+
+By default, this template supports JSX syntax with Tailwind CSS classes, the shadcn/ui library, React hooks, and Lucide React for icons. Do not install other packages for UI themes, icons, etc unless absolutely necessary or I request them.
+
+Use icons from lucide-react for logos.
+
+
+
+# Build a Multi-Tenant Configurable Inventory SaaS Platform
+
+Build a production-quality **frontend prototype** for a **multi-tenant SaaS inventory management platform**.
+
+This is NOT a simple school inventory application.
+
+The core product is a **generic inventory management platform** that can be configured for different organizations and industries such as:
+
+* Schools
+* Pharmacies / medical shops
+* Retail stores
+* Offices
+* Warehouses
+* Small businesses
+* Hospitals
+* Other organizations
+
+The first demonstration customer is a **school**, but the architecture and UI must clearly communicate that the same SaaS can support completely different organizations through **modules, configuration, custom fields, workflows, and templates**.
+
+The primary goal of this prototype is to demonstrate:
+
+> **One inventory platform → multiple organizations → different enabled modules → organization-specific inventory logic.**
+
+---
+
+# 1. TECHNOLOGY
+
+Use:
+
+* React
+* TypeScript
+* Vite
+* Tailwind CSS
+* shadcn/ui where appropriate
+* React Router
+* Lucide icons
+* Recharts for dashboards/charts
+* Clean component architecture
+
+For this first prototype:
+
+* Use realistic mock data.
+* Create a clean API/service abstraction so mock data can later be replaced by FastAPI endpoints.
+* DO NOT build a fake complex backend inside the frontend.
+* Keep API calls isolated inside a service layer.
+* Do not hardcode organization-specific logic directly into reusable components.
+
+The future backend will be:
+
+```text
+React + TypeScript
+        ↓
+FastAPI
+        ↓
+PostgreSQL
+```
+
+Design the frontend so it can later consume that API without restructuring the entire application.
+
+---
+
+# 2. CORE PRODUCT CONCEPT
+
+The platform has four important concepts:
+
+## A. Organization / Tenant
+
+Every customer is an organization.
+
+Examples:
+
+```text
+ABC International School
+Apollo Medical Store
+XYZ Corporate Office
+```
+
+Each organization has completely isolated:
+
+* Users
+* Inventory
+* Suppliers
+* Categories
+* Transactions
+* Modules
+* Settings
+* Receipt templates
+* Custom fields
+* Reports
+
+The UI should always make the current organization clear.
+
+Example:
+
+```text
+ABC International School
+School Organization
+```
+
+---
+
+# 3. MODULE SYSTEM
+
+The most important feature of the prototype is the **module system**.
+
+The platform has a common core.
+
+## Core modules
+
+Every organization can use:
+
+```text
+Dashboard
+Inventory
+Categories
+Stock Transactions
+Suppliers
+Reports
+Users & Roles
+Settings
+```
+
+Then organizations can enable optional modules.
+
+## Optional modules
+
+```text
+Uniform Management
+Book Management
+Student Issue / Return
+Asset Management
+Procurement
+Barcode / QR
+Pharmacy Management
+Batch & Expiry Tracking
+Employee Asset Allocation
+Maintenance
+```
+
+Do NOT make these modules separate applications.
+
+They are modules inside the same SaaS platform.
+
+---
+
+# 4. ORGANIZATION MODULE CONFIGURATION
+
+Create a dedicated:
+
+```text
+Settings → Modules
+```
+
+page.
+
+Display modules as cards.
+
+Each module should have:
+
+* Name
+* Description
+* Icon
+* Status
+* Enable / Disable control
+* Configuration button when enabled
+
+Example:
+
+```text
+Inventory Management
+Core inventory functionality
+
+[ Enabled ]
+```
+
+```text
+Uniform Management
+Manage uniforms by class, gender, size and academic year.
+
+[ Enabled ]   [ Configure ]
+```
+
+```text
+Pharmacy Management
+Manage medicines, batches, expiry dates and prescription requirements.
+
+[ Disabled ]   [ Enable ]
+```
+
+The enabled modules should determine which relevant navigation items appear.
+
+For example, when the organization is a school:
+
+```text
+Dashboard
+Inventory
+Uniforms
+Books
+Student Issue/Return
+Suppliers
+Reports
+```
+
+For a pharmacy:
+
+```text
+Dashboard
+Inventory
+Medicines
+Batches
+Expiry Tracking
+Suppliers
+Sales
+Reports
+```
+
+The navigation should NOT become hardcoded specifically for schools.
+
+Use module configuration to determine available sections.
+
+---
+
+# 5. DEMO ORGANIZATION 1 — SCHOOL
+
+Create mock organization:
+
+```text
+ABC International School
+```
+
+Industry:
+
+```text
+Education
+```
+
+Enabled modules:
+
+```text
+✓ Inventory
+✓ Uniform Management
+✓ Book Management
+✓ Student Issue / Return
+✓ Suppliers
+✓ Barcode / QR
+✓ Reports
+
+✗ Pharmacy Management
+✗ Asset Management
+```
+
+This should be the default organization when the application loads.
+
+---
+
+# 6. SCHOOL DASHBOARD
+
+Create a polished dashboard.
+
+Header:
+
+```text
+ABC International School
+Inventory Management
+```
+
+Display KPI cards:
+
+```text
+Total Items
+1,248
+```
+
+```text
+Low Stock
+37
+```
+
+```text
+Out of Stock
+8
+```
+
+```text
+Items Issued
+326
+```
+
+```text
+Suppliers
+24
+```
+
+Include:
+
+### Inventory Overview
+
+Chart showing stock by category.
+
+Categories:
+
+```text
+Uniforms
+Books
+Stationery
+Sports
+Laboratory
+Other
+```
+
+### Recent Transactions
+
+Example:
+
+```text
+School Shirt
+Issued
+Grade 5 - Section A
+12 units
+Today, 10:32 AM
+```
+
+```text
+Mathematics Textbook
+Stock Received
+45 units
+Today, 09:15 AM
+```
+
+```text
+Sports Socks
+Issued
+Grade 8 - Section B
+20 units
+Yesterday
+```
+
+### Low Stock
+
+Show:
+
+```text
+School Socks       12 remaining
+Science Workbook   8 remaining
+Blue Tie            5 remaining
+```
+
+---
+
+# 7. INVENTORY PAGE
+
+Create a professional inventory management interface.
+
+Top section:
+
+```text
+Inventory
+
+Search inventory...
+[Category]
+[Module]
+[Stock Status]
+[Location]
+
+[ + Add Item ]
+```
+
+Table columns:
+
+```text
+Item
+Category
+SKU
+Quantity
+Available
+Location
+Status
+Last Updated
+Actions
+```
+
+Example items:
+
+```text
+School Shirt
+Uniform
+UNI-SH-001
+240
+Available
+Main Store
+In Stock
+```
+
+```text
+School Pant
+Uniform
+UNI-SP-001
+180
+Available
+Main Store
+In Stock
+```
+
+```text
+Mathematics Textbook
+Books
+BOOK-MATH-05
+95
+Available
+Library Store
+In Stock
+```
+
+```text
+Sports Socks
+Uniform
+UNI-SS-001
+12
+Available
+Main Store
+Low Stock
+```
+
+---
+
+# 8. ITEM DETAIL PAGE
+
+Create a detailed item page.
+
+Example:
+
+```text
+School Shirt
+SKU: UNI-SH-001
+```
+
+Show:
+
+```text
+Category: Uniform
+Module: Uniform Management
+Current Stock: 42
+Available: 42
+Reserved: 0
+```
+
+Then display module-specific information.
+
+For uniforms:
+
+```text
+Class
+Grade 5
+
+Gender
+Boys
+
+Size
+32
+
+Academic Year
+2026-27
+```
+
+Tabs:
+
+```text
+Overview
+Stock
+Transactions
+Issue History
+```
+
+Stock transaction timeline:
+
+```text
++100 Received
+Sep 10, 2026
+
+-12 Issued
+Sep 10, 2026
+
++50 Received
+Sep 5, 2026
+```
+
+---
+
+# 9. UNIFORM MANAGEMENT MODULE
+
+Create a dedicated:
+
+```text
+Uniforms
+```
+
+page.
+
+This is NOT simply another inventory table.
+
+The purpose is to demonstrate that modules can introduce their own business logic.
+
+Uniforms need additional attributes:
+
+```text
+Class
+Gender
+Size
+Academic Year
+Uniform Type
+```
+
+Uniform types:
+
+```text
+Shirt
+Pant
+Skirt
+Tie
+Belt
+Socks
+Blazer
+Sports Uniform
+```
+
+Create filters:
+
+```text
+Class
+Gender
+Size
+Academic Year
+Uniform Type
+Stock Status
+```
+
+Example:
+
+```text
+Grade 5
+Boys
+Size 32
+Shirt
+2026-27
+
+Available: 42
+Issued: 18
+```
+
+---
+
+# 10. BOOK MANAGEMENT MODULE
+
+Create:
+
+```text
+Books
+```
+
+page.
+
+Book-specific fields:
+
+```text
+Book Name
+ISBN
+Subject
+Class
+Academic Year
+Edition
+Publisher
+Quantity
+Available
+```
+
+Example:
+
+```text
+Mathematics
+Grade 5
+ISBN: 978-XXXXXXXX
+Academic Year: 2026-27
+Available: 95
+```
+
+Include:
+
+```text
+Books Received
+Books Issued
+Books Returned
+Books Damaged
+```
+
+---
+
+# 11. STUDENT ISSUE / RETURN MODULE
+
+Create:
+
+```text
+Student Issue / Return
+```
+
+page.
+
+This demonstrates a workflow.
+
+Search student:
+
+```text
+Search student...
+```
+
+Example:
+
+```text
+Student
+Arjun Kumar
+
+Class
+Grade 5 - A
+
+Student ID
+STU-2026-1042
+```
+
+Display issued items:
+
+```text
+School Shirt       Size 32      Issued
+School Pant        Size 30      Issued
+Mathematics Book   Grade 5      Issued
+English Book       Grade 5      Issued
+```
+
+Buttons:
+
+```text
++ Issue Item
+Return Item
+```
+
+When issuing an item:
+
+```text
+Select Item
+Quantity
+Condition
+Issue Date
+Expected Return
+```
+
+The prototype should visually show that issuing an item decreases available inventory.
+
+---
+
+# 12. SUPPLIER MANAGEMENT
+
+Create:
+
+```text
+Suppliers
+```
+
+page.
+
+Fields:
+
+```text
+Supplier Name
+Contact Person
+Phone
+Email
+Address
+Items Supplied
+Status
+```
+
+Example:
+
+```text
+ABC Uniform Suppliers
+School Uniforms
+Active
+```
+
+```text
+Global Book Distributors
+Books
+Active
+```
+
+Create supplier detail page with:
+
+```text
+Purchase History
+Items Supplied
+Outstanding Orders
+Contact Information
+```
+
+---
+
+# 13. STOCK TRANSACTIONS
+
+Create:
+
+```text
+Stock Transactions
+```
+
+page.
+
+Transaction types:
+
+```text
+Stock Received
+Stock Issued
+Stock Returned
+Stock Adjusted
+Damaged
+Transferred
+```
+
+Table:
+
+```text
+Date
+Item
+Transaction
+Quantity
+User
+Reference
+```
+
+Use positive/negative visual indicators but keep the UI professional and subtle.
+
+---
+
+# 14. RECEIPT / DOCUMENT TEMPLATE SYSTEM
+
+This is another important demonstration.
+
+Organizations should not be forced to use one receipt design.
+
+Create:
+
+```text
+Settings → Document Templates
+```
+
+Show:
+
+```text
+Uniform Issue Receipt
+Book Issue Receipt
+Stock Receipt
+Return Receipt
+```
+
+Create a template editor-like interface.
+
+Allow configuration of:
+
+```text
+Organization Logo
+Organization Name
+Address
+Document Title
+Fields
+Line Items
+Signature
+Footer
+Notes
+```
+
+Example school receipt:
+
+```text
+ABC INTERNATIONAL SCHOOL
+
+UNIFORM ISSUE RECEIPT
+
+Student:
+Arjun Kumar
+
+Class:
+Grade 5 - A
+
+Academic Year:
+2026-27
+
+Items
+--------------------------------
+School Shirt      Size 32     1
+School Pant       Size 30     1
+Sports Socks                   2
+--------------------------------
+
+Issued By:
+Store Manager
+
+Date:
+11 September 2026
+
+Signature:
+________________
+```
+
+This should communicate that receipts are configurable per organization.
+
+---
+
+# 15. CUSTOM FIELDS
+
+Create:
+
+```text
+Settings → Custom Fields
+```
+
+The organization should be able to define additional fields.
+
+Example:
+
+```text
+Item Custom Fields
+
++ Add Field
+
+Field Name:
+Academic Year
+
+Type:
+Dropdown
+
+Options:
+2025-26
+2026-27
+2027-28
+```
+
+Other field types:
+
+```text
+Text
+Number
+Dropdown
+Date
+Boolean
+```
+
+Do NOT implement a complicated form builder.
+
+A polished prototype of the concept is enough.
+
+---
+
+# 16. SECOND ORGANIZATION — PHARMACY
+
+This is extremely important for the demo.
+
+Create an organization switcher.
+
+Organizations:
+
+```text
+ABC International School
+Apollo Medical Store
+```
+
+When switching to:
+
+```text
+Apollo Medical Store
+```
+
+the application should change its enabled modules and sample data.
+
+Pharmacy enabled modules:
+
+```text
+✓ Inventory
+✓ Pharmacy Management
+✓ Batch Management
+✓ Expiry Tracking
+✓ Suppliers
+✓ Barcode
+✓ Reports
+```
+
+School-specific modules should disappear.
+
+---
+
+# 17. PHARMACY DASHBOARD
+
+Display:
+
+```text
+Apollo Medical Store
+
+Total Medicines
+2,486
+
+Low Stock
+42
+
+Expiring Soon
+18
+
+Expired
+3
+
+Suppliers
+31
+```
+
+---
+
+# 18. MEDICINE INVENTORY
+
+Medicine-specific fields:
+
+```text
+Medicine Name
+Generic Name
+Manufacturer
+Batch Number
+Expiry Date
+Manufacturing Date
+MRP
+Purchase Price
+Quantity
+Prescription Required
+Storage Location
+```
+
+Example:
+
+```text
+Paracetamol 500mg
+
+Generic:
+Paracetamol
+
+Manufacturer:
+ABC Pharma
+
+Batch:
+PCM-2026-A17
+
+Expiry:
+08/2028
+
+MRP:
+₹25
+
+Stock:
+120
+```
+
+---
+
+# 19. BATCH MANAGEMENT
+
+Create:
+
+```text
+Batches
+```
+
+page.
+
+Columns:
+
+```text
+Medicine
+Batch Number
+Manufacturing Date
+Expiry Date
+Quantity
+Status
+```
+
+Statuses:
+
+```text
+Active
+Expiring Soon
+Expired
+```
+
+Use realistic visual indicators.
+
+---
+
+# 20. EXPIRY TRACKING
+
+Create:
+
+```text
+Expiry Tracking
+```
+
+page.
+
+Sections:
+
+```text
+Expired
+Expiring within 30 days
+Expiring within 90 days
+```
+
+Example:
+
+```text
+Medicine A
+Batch: A102
+Expires: 18 Sep 2026
+Quantity: 25
+```
+
+This demonstrates that pharmacy behavior is provided by a module rather than hardcoded into the generic inventory engine.
+
+---
+
+# 21. ORGANIZATION SWITCHER
+
+Create a polished organization switcher in the sidebar/header.
+
+Example:
+
+```text
+ABC International School
+Education
+⌄
+```
+
+Clicking it:
+
+```text
+Organizations
+
+ABC International School
+Education
+
+Apollo Medical Store
+Pharmacy
+
++ Create Organization
+```
+
+When switching organizations:
+
+* Dashboard data changes
+* Enabled modules change
+* Navigation changes
+* Inventory changes
+* Categories change
+* Custom fields change
+* Templates change
+
+This is critical.
+
+---
+
+# 22. CREATE ORGANIZATION FLOW
+
+Create a simple onboarding flow.
+
+Step 1:
+
+```text
+Organization Name
+Industry
+```
+
+Industry options:
+
+```text
+School
+Pharmacy
+Retail
+Office
+Warehouse
+Other
+```
+
+Step 2:
+
+```text
+Select Modules
+```
+
+Recommended modules should appear based on industry.
+
+For School:
+
+```text
+Recommended
+
+✓ Inventory
+✓ Uniforms
+✓ Books
+✓ Student Issue / Return
+✓ Suppliers
+```
+
+For Pharmacy:
+
+```text
+Recommended
+
+✓ Inventory
+✓ Pharmacy
+✓ Batch Tracking
+✓ Expiry Tracking
+✓ Suppliers
+```
+
+Step 3:
+
+```text
+Finish Setup
+```
+
+---
+
+# 23. SUBSCRIPTION / SAAS BILLING UI
+
+The platform is subscription-based.
+
+Create:
+
+```text
+Settings → Subscription
+```
+
+Show current plan.
+
+Example:
+
+```text
+Professional
+
+₹2,999 / month
+
+✓ 10 users
+✓ 5,000 inventory items
+✓ 10 modules
+✓ Reports
+✓ QR / Barcode
+✓ Custom fields
+```
+
+Create plan cards:
+
+```text
+Starter
+Professional
+Enterprise
+```
+
+This is only a frontend prototype.
+
+Do NOT integrate Stripe or real payment processing yet.
+
+But structure the UI as if subscription entitlements will later control:
+
+* Number of users
+* Number of items
+* Available modules
+* Storage
+* Reports
+* Advanced features
+
+---
+
+# 24. USERS & ROLES
+
+Create:
+
+```text
+Settings → Users & Roles
+```
+
+Example roles:
+
+```text
+Organization Admin
+Inventory Manager
+Store Manager
+Staff
+Viewer
+```
+
+Permissions should visually include:
+
+```text
+View Inventory
+Create Items
+Edit Items
+Delete Items
+Stock In
+Stock Out
+Manage Suppliers
+Manage Modules
+Manage Users
+View Reports
+```
+
+Do not implement a complex permission engine yet.
+
+The UI should demonstrate the concept.
+
+---
+
+# 25. SIDEBAR STRUCTURE
+
+Use a modern SaaS sidebar.
+
+For the school:
+
+```text
+Dashboard
+
+INVENTORY
+Inventory
+Stock Transactions
+Suppliers
+
+SCHOOL MODULES
+Uniforms
+Books
+Student Issue / Return
+
+ANALYTICS
+Reports
+
+ADMINISTRATION
+Users & Roles
+Modules
+Organization
+Settings
+```
+
+For pharmacy:
+
+```text
+Dashboard
+
+INVENTORY
+Inventory
+Stock Transactions
+Suppliers
+
+PHARMACY
+Medicines
+Batches
+Expiry Tracking
+
+ANALYTICS
+Reports
+
+ADMINISTRATION
+Users & Roles
+Modules
+Organization
+Settings
+```
+
+The sidebar must be generated from enabled modules/configuration.
+
+---
+
+# 26. DESIGN DIRECTION
+
+The design should feel like a serious modern B2B SaaS product.
+
+Avoid:
+
+* Excessive gradients
+* Huge hero sections
+* Glassmorphism everywhere
+* Neon colors
+* Overly rounded cartoon cards
+* Excessive animations
+* AI-generated landing-page aesthetics
+* Fake marketing content
+
+Prioritize:
+
+* Clean typography
+* Strong information hierarchy
+* Professional tables
+* Dense but readable data
+* Good spacing
+* Consistent cards
+* Clear status indicators
+* Excellent empty states
+* Useful filters
+* Responsive layout
+* Desktop-first SaaS UX
+
+Think:
+
+```text
+Modern enterprise SaaS
++
+Inventory management
++
+Configurable ERP
+```
+
+The application should look like software that a real company could use.
+
+---
+
+# 27. RESPONSIVENESS
+
+Desktop is the primary target because this is an inventory management system.
+
+Support:
+
+```text
+Desktop
+Tablet
+Mobile
+```
+
+On mobile:
+
+* Sidebar becomes a drawer
+* Tables become responsive
+* Filters collapse
+* Cards stack
+* Forms become single-column
+
+---
+
+# 28. MOCK DATA ARCHITECTURE
+
+Do not scatter mock data throughout components.
+
+Create a clear mock data layer.
+
+Example conceptual structure:
+
+```text
+src/
+  components/
+  layouts/
+  pages/
+  modules/
+  services/
+  data/
+  types/
+  hooks/
+  routes/
+```
+
+Create TypeScript interfaces for:
+
+```text
+Organization
+User
+Module
+Item
+Category
+Supplier
+StockTransaction
+ReceiptTemplate
+CustomField
+Subscription
+```
+
+Example conceptual organization model:
+
+```text
+Organization {
+    id
+    name
+    industry
+    enabledModules
+}
+```
+
+Example:
+
+```text
+{
+    id: "org_school_001",
+    name: "ABC International School",
+    industry: "school",
+    enabledModules: [
+        "inventory",
+        "uniforms",
+        "books",
+        "student_issue",
+        "suppliers",
+        "barcode"
+    ]
+}
+```
+
+Pharmacy:
+
+```text
+{
+    id: "org_pharmacy_001",
+    name: "Apollo Medical Store",
+    industry: "pharmacy",
+    enabledModules: [
+        "inventory",
+        "pharmacy",
+        "batches",
+        "expiry",
+        "suppliers",
+        "barcode"
+    ]
+}
+```
+
+---
+
+# 29. FUTURE FASTAPI INTEGRATION
+
+Do NOT tightly couple UI components to mock data.
+
+Create an API service abstraction.
+
+Conceptually:
+
+```text
+services/
+    organizationService.ts
+    inventoryService.ts
+    moduleService.ts
+    supplierService.ts
+    transactionService.ts
+```
+
+For now these can return mock data.
+
+Later they will call:
+
+```text
+GET /api/organizations/current
+GET /api/modules
+GET /api/inventory/items
+POST /api/inventory/items
+GET /api/inventory/transactions
+GET /api/suppliers
+```
+
+The UI should not need major restructuring when these are replaced by FastAPI.
+
+---
+
+# 30. IMPORTANT MULTI-TENANCY RULE
+
+Treat organization/tenant isolation as a first-class concept.
+
+Every relevant piece of mock data should conceptually belong to an organization.
+
+Do not create global inventory data.
+
+For example:
+
+```text
+organizationId: org_school_001
+```
+
+or:
+
+```text
+organizationId: org_pharmacy_001
+```
+
+The frontend should always know the current organization.
+
+Later FastAPI/PostgreSQL will enforce actual tenant isolation.
+
+---
+
+# 31. ROUTING
+
+Create routes such as:
+
+```text
+/login
+
+/dashboard
+
+/inventory
+/inventory/:id
+
+/transactions
+
+/suppliers
+/suppliers/:id
+
+/uniforms
+/books
+/student-issues
+
+/medicines
+/batches
+/expiry
+
+/modules
+
+/reports
+
+/users
+
+/settings
+/settings/organization
+/settings/custom-fields
+/settings/document-templates
+/settings/subscription
+```
+
+Only expose routes that are relevant to the current organization's enabled modules.
+
+---
+
+# 32. DEMO FLOW
+
+The entire prototype should support this exact demo flow:
+
+### Step 1
+
+Login.
+
+### Step 2
+
+Open:
+
+```text
+ABC International School
+```
+
+### Step 3
+
+Show dashboard.
+
+### Step 4
+
+Open inventory.
+
+Show:
+
+```text
+School Shirt
+School Pant
+Socks
+Mathematics Book
+```
+
+### Step 5
+
+Open Uniform Management.
+
+Show:
+
+```text
+Class
+Gender
+Size
+Academic Year
+```
+
+### Step 6
+
+Issue a uniform to:
+
+```text
+Arjun Kumar
+Grade 5-A
+```
+
+Show the inventory quantity changing.
+
+### Step 7
+
+Open Modules.
+
+Disable:
+
+```text
+Uniform Management
+```
+
+Show the relevant navigation disappearing.
+
+### Step 8
+
+Switch organization.
+
+Select:
+
+```text
+Apollo Medical Store
+```
+
+### Step 9
+
+Show pharmacy dashboard.
+
+### Step 10
+
+Open medicine inventory.
+
+Show:
+
+```text
+Medicine
+Batch
+Expiry
+MRP
+Manufacturer
+Quantity
+```
+
+### Step 11
+
+Open Expiry Tracking.
+
+Show medicines expiring soon.
+
+### Step 12
+
+Explain:
+
+> "We didn't build two separate applications. We built one configurable inventory platform. Each organization activates the modules and configuration it needs."
+
+This is the core demonstration.
+
+---
+
+# 33. IMPORTANT IMPLEMENTATION RULES
+
+Do NOT:
+
+* Build separate applications for school and pharmacy.
+* Hardcode school navigation throughout the application.
+* Hardcode pharmacy navigation throughout the application.
+* Create duplicate inventory components.
+* Put all data directly inside JSX.
+* Build a fake payment system.
+* Build unnecessary authentication complexity.
+* Build a real plugin marketplace.
+* Build a complicated backend inside Bolt.
+* Over-engineer the prototype.
+
+DO:
+
+* Build reusable components.
+* Build reusable tables.
+* Build reusable forms.
+* Build reusable item detail views.
+* Use configuration to control modules.
+* Use organization context.
+* Use TypeScript types.
+* Keep mock data separate.
+* Keep API services separate.
+* Make the architecture ready for FastAPI.
+* Make the UI feel like a real SaaS product.
+
+---
+
+# 34. MOST IMPORTANT PRODUCT PRINCIPLE
+
+The architecture should communicate:
+
+```text
+                    INVENTORY PLATFORM
+                           │
+              ┌────────────┴────────────┐
+              │                         │
+          CORE ENGINE             MODULE SYSTEM
+              │                         │
+        ┌─────┼─────┐          ┌────────┼─────────┐
+        │     │     │          │        │         │
+      Items Stock Users      Uniforms  Books   Pharmacy
+        │
+        └──────────────┐
+                       │
+                 ORGANIZATION
+                  CONFIGURATION
+                       │
+             ┌─────────┼─────────┐
+             │         │         │
+        Custom Fields Workflows Templates
+```
+
+The **core inventory engine must remain generic**.
+
+Modules provide specialized functionality.
+
+Organization configuration determines how those modules behave.
+
+Subscription determines which capabilities the organization is entitled to use.
+
+---
+
+# 35. FINAL QUALITY BAR
+
+Before considering the prototype complete, verify:
+
+1. School organization works.
+2. Pharmacy organization works.
+3. Organization switching works.
+4. Modules can be enabled/disabled.
+5. Navigation changes based on modules.
+6. Inventory is reusable across industries.
+7. School-specific fields appear only for school modules.
+8. Pharmacy-specific fields appear only for pharmacy modules.
+9. Mock data is separated from UI components.
+10. API/service abstraction exists.
+11. The application is responsive.
+12. The UI looks professional and enterprise-ready.
+13. No unnecessary pages or placeholder screens exist.
+14. Buttons should perform realistic interactions.
+15. Forms should actually update the prototype state.
+16. Stock issue/return should visibly affect quantities.
+17. Module enable/disable should visibly affect the application.
+18. Organization switching should visibly change the entire tenant experience.
+
+Build this as a **functional frontend prototype**, not merely a collection of static screens.
+
+The most important thing is that when someone watches the Monday demonstration, they immediately understand:
+
+> **This is one inventory SaaS platform that can adapt itself to different organizations instead of being hardcoded for one business.**
