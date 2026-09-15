@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
+echo "Running database migrations..."
+python -m app.migrate
+
 echo "Running database seed (skipped if already seeded)..."
 python -m app.seed
 
