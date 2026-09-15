@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { TutorialStep } from '@/hooks/useTutorial';
@@ -15,27 +16,43 @@ interface Props {
 
 const PAD = 10;
 const TIP_W = 304;
-const TIP_H = 172; // estimated height for positioning
+const TIP_H = 220; // generous estimate so clamp always works
 
 export function TutorialOverlay({ step, stepIndex, totalSteps, onNext, onBack, onSkip }: Props) {
+  const navigate = useNavigate();
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [win, setWin] = useState({ w: window.innerWidth, h: window.innerHeight });
 
+  // Navigate to the step's page, then measure after a brief render delay
   useEffect(() => {
-    function measure() {
+    if (step.navigateTo) {
+      navigate(step.navigateTo);
+    }
+
+    const measureAfterRender = () => {
       setWin({ w: window.innerWidth, h: window.innerHeight });
       if (!step.target) { setRect(null); return; }
       const el = document.querySelector(`[data-tutorial="${step.target}"]`);
       setRect(el ? el.getBoundingClientRect() : null);
-    }
-    measure();
-    window.addEventListener('resize', measure);
-    window.addEventListener('scroll', measure, true);
-    return () => {
-      window.removeEventListener('resize', measure);
-      window.removeEventListener('scroll', measure, true);
     };
-  }, [step]);
+
+    // Small delay so the navigated page has time to mount
+    const t = setTimeout(measureAfterRender, 120);
+
+    function onResizeOrScroll() {
+      setWin({ w: window.innerWidth, h: window.innerHeight });
+      if (!step.target) return;
+      const el = document.querySelector(`[data-tutorial="${step.target}"]`);
+      setRect(el ? el.getBoundingClientRect() : null);
+    }
+    window.addEventListener('resize', onResizeOrScroll);
+    window.addEventListener('scroll', onResizeOrScroll, true);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('resize', onResizeOrScroll);
+      window.removeEventListener('scroll', onResizeOrScroll, true);
+    };
+  }, [step, navigate]);
 
   const isCentered = !rect;
   const spotX = rect ? rect.left - PAD : 0;
@@ -43,26 +60,45 @@ export function TutorialOverlay({ step, stepIndex, totalSteps, onNext, onBack, o
   const spotW = rect ? rect.width + PAD * 2 : 0;
   const spotH = rect ? rect.height + PAD * 2 : 0;
 
-  // Position tooltip below spotlight, or above if not enough room
+  // Tooltip positioning:
+  // • Sidebar elements (rect.right < 280) → pop to the RIGHT of the element
+  // • Everything else → below or above, hard-clamped to viewport
   let tipLeft = 0;
   let tipTop = 0;
+
   if (!isCentered && rect) {
-    const belowRoom = win.h - (spotY + spotH);
-    tipTop = belowRoom >= TIP_H + 16
-      ? spotY + spotH + 12
-      : Math.max(16, spotY - TIP_H - 12);
-    tipLeft = Math.max(16, Math.min(spotX + spotW / 2 - TIP_W / 2, win.w - TIP_W - 16));
+    const isSidebarItem = rect.right < 280;
+
+    if (isSidebarItem) {
+      // Appear to the right of the sidebar link, vertically centred on it
+      tipLeft = rect.right + 20;
+      tipTop = rect.top + rect.height / 2 - TIP_H / 2;
+    } else {
+      // Below if room, else above
+      const belowRoom = win.h - (spotY + spotH);
+      tipTop = belowRoom >= TIP_H + 16
+        ? spotY + spotH + 12
+        : spotY - TIP_H - 12;
+      tipLeft = spotX + spotW / 2 - TIP_W / 2;
+    }
+
+    // Hard-clamp so it never overflows the viewport
+    tipLeft = Math.max(16, Math.min(tipLeft, win.w - TIP_W - 16));
+    tipTop = Math.max(16, Math.min(tipTop, win.h - TIP_H - 16));
   }
 
   const isFirst = stepIndex === 0;
   const isLast = stepIndex === totalSteps - 1;
 
+  function handleFinish() {
+    navigate('/dashboard');
+    onNext(); // marks tutorial done via the hook
+  }
+
   return createPortal(
     <div style={{ position: 'fixed', inset: 0, zIndex: 9999, pointerEvents: 'none' }}>
       {/* Dimmed backdrop with cutout */}
-      <svg
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'all' }}
-      >
+      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'all' }}>
         <defs>
           <mask id="tut-mask">
             <rect width="100%" height="100%" fill="white" />
@@ -116,7 +152,10 @@ export function TutorialOverlay({ step, stepIndex, totalSteps, onNext, onBack, o
             <div
               key={i}
               className="h-1.5 rounded-full transition-all duration-200"
-              style={{ width: i === stepIndex ? 16 : 6, background: i === stepIndex ? 'hsl(221 83% 53%)' : 'hsl(214 20% 85%)' }}
+              style={{
+                width: i === stepIndex ? 16 : 6,
+                background: i === stepIndex ? 'hsl(221 83% 53%)' : 'hsl(214 20% 85%)',
+              }}
             />
           ))}
         </div>
@@ -128,10 +167,15 @@ export function TutorialOverlay({ step, stepIndex, totalSteps, onNext, onBack, o
               <ChevronLeft className="h-3 w-3 mr-0.5" /> Back
             </Button>
           )}
-          <Button size="sm" onClick={onNext} className="h-7 px-3 text-xs ml-auto">
-            {isLast ? 'Finish' : 'Next'}
-            {!isLast && <ChevronRight className="h-3 w-3 ml-0.5" />}
-          </Button>
+          {isLast ? (
+            <Button size="sm" onClick={handleFinish} className="h-7 px-3 text-xs ml-auto">
+              Get Started →
+            </Button>
+          ) : (
+            <Button size="sm" onClick={onNext} className="h-7 px-3 text-xs ml-auto">
+              Next <ChevronRight className="h-3 w-3 ml-0.5" />
+            </Button>
+          )}
         </div>
       </div>
     </div>,
