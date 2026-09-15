@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -16,41 +16,35 @@ interface Props {
 
 const PAD = 10;
 const TIP_W = 304;
+// Generous overestimate — actual card is ~200px, so clamp(win.h - TIP_H - 16) always works
+const TIP_H = 300;
 
 export function TutorialOverlay({ step, stepIndex, totalSteps, onNext, onBack, onSkip }: Props) {
   const navigate = useNavigate();
-  const tipRef = useRef<HTMLDivElement>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
-  // tipStyle starts hidden off-screen; useLayoutEffect moves it into view
-  const [tipStyle, setTipStyle] = useState<React.CSSProperties>({
-    position: 'absolute', left: -9999, top: -9999,
-    width: TIP_W, pointerEvents: 'all', visibility: 'hidden',
-  });
+  const [win, setWin] = useState({ w: window.innerWidth, h: window.innerHeight });
 
   useEffect(() => {
-    // Reset to hidden on every step change
     setRect(null);
-    setTipStyle({ position: 'absolute', left: -9999, top: -9999,
-      width: TIP_W, pointerEvents: 'all', visibility: 'hidden' });
-
     if (step.navigateTo) navigate(step.navigateTo);
 
-    // Wait for the page to mount, then scroll nav item into view, then measure
     const t = setTimeout(() => {
+      setWin({ w: window.innerWidth, h: window.innerHeight });
       if (!step.target) { setRect(null); return; }
       const el = document.querySelector(`[data-tutorial="${step.target}"]`);
       if (!el) { setRect(null); return; }
-      // Scroll nav item into view if it's outside the sidebar's scroll area
+      // Bring the nav item into view if the sidebar is scrolled past it
       el.scrollIntoView({ block: 'nearest', behavior: 'instant' });
-      // Brief delay for layout to settle after scrollIntoView
-      setTimeout(() => setRect(el.getBoundingClientRect()), 80);
-    }, 150);
+      // Allow one frame for layout to settle after scrollIntoView
+      requestAnimationFrame(() => setRect(el.getBoundingClientRect()));
+    }, 160);
 
-    const onUpdate = () => {
+    function onUpdate() {
+      setWin({ w: window.innerWidth, h: window.innerHeight });
       if (!step.target) return;
       const el = document.querySelector(`[data-tutorial="${step.target}"]`);
       if (el) setRect(el.getBoundingClientRect());
-    };
+    }
     window.addEventListener('resize', onUpdate);
     window.addEventListener('scroll', onUpdate, true);
     return () => {
@@ -60,56 +54,42 @@ export function TutorialOverlay({ step, stepIndex, totalSteps, onNext, onBack, o
     };
   }, [step, navigate]);
 
-  // After rect is known, compute exact position using the ACTUAL rendered tooltip height.
-  // useLayoutEffect fires before the browser paints, so setState here is synchronous —
-  // the user never sees the hidden off-screen render.
-  useLayoutEffect(() => {
-    if (!tipRef.current) return;
-
-    // No target — show centered card
-    if (!rect) {
-      if (!step.target) {
-        setTipStyle({
-          position: 'absolute', left: '50%', top: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: TIP_W, pointerEvents: 'all', visibility: 'visible',
-        });
-      }
-      return;
-    }
-
-    const h = tipRef.current.offsetHeight; // actual height, no guessing
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-
-    // Sidebar items (rect.right < sidebar width ≈ 256px + small buffer)
-    const isSidebar = rect.right < 280;
-
-    let left: number;
-    let top: number;
-
-    if (isSidebar) {
-      left = rect.right + 20;                          // pop to the right
-      top  = rect.top + rect.height / 2 - h / 2;      // vertically centred on the element
-    } else {
-      const spotBottom = rect.bottom + PAD;
-      top  = (vh - spotBottom - 12) >= h
-        ? spotBottom + 12                              // below
-        : rect.top - PAD - 12 - h;                    // above
-      left = rect.left + rect.width / 2 - TIP_W / 2;
-    }
-
-    // Hard-clamp: tooltip must stay fully inside the viewport
-    left = Math.max(16, Math.min(left, vw - TIP_W - 16));
-    top  = Math.max(16, Math.min(top,  vh - h    - 16));
-
-    setTipStyle({ position: 'absolute', left, top, width: TIP_W, pointerEvents: 'all', visibility: 'visible' });
-  }, [rect, step.target]);
+  // Three display states:
+  // 1. No target → centred card
+  // 2. Has target but not found yet → hidden (during navigation delay)
+  // 3. Has target and found → positioned spotlight + card
+  const hastarget = Boolean(step.target);
+  const isCentered = !hastarget;
+  const isHidden   = hastarget && !rect;
 
   const spotX = rect ? rect.left - PAD : 0;
   const spotY = rect ? rect.top  - PAD : 0;
   const spotW = rect ? rect.width  + PAD * 2 : 0;
   const spotH = rect ? rect.height + PAD * 2 : 0;
+
+  let tipLeft = 0;
+  let tipTop  = 0;
+  if (rect) {
+    const isSidebar = rect.right < 280;
+    if (isSidebar) {
+      tipLeft = rect.right + 20;
+      tipTop  = rect.top + rect.height / 2 - TIP_H / 2;
+    } else {
+      const spotBottom = rect.bottom + PAD;
+      tipTop  = (win.h - spotBottom - 12) >= TIP_H
+        ? spotBottom + 12
+        : rect.top - PAD - 12 - TIP_H;
+      tipLeft = rect.left + rect.width / 2 - TIP_W / 2;
+    }
+    tipLeft = Math.max(16, Math.min(tipLeft, win.w - TIP_W - 16));
+    tipTop  = Math.max(16, Math.min(tipTop,  win.h - TIP_H - 16));
+  }
+
+  const tooltipStyle: React.CSSProperties = isHidden
+    ? { position: 'absolute', left: -9999, top: -9999, width: TIP_W, pointerEvents: 'all', visibility: 'hidden' }
+    : isCentered
+    ? { position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: TIP_W, pointerEvents: 'all' }
+    : { position: 'absolute', left: tipLeft, top: tipTop, width: TIP_W, pointerEvents: 'all' };
 
   const isFirst = stepIndex === 0;
   const isLast  = stepIndex === totalSteps - 1;
@@ -144,10 +124,9 @@ export function TutorialOverlay({ step, stepIndex, totalSteps, onNext, onBack, o
         }} />
       )}
 
-      {/* Tooltip card — starts hidden, repositioned by useLayoutEffect */}
+      {/* Tooltip card */}
       <div
-        ref={tipRef}
-        style={tipStyle}
+        style={tooltipStyle}
         className="bg-white rounded-xl shadow-2xl border border-border p-4"
         onClick={e => e.stopPropagation()}
       >
