@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import type {
   Organization, ModuleId, OrgConfig, Item, Category, StockTransaction,
   Supplier, User, Recipient, Assignment, Batch, ReceiptTemplate, CustomField, Subscription,
-  PurchaseOrder, MaintenanceTicket, Asset,
+  PurchaseOrder, POLineItem, MaintenanceTicket, Asset,
 } from '@/types';
 
 export const organizationService = {
@@ -79,6 +79,9 @@ export const supplierService = {
   },
   async update(id: string, data: Partial<Supplier>): Promise<Supplier> {
     return api.put(`/suppliers/${id}`, data);
+  },
+  async delete(id: string): Promise<void> {
+    return api.delete(`/suppliers/${id}`);
   },
 };
 
@@ -234,11 +237,16 @@ export const procurementService = {
   async getByOrganization(orgId: string): Promise<PurchaseOrder[]> {
     return api.get(`/procurement?org_id=${orgId}`);
   },
-  async create(data: Omit<PurchaseOrder, 'id' | 'createdAt'>): Promise<PurchaseOrder> {
+  async create(data: Omit<PurchaseOrder, 'id' | 'createdAt' | 'lineItems'> & {
+    lineItems?: { itemId?: string; itemName: string; quantityOrdered: number; unitPrice: number }[];
+  }): Promise<PurchaseOrder> {
     return api.post('/procurement', data);
   },
   async update(id: string, data: Partial<PurchaseOrder>): Promise<PurchaseOrder> {
     return api.put(`/procurement/${id}`, data);
+  },
+  async receivePO(id: string, lines: { lineItemId: string; quantityReceived: number }[]): Promise<PurchaseOrder> {
+    return api.post(`/procurement/${id}/receive`, { lines });
   },
   async delete(id: string): Promise<void> {
     return api.delete(`/procurement/${id}`);

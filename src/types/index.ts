@@ -112,6 +112,8 @@ export interface Item {
   quantity: number;
   available: number;
   reserved: number;
+  minQuantity?: number;
+  reorderQty?: number;
   location: string;
   status: StockStatus;
   lastUpdated: string;
@@ -319,13 +321,24 @@ export interface CustomField {
 
 // --- Procurement ---
 
-export type POStatus = 'draft' | 'pending' | 'approved' | 'ordered' | 'received' | 'cancelled';
+export type POStatus = 'draft' | 'pending' | 'approved' | 'ordered' | 'partially_received' | 'received' | 'cancelled';
+
+export interface POLineItem {
+  id: string;
+  poId: string;
+  itemId?: string;
+  itemName: string;
+  quantityOrdered: number;
+  quantityReceived: number;
+  unitPrice: number;
+}
 
 export interface PurchaseOrder {
   id: string;
   organizationId: string;
   poNumber: string;
   supplier: string;
+  supplierId?: string;
   itemsDesc?: string;
   itemCount: number;
   orderedDate?: string;
@@ -335,6 +348,7 @@ export interface PurchaseOrder {
   raisedBy?: string;
   notes?: string;
   createdAt?: string;
+  lineItems?: POLineItem[];
 }
 
 // --- Maintenance ---

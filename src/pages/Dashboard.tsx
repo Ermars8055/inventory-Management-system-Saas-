@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Package, AlertTriangle, XCircle, UserCheck, Truck, CalendarClock, Pill,
+  Package, AlertTriangle, XCircle, UserCheck, Truck, CalendarClock, Pill, ShoppingCart,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -84,6 +84,9 @@ export function DashboardPage() {
   const PIE_COLORS = ['#2563eb', '#0891b2', '#16a34a', '#ea580c', '#9333ea', '#6b7280'];
 
   const recentTransactions = transactions.slice(0, 6);
+  const reorderItems = items.filter(i => i.available <= (i.minQuantity ?? 10) && i.status !== 'out_of_stock')
+    .concat(outOfStockItems)
+    .slice(0, 8);
 
   return (
     <div>
@@ -144,6 +147,47 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Reorder Suggestions */}
+      {reorderItems.length > 0 && (
+        <Card className="mb-6 border-amber-200 bg-amber-50/40">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4 text-amber-600" />
+                Reorder Suggestions ({reorderItems.length})
+              </CardTitle>
+              <button
+                onClick={() => navigate('/procurement')}
+                className="text-xs font-medium text-amber-700 hover:text-amber-900 underline"
+              >
+                Create PO →
+              </button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {reorderItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="p-2.5 rounded-lg border border-amber-100 bg-white cursor-pointer hover:shadow-sm transition-shadow"
+                  onClick={() => navigate(`/inventory/${item.id}`)}
+                >
+                  <p className="text-xs font-semibold text-gray-800 truncate">{item.name}</p>
+                  <p className="text-xs text-muted-foreground">{item.sku}</p>
+                  <div className="mt-1.5 flex items-center gap-1">
+                    <span className={`text-sm font-bold ${item.status === 'out_of_stock' ? 'text-red-600' : 'text-amber-600'}`}>
+                      {item.available}
+                    </span>
+                    <span className="text-xs text-muted-foreground">/ min {item.minQuantity ?? 10}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">Reorder: {item.reorderQty ?? 50}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Recent Transactions */}

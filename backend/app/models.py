@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Integer, Boolean, JSON, ForeignKey, Text
+from sqlalchemy.orm import relationship
 from .database import Base
 
 
@@ -41,6 +42,8 @@ class Item(Base):
     location = Column(String)
     status = Column(String, default="in_stock")
     last_updated = Column(String)
+    min_quantity = Column(Integer, default=10)
+    reorder_qty = Column(Integer, default=50)
     uniform = Column(JSON)
     book = Column(JSON)
     medicine = Column(JSON)
@@ -204,15 +207,29 @@ class PurchaseOrder(Base):
     organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
     po_number = Column(String, nullable=False)
     supplier = Column(String, nullable=False)
+    supplier_id = Column(String, ForeignKey("suppliers.id"), nullable=True)
     items_desc = Column(String)
     item_count = Column(Integer, default=0)
     ordered_date = Column(String)
     expected_date = Column(String)
     amount = Column(Integer, default=0)
-    status = Column(String, default="draft")   # draft|pending|approved|ordered|received|cancelled
+    status = Column(String, default="draft")   # draft|pending|approved|ordered|partially_received|received|cancelled
     raised_by = Column(String)
     notes = Column(String)
     created_at = Column(String)
+    line_items = relationship("POLineItem", back_populates="purchase_order", cascade="all, delete-orphan", lazy="selectin")
+
+
+class POLineItem(Base):
+    __tablename__ = "po_line_items"
+    id = Column(String, primary_key=True)
+    po_id = Column(String, ForeignKey("purchase_orders.id"), nullable=False)
+    item_id = Column(String, ForeignKey("items.id"), nullable=True)
+    item_name = Column(String, nullable=False)
+    quantity_ordered = Column(Integer, default=0)
+    quantity_received = Column(Integer, default=0)
+    unit_price = Column(Integer, default=0)
+    purchase_order = relationship("PurchaseOrder", back_populates="line_items")
 
 
 class MaintenanceTicket(Base):

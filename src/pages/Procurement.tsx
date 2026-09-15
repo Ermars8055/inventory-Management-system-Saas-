@@ -1,32 +1,43 @@
-import { useState, useEffect } from 'react';
-import { ShoppingCart, Clock, CheckCircle, Package, Plus, Trash2, Search } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { ShoppingCart, Clock, CheckCircle, Package, Plus, Trash2, Search, PackageCheck, X } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useAuth } from '@/context/AuthContext';
-import { procurementService } from '@/services';
+import { procurementService, supplierService, inventoryService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { KPICard } from '@/components/shared/KPICard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import type { PurchaseOrder, POStatus } from '@/types';
+import type { PurchaseOrder, POStatus, Supplier, Item } from '@/types';
 
 const STATUS_CONFIG: Record<POStatus, { label: string; className: string }> = {
-  draft:     { label: 'Draft',            className: 'bg-muted text-muted-foreground' },
-  pending:   { label: 'Pending Approval', className: 'bg-amber-50 text-amber-700 border-amber-200' },
-  approved:  { label: 'Approved',         className: 'bg-blue-50 text-blue-700 border-blue-200' },
-  ordered:   { label: 'Ordered',          className: 'bg-purple-50 text-purple-700 border-purple-200' },
-  received:  { label: 'Received',         className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  cancelled: { label: 'Cancelled',        className: 'bg-red-50 text-red-700 border-red-200' },
+  draft:               { label: 'Draft',              className: 'bg-muted text-muted-foreground' },
+  pending:             { label: 'Pending Approval',   className: 'bg-amber-50 text-amber-700 border-amber-200' },
+  approved:            { label: 'Approved',           className: 'bg-blue-50 text-blue-700 border-blue-200' },
+  ordered:             { label: 'Ordered',            className: 'bg-purple-50 text-purple-700 border-purple-200' },
+  partially_received:  { label: 'Part. Received',     className: 'bg-orange-50 text-orange-700 border-orange-200' },
+  received:            { label: 'Received',           className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  cancelled:           { label: 'Cancelled',          className: 'bg-red-50 text-red-700 border-red-200' },
 };
 
+interface LineItemDraft {
+  itemId: string;
+  itemName: string;
+  quantityOrdered: number;
+  unitPrice: number;
+  _search?: string;
+}
+
 const EMPTY_FORM = {
-  supplier: '', itemsDesc: '', itemCount: 1,
-  orderedDate: '', expectedDate: '', amount: 0,
+  supplierId: '', supplier: '',
+  orderedDate: '', expectedDate: '',
   status: 'draft' as POStatus, notes: '',
 };
 
@@ -36,19 +47,35 @@ export function ProcurementPage() {
   const { toast } = useToast();
 
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Create dialog
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [lineItems, setLineItems] = useState<LineItemDraft[]>([]);
   const [saving, setSaving] = useState(false);
+
+  // Receive dialog
+  const [receiveTarget, setReceiveTarget] = useState<PurchaseOrder | null>(null);
+  const [receiveQtys, setReceiveQtys] = useState<Record<string, number>>({});
+  const [receiving, setReceiving] = useState(false);
 
   const load = async () => {
     if (!currentOrg) return;
     setLoading(true);
     try {
-      const data = await procurementService.getByOrganization(currentOrg.id);
+      const [data, sups, invItems] = await Promise.all([
+        procurementService.getByOrganization(currentOrg.id),
+        supplierService.getByOrganization(currentOrg.id),
+        inventoryService.getByOrganization(currentOrg.id),
+      ]);
       setOrders(data);
+      setSuppliers(sups);
+      setItems(invItems);
     } finally {
       setLoading(false);
     }
@@ -67,22 +94,64 @@ export function ProcurementPage() {
   });
 
   const pending = orders.filter((p) => p.status === 'pending').length;
-  const approved = orders.filter((p) => p.status === 'approved' || p.status === 'ordered').length;
+  const active = orders.filter((p) => p.status === 'approved' || p.status === 'ordered' || p.status === 'partially_received').length;
   const received = orders.filter((p) => p.status === 'received').length;
 
+  // ── Line item helpers ──────────────────────────────────────────────────────
+  function addLine() {
+    setLineItems((prev) => [...prev, { itemId: '', itemName: '', quantityOrdered: 1, unitPrice: 0, _search: '' }]);
+  }
+
+  function removeLine(idx: number) {
+    setLineItems((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function updateLine(idx: number, patch: Partial<LineItemDraft>) {
+    setLineItems((prev) => prev.map((l, i) => i === idx ? { ...l, ...patch } : l));
+  }
+
+  function selectItem(idx: number, item: Item) {
+    updateLine(idx, { itemId: item.id, itemName: item.name, _search: item.name });
+  }
+
+  const totalAmount = useMemo(
+    () => lineItems.reduce((s, l) => s + l.quantityOrdered * l.unitPrice, 0),
+    [lineItems],
+  );
+
+  // ── Create PO ─────────────────────────────────────────────────────────────
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
+    if (!form.supplierId && !form.supplier) {
+      toast({ title: 'Select a supplier', variant: 'destructive' });
+      return;
+    }
+    const selectedSupplier = suppliers.find((s) => s.id === form.supplierId);
     setSaving(true);
     try {
       await procurementService.create({
         organizationId: currentOrg!.id,
         poNumber: '',
+        supplier: selectedSupplier?.name || form.supplier,
+        supplierId: form.supplierId || undefined,
+        orderedDate: form.orderedDate,
+        expectedDate: form.expectedDate,
+        status: form.status,
+        notes: form.notes,
         raisedBy: user?.name || 'Staff',
-        ...form,
+        amount: totalAmount,
+        itemCount: lineItems.length,
+        lineItems: lineItems.map((l) => ({
+          itemId: l.itemId || undefined,
+          itemName: l.itemName,
+          quantityOrdered: l.quantityOrdered,
+          unitPrice: l.unitPrice,
+        })),
       });
       await load();
       setShowCreate(false);
       setForm(EMPTY_FORM);
+      setLineItems([]);
       toast({ title: 'Purchase order created' });
     } catch {
       toast({ title: 'Error', description: 'Failed to create purchase order', variant: 'destructive' });
@@ -91,6 +160,7 @@ export function ProcurementPage() {
     }
   }
 
+  // ── Status change ─────────────────────────────────────────────────────────
   async function handleStatusChange(id: string, status: POStatus) {
     try {
       const updated = await procurementService.update(id, { status });
@@ -100,6 +170,7 @@ export function ProcurementPage() {
     }
   }
 
+  // ── Delete ────────────────────────────────────────────────────────────────
   async function handleDelete(id: string) {
     try {
       await procurementService.delete(id);
@@ -110,41 +181,67 @@ export function ProcurementPage() {
     }
   }
 
-  const inp = 'w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring';
+  // ── Receive PO ────────────────────────────────────────────────────────────
+  function openReceive(po: PurchaseOrder) {
+    setReceiveTarget(po);
+    const init: Record<string, number> = {};
+    (po.lineItems || []).forEach((l) => {
+      init[l.id] = l.quantityOrdered - l.quantityReceived;
+    });
+    setReceiveQtys(init);
+  }
+
+  async function handleReceive(e: React.FormEvent) {
+    e.preventDefault();
+    if (!receiveTarget) return;
+    const lines = Object.entries(receiveQtys)
+      .filter(([, qty]) => qty > 0)
+      .map(([lineItemId, quantityReceived]) => ({ lineItemId, quantityReceived }));
+    if (lines.length === 0) {
+      toast({ title: 'Enter quantity to receive for at least one item', variant: 'destructive' });
+      return;
+    }
+    setReceiving(true);
+    try {
+      const updated = await procurementService.receivePO(receiveTarget.id, lines);
+      setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      setReceiveTarget(null);
+      toast({ title: 'Stock received and inventory updated' });
+      await load();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to receive stock', variant: 'destructive' });
+    } finally {
+      setReceiving(false);
+    }
+  }
 
   return (
     <div>
       <PageHeader
         title="Procurement"
-        description="Manage purchase orders and vendor procurement"
+        description="Manage purchase orders and vendor stock"
         actions={
-          <Button size="sm" onClick={() => setShowCreate(true)}>
+          <Button size="sm" onClick={() => { setForm(EMPTY_FORM); setLineItems([]); setShowCreate(true); }}>
             <Plus className="h-4 w-4 mr-2" /> New PO
           </Button>
         }
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <KPICard label="Total Orders"       value={orders.length} icon={ShoppingCart} variant="default" />
-        <KPICard label="Pending Approval"   value={pending}       icon={Clock}        variant="warning" />
-        <KPICard label="Approved / Ordered" value={approved}      icon={CheckCircle}  variant="success" />
-        <KPICard label="Received"           value={received}      icon={Package}      variant="default" />
+        <KPICard label="Total Orders"    value={orders.length} icon={ShoppingCart}  variant="default" />
+        <KPICard label="Pending"         value={pending}       icon={Clock}         variant="warning" />
+        <KPICard label="Active / Ordered" value={active}       icon={CheckCircle}   variant="success" />
+        <KPICard label="Received"        value={received}      icon={Package}       variant="default" />
       </div>
 
       <div className="flex flex-wrap gap-3 mb-4">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search PO number or supplier..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+          <Input placeholder="Search PO number or supplier..." value={search}
+            onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="All Statuses" />
-          </SelectTrigger>
+          <SelectTrigger className="w-44"><SelectValue placeholder="All Statuses" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
             {(Object.keys(STATUS_CONFIG) as POStatus[]).map((s) => (
@@ -161,10 +258,9 @@ export function ProcurementPage() {
               <TableRow>
                 <TableHead>PO Number</TableHead>
                 <TableHead>Supplier</TableHead>
-                <TableHead>Items</TableHead>
+                <TableHead>Line Items</TableHead>
                 <TableHead>Order Date</TableHead>
                 <TableHead>Expected</TableHead>
-                <TableHead>Raised By</TableHead>
                 <TableHead className="text-right">Amount (₹)</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead />
@@ -172,42 +268,39 @@ export function ProcurementPage() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground py-12">Loading…</TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-12">Loading…</TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground py-12">
-                    No purchase orders found
-                  </TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-12">No purchase orders found</TableCell></TableRow>
               ) : filtered.map((po) => {
-                const cfg = STATUS_CONFIG[po.status];
+                const cfg = STATUS_CONFIG[po.status] ?? STATUS_CONFIG.draft;
+                const canReceive = po.status === 'ordered' || po.status === 'partially_received' || po.status === 'approved';
                 return (
                   <TableRow key={po.id}>
                     <TableCell>
                       <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">{po.poNumber}</code>
                     </TableCell>
                     <TableCell className="font-medium text-sm">{po.supplier}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground max-w-[180px] truncate">
-                      {po.itemsDesc || '—'}
-                      {po.itemCount > 0 && <span className="ml-1 text-xs">({po.itemCount})</span>}
+                    <TableCell className="text-sm text-muted-foreground">
+                      {po.lineItems && po.lineItems.length > 0 ? (
+                        <span className="text-xs">
+                          {po.lineItems.length} item{po.lineItems.length !== 1 ? 's' : ''}
+                          {po.lineItems.some((l) => l.quantityReceived > 0) && (
+                            <span className="ml-1 text-emerald-600">
+                              · {po.lineItems.reduce((s, l) => s + l.quantityReceived, 0)} received
+                            </span>
+                          )}
+                        </span>
+                      ) : (po.itemsDesc || '—')}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{po.orderedDate || '—'}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{po.expectedDate || '—'}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{po.raisedBy || '—'}</TableCell>
                     <TableCell className="text-right font-semibold text-sm">
                       {po.amount.toLocaleString('en-IN')}
                     </TableCell>
                     <TableCell>
-                      <Select
-                        value={po.status}
-                        onValueChange={(v) => handleStatusChange(po.id, v as POStatus)}
-                      >
-                        <SelectTrigger className="h-7 w-[140px] text-xs">
-                          <Badge variant="outline" className={`text-xs ${cfg.className} border-0 p-0`}>
-                            {cfg.label}
-                          </Badge>
+                      <Select value={po.status} onValueChange={(v) => handleStatusChange(po.id, v as POStatus)}>
+                        <SelectTrigger className="h-7 w-[148px] text-xs">
+                          <Badge variant="outline" className={`text-xs ${cfg.className} border-0 p-0`}>{cfg.label}</Badge>
                         </SelectTrigger>
                         <SelectContent>
                           {(Object.keys(STATUS_CONFIG) as POStatus[]).map((s) => (
@@ -217,12 +310,22 @@ export function ProcurementPage() {
                       </Select>
                     </TableCell>
                     <TableCell>
-                      <button
-                        onClick={() => handleDelete(po.id)}
-                        className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        {canReceive && (po.lineItems?.length ?? 0) > 0 && (
+                          <button
+                            onClick={() => openReceive(po)}
+                            className="h-7 px-2 flex items-center gap-1 rounded text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                          >
+                            <PackageCheck className="h-3.5 w-3.5" /> Receive
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDelete(po.id)}
+                          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -232,69 +335,241 @@ export function ProcurementPage() {
         </CardContent>
       </Card>
 
-      {/* Create PO Dialog */}
+      {/* ── Create PO Dialog ─────────────────────────────────────────────── */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>New Purchase Order</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleCreate} className="space-y-3 py-2">
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Supplier *</label>
-              <input required className={inp} value={form.supplier}
-                onChange={(e) => setForm({ ...form, supplier: e.target.value })} />
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>New Purchase Order</DialogTitle></DialogHeader>
+          <form onSubmit={handleCreate} className="space-y-4 py-2">
+
+            {/* Supplier */}
+            <div className="space-y-1.5">
+              <Label>Supplier *</Label>
+              {suppliers.length > 0 ? (
+                <Select value={form.supplierId} onValueChange={(v) => setForm({ ...form, supplierId: v, supplier: suppliers.find((s) => s.id === v)?.name || '' })}>
+                  <SelectTrigger><SelectValue placeholder="Select supplier…" /></SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input required placeholder="Supplier name" value={form.supplier}
+                  onChange={(e) => setForm({ ...form, supplier: e.target.value })} />
+              )}
             </div>
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Items Description</label>
-              <input className={inp} value={form.itemsDesc}
-                onChange={(e) => setForm({ ...form, itemsDesc: e.target.value })}
-                placeholder="e.g. School Shirts, Pants" />
-            </div>
+
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Item Count</label>
-                <input type="number" min="0" className={inp} value={form.itemCount}
-                  onChange={(e) => setForm({ ...form, itemCount: +e.target.value })} />
-              </div>
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Amount (₹)</label>
-                <input type="number" min="0" className={inp} value={form.amount}
-                  onChange={(e) => setForm({ ...form, amount: +e.target.value })} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Order Date</label>
-                <input type="date" className={inp} value={form.orderedDate}
+              <div className="space-y-1.5">
+                <Label>Order Date</Label>
+                <Input type="date" value={form.orderedDate}
                   onChange={(e) => setForm({ ...form, orderedDate: e.target.value })} />
               </div>
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Expected By</label>
-                <input type="date" className={inp} value={form.expectedDate}
+              <div className="space-y-1.5">
+                <Label>Expected By</Label>
+                <Input type="date" value={form.expectedDate}
                   onChange={(e) => setForm({ ...form, expectedDate: e.target.value })} />
               </div>
             </div>
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</label>
-              <select className={inp} value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value as POStatus })}>
-                {(Object.keys(STATUS_CONFIG) as POStatus[]).map((s) => (
-                  <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
+
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as POStatus })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(STATUS_CONFIG) as POStatus[]).map((s) => (
+                    <SelectItem key={s} value={s}>{STATUS_CONFIG[s].label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Line Items */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Line Items</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addLine}>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
+                </Button>
+              </div>
+
+              {lineItems.length === 0 && (
+                <p className="text-xs text-muted-foreground py-2">
+                  No items added. Click "Add Item" to specify what you're ordering.
+                </p>
+              )}
+
+              <div className="space-y-2">
+                {lineItems.map((line, idx) => (
+                  <LineItemRow
+                    key={idx}
+                    line={line}
+                    allItems={items}
+                    onUpdate={(patch) => updateLine(idx, patch)}
+                    onSelectItem={(item) => selectItem(idx, item)}
+                    onRemove={() => removeLine(idx)}
+                  />
                 ))}
-              </select>
+              </div>
+
+              {lineItems.length > 0 && (
+                <div className="flex justify-end pt-1">
+                  <span className="text-sm font-semibold">
+                    Total: ₹{totalAmount.toLocaleString('en-IN')}
+                  </span>
+                </div>
+              )}
             </div>
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notes</label>
-              <textarea className={inp} rows={2} value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+
+            <div className="space-y-1.5">
+              <Label>Notes</Label>
+              <Textarea rows={2} value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="Any special instructions…" />
             </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-              <Button type="submit" disabled={saving}>{saving ? 'Creating…' : 'Create PO'}</Button>
+              <Button type="submit" disabled={saving || (!form.supplierId && !form.supplier)}>
+                {saving ? 'Creating…' : 'Create PO'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* ── Receive PO Dialog ────────────────────────────────────────────── */}
+      <Dialog open={!!receiveTarget} onOpenChange={(open) => !open && setReceiveTarget(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PackageCheck className="h-5 w-5 text-emerald-600" />
+              Receive Stock — {receiveTarget?.poNumber}
+            </DialogTitle>
+          </DialogHeader>
+          {receiveTarget && (
+            <form onSubmit={handleReceive} className="space-y-4 py-2">
+              <p className="text-sm text-muted-foreground">
+                Enter the quantity received for each item. Inventory will be updated immediately.
+              </p>
+
+              <div className="space-y-2">
+                {(receiveTarget.lineItems || []).map((line) => {
+                  const remaining = line.quantityOrdered - line.quantityReceived;
+                  return (
+                    <div key={line.id} className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{line.itemName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Ordered: {line.quantityOrdered}
+                          {line.quantityReceived > 0 && ` · Already received: ${line.quantityReceived}`}
+                          {remaining > 0 && ` · Remaining: ${remaining}`}
+                        </p>
+                      </div>
+                      <div className="w-24 shrink-0">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={remaining}
+                          value={receiveQtys[line.id] ?? 0}
+                          onChange={(e) => setReceiveQtys((prev) => ({ ...prev, [line.id]: Number(e.target.value) }))}
+                          className="h-8 text-center text-sm"
+                          disabled={remaining <= 0}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setReceiveTarget(null)}>Cancel</Button>
+                <Button type="submit" disabled={receiving} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                  {receiving ? 'Updating stock…' : 'Receive & Update Inventory'}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ── Line Item Row Component ────────────────────────────────────────────────
+function LineItemRow({
+  line, allItems, onUpdate, onSelectItem, onRemove,
+}: {
+  line: { itemId: string; itemName: string; quantityOrdered: number; unitPrice: number; _search?: string };
+  allItems: Item[];
+  onUpdate: (patch: Partial<typeof line>) => void;
+  onSelectItem: (item: Item) => void;
+  onRemove: () => void;
+}) {
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  const search = line._search || '';
+  const suggestions = search.length > 0
+    ? allItems.filter((i) => i.name.toLowerCase().includes(search.toLowerCase())).slice(0, 6)
+    : [];
+
+  return (
+    <div className="flex items-start gap-2 p-3 rounded-lg border bg-background">
+      {/* Item search */}
+      <div className="flex-1 relative">
+        <Input
+          placeholder="Search inventory item…"
+          value={search}
+          onChange={(e) => {
+            onUpdate({ _search: e.target.value, itemId: '', itemName: e.target.value });
+            setShowDropdown(true);
+          }}
+          onFocus={() => setShowDropdown(true)}
+          className="h-8 text-sm"
+        />
+        {showDropdown && suggestions.length > 0 && (
+          <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border rounded-md shadow-lg max-h-40 overflow-y-auto">
+            {suggestions.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
+                onMouseDown={() => {
+                  onSelectItem(item);
+                  setShowDropdown(false);
+                }}
+              >
+                <span className="font-medium">{item.name}</span>
+                <span className="text-muted-foreground ml-2 text-xs">{item.sku} · {item.available} avail</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Quantity */}
+      <Input
+        type="number" min={1} placeholder="Qty"
+        value={line.quantityOrdered}
+        onChange={(e) => onUpdate({ quantityOrdered: Number(e.target.value) })}
+        className="h-8 w-16 text-sm text-center"
+      />
+
+      {/* Unit Price */}
+      <div className="relative w-24">
+        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₹</span>
+        <Input
+          type="number" min={0} placeholder="Price"
+          value={line.unitPrice}
+          onChange={(e) => onUpdate({ unitPrice: Number(e.target.value) })}
+          className="h-8 text-sm pl-5"
+        />
+      </div>
+
+      <button
+        type="button" onClick={onRemove}
+        className="h-8 w-8 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
     </div>
   );
 }

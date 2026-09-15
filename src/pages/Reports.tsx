@@ -3,11 +3,22 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from 'recharts';
+import { Download } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { inventoryService, transactionService, supplierService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import type { Item, StockTransaction } from '@/types';
+
+function exportCSV(rows: (string | number)[][], filename: string) {
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
 
 const TX_LABELS: Record<string, string> = {
   received: 'Received',
@@ -65,6 +76,18 @@ export function ReportsPage() {
   const lowStock = items.filter((i) => i.status === 'low_stock').length;
   const outOfStock = items.filter((i) => i.status === 'out_of_stock').length;
 
+  function exportInventory() {
+    const headers = ['Name', 'SKU', 'Category', 'Qty', 'Available', 'Reserved', 'Min Qty', 'Reorder Qty', 'Location', 'Status'];
+    const rows = items.map(i => [i.name, i.sku, i.categoryName, i.quantity, i.available, i.reserved, i.minQuantity ?? 10, i.reorderQty ?? 50, i.location, i.status]);
+    exportCSV([headers, ...rows], `inventory-${new Date().toISOString().slice(0, 10)}.csv`);
+  }
+
+  function exportTransactions() {
+    const headers = ['Date', 'Item', 'Type', 'Quantity', 'Reference', 'Recipient', 'Notes'];
+    const rows = transactions.map(t => [t.date, t.itemName, t.type, t.quantity, t.reference || '', t.recipient || '', t.notes || '']);
+    exportCSV([headers, ...rows], `transactions-${new Date().toISOString().slice(0, 10)}.csv`);
+  }
+
   if (!currentOrg) return null;
 
   return (
@@ -72,6 +95,16 @@ export function ReportsPage() {
       <PageHeader
         title="Reports & Analytics"
         description={`Inventory overview for ${currentOrg.name}`}
+        actions={
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={exportInventory}>
+              <Download className="h-4 w-4 mr-1" /> Inventory CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportTransactions}>
+              <Download className="h-4 w-4 mr-1" /> Transactions CSV
+            </Button>
+          </div>
+        }
       />
 
       {/* Summary row */}

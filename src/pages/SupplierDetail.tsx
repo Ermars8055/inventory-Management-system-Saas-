@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Truck, Phone, Mail, MapPin } from 'lucide-react';
-import { supplierService } from '@/services';
+import { ArrowLeft, Truck, Phone, Mail, MapPin, ShoppingCart } from 'lucide-react';
+import { useOrganization } from '@/context/OrganizationContext';
+import { supplierService, procurementService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,96 +10,117 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { Supplier } from '@/types';
+import type { Supplier, PurchaseOrder, POStatus } from '@/types';
+
+const STATUS_CONFIG: Record<POStatus, { label: string; className: string }> = {
+  draft:               { label: 'Draft',              className: 'bg-muted text-muted-foreground' },
+  pending:             { label: 'Pending Approval',   className: 'bg-amber-50 text-amber-700 border-amber-200' },
+  approved:            { label: 'Approved',           className: 'bg-blue-50 text-blue-700 border-blue-200' },
+  ordered:             { label: 'Ordered',            className: 'bg-purple-50 text-purple-700 border-purple-200' },
+  partially_received:  { label: 'Part. Received',     className: 'bg-orange-50 text-orange-700 border-orange-200' },
+  received:            { label: 'Received',           className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  cancelled:           { label: 'Cancelled',          className: 'bg-red-50 text-red-700 border-red-200' },
+};
 
 export function SupplierDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { currentOrg } = useOrganization();
   const [supplier, setSupplier] = useState<Supplier | null>(null);
+  const [orders, setOrders] = useState<PurchaseOrder[]>([]);
 
   useEffect(() => {
     if (!id) return;
     supplierService.getById(id).then((s) => setSupplier(s || null));
   }, [id]);
 
-  if (!supplier) {
-    return (
-      <div className="p-8 text-center text-muted-foreground">
-        {supplier === null ? 'Supplier not found.' : 'Loading...'}
-      </div>
+  useEffect(() => {
+    if (!currentOrg || !id) return;
+    procurementService.getByOrganization(currentOrg.id).then((all) =>
+      setOrders(all.filter((po) => po.supplierId === id)),
     );
+  }, [currentOrg, id]);
+
+  if (supplier === null) {
+    return <div className="p-8 text-center text-muted-foreground">Supplier not found.</div>;
+  }
+  if (!supplier) {
+    return <div className="p-8 text-center text-muted-foreground">Loading…</div>;
   }
 
-  const totalPurchased = supplier.purchaseHistory.reduce((a, p) => a + p.amount, 0);
+  const totalSpend = orders
+    .filter((po) => po.status === 'received' || po.status === 'partially_received')
+    .reduce((a, po) => a + po.amount, 0);
+  const pendingOrders = orders.filter((po) => po.status === 'ordered' || po.status === 'partially_received' || po.status === 'approved');
 
   return (
     <div>
       <div className="mb-6">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="-ml-2 mb-3">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Suppliers
+          <ArrowLeft className="h-4 w-4 mr-2" />Back to Suppliers
         </Button>
         <PageHeader
           title={supplier.name}
-          description={`${supplier.itemsSupplied} · ${supplier.contactPerson}`}
+          description={`${supplier.itemsSupplied || 'General Supplier'} · ${supplier.contactPerson || ''}`}
           actions={<StatusBadge status={supplier.status} />}
         />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6 mb-6">
-        {/* Contact info */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Truck className="h-4 w-4 text-muted-foreground" />
-              Contact Information
+              <Truck className="h-4 w-4 text-muted-foreground" />Contact Information
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <div className="flex items-start gap-2">
-              <div className="h-5 w-5 mt-0.5 flex items-center justify-center shrink-0">
-                <span className="text-xs font-semibold text-muted-foreground">CP</span>
+            {supplier.contactPerson && (
+              <div className="flex items-start gap-2">
+                <span className="text-xs font-semibold text-muted-foreground mt-0.5 w-5 shrink-0">CP</span>
+                <div>
+                  <p className="text-muted-foreground text-xs">Contact Person</p>
+                  <p className="font-medium">{supplier.contactPerson}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-muted-foreground text-xs">Contact Person</p>
-                <p className="font-medium">{supplier.contactPerson}</p>
+            )}
+            {supplier.phone && (
+              <div className="flex items-start gap-2">
+                <Phone className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-muted-foreground text-xs">Phone</p>
+                  <p className="font-medium">{supplier.phone}</p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <Phone className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-              <div>
-                <p className="text-muted-foreground text-xs">Phone</p>
-                <p className="font-medium">{supplier.phone}</p>
+            )}
+            {supplier.email && (
+              <div className="flex items-start gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-muted-foreground text-xs">Email</p>
+                  <p className="font-medium">{supplier.email}</p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <Mail className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-              <div>
-                <p className="text-muted-foreground text-xs">Email</p>
-                <p className="font-medium">{supplier.email}</p>
+            )}
+            {supplier.address && (
+              <div className="flex items-start gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-muted-foreground text-xs">Address</p>
+                  <p className="font-medium leading-relaxed">{supplier.address}</p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-              <div>
-                <p className="text-muted-foreground text-xs">Address</p>
-                <p className="font-medium leading-relaxed">{supplier.address}</p>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Stats */}
         <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">Summary</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle className="text-base">Summary</CardTitle></CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 gap-4">
               {[
-                { label: 'Items Supplied', value: supplier.itemsSupplied },
-                { label: 'Total Purchases', value: `₹${totalPurchased.toLocaleString('en-IN')}` },
-                { label: 'Outstanding Orders', value: supplier.outstandingOrders.length },
+                { label: 'Total Orders', value: orders.length },
+                { label: 'Total Spend', value: `₹${totalSpend.toLocaleString('en-IN')}` },
+                { label: 'Pending Orders', value: pendingOrders.length },
               ].map((stat) => (
                 <div key={stat.label} className="p-3 rounded-lg bg-muted/50">
                   <p className="text-xs text-muted-foreground">{stat.label}</p>
@@ -110,38 +132,60 @@ export function SupplierDetailPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="purchases">
+      <Tabs defaultValue="orders">
         <TabsList className="mb-4">
-          <TabsTrigger value="purchases">Purchase History ({supplier.purchaseHistory.length})</TabsTrigger>
-          <TabsTrigger value="orders">Outstanding Orders ({supplier.outstandingOrders.length})</TabsTrigger>
+          <TabsTrigger value="orders">
+            <ShoppingCart className="h-3.5 w-3.5 mr-1.5" />
+            Purchase Orders ({orders.length})
+          </TabsTrigger>
+          <TabsTrigger value="pending">Pending ({pendingOrders.length})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="purchases">
+        <TabsContent value="orders">
           <Card>
             <CardContent className="p-0">
-              {supplier.purchaseHistory.length === 0 ? (
-                <div className="p-8 text-center text-sm text-muted-foreground">No purchase history</div>
+              {orders.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">
+                  No purchase orders for this supplier yet.
+                </div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Item</TableHead>
-                      <TableHead className="text-right">Quantity</TableHead>
+                      <TableHead>PO Number</TableHead>
+                      <TableHead>Order Date</TableHead>
+                      <TableHead>Expected</TableHead>
+                      <TableHead>Items</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {supplier.purchaseHistory.map((ph, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell className="text-muted-foreground text-sm">{ph.date}</TableCell>
-                        <TableCell className="font-medium">{ph.item}</TableCell>
-                        <TableCell className="text-right">{ph.quantity}</TableCell>
-                        <TableCell className="text-right font-medium">
-                          ₹{ph.amount.toLocaleString('en-IN')}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {orders.map((po) => {
+                      const cfg = STATUS_CONFIG[po.status] ?? STATUS_CONFIG.draft;
+                      return (
+                        <TableRow key={po.id}>
+                          <TableCell>
+                            <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">{po.poNumber}</code>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{po.orderedDate || '—'}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{po.expectedDate || '—'}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground max-w-[180px] truncate">
+                            {po.lineItems && po.lineItems.length > 0
+                              ? `${po.lineItems.length} item${po.lineItems.length !== 1 ? 's' : ''}`
+                              : po.itemsDesc || '—'}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold text-sm">
+                            ₹{po.amount.toLocaleString('en-IN')}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={`text-xs ${cfg.className}`}>
+                              {cfg.label}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}
@@ -149,41 +193,45 @@ export function SupplierDetailPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="orders">
+        <TabsContent value="pending">
           <Card>
             <CardContent className="p-0">
-              {supplier.outstandingOrders.length === 0 ? (
-                <div className="p-8 text-center text-sm text-muted-foreground">No outstanding orders</div>
+              {pendingOrders.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">No pending orders.</div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Item</TableHead>
-                      <TableHead className="text-right">Quantity</TableHead>
-                      <TableHead>Expected Date</TableHead>
+                      <TableHead>PO Number</TableHead>
+                      <TableHead>Items</TableHead>
+                      <TableHead>Expected By</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {supplier.outstandingOrders.map((order, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell className="font-medium">{order.item}</TableCell>
-                        <TableCell className="text-right">{order.quantity}</TableCell>
-                        <TableCell className="text-muted-foreground text-sm">{order.expectedDate}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={`text-xs ${
-                              order.status === 'Shipped'
-                                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                : 'bg-amber-50 text-amber-700 border-amber-200'
-                            }`}
-                          >
-                            {order.status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {pendingOrders.map((po) => {
+                      const cfg = STATUS_CONFIG[po.status] ?? STATUS_CONFIG.draft;
+                      return (
+                        <TableRow key={po.id}>
+                          <TableCell>
+                            <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">{po.poNumber}</code>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
+                            {po.itemsDesc || '—'}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{po.expectedDate || '—'}</TableCell>
+                          <TableCell className="text-right font-semibold text-sm">
+                            ₹{po.amount.toLocaleString('en-IN')}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={`text-xs ${cfg.className}`}>
+                              {cfg.label}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}

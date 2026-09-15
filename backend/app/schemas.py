@@ -98,6 +98,8 @@ class ItemOut(CamelModel):
     quantity: int = 0
     available: int = 0
     reserved: int = 0
+    min_quantity: int = 10
+    reorder_qty: int = 50
     location: Optional[str] = None
     status: str = "in_stock"
     last_updated: Optional[str] = None
@@ -117,6 +119,8 @@ class ItemCreate(CamelModel):
     quantity: int = 0
     available: Optional[int] = None
     reserved: int = 0
+    min_quantity: Optional[int] = None
+    reorder_qty: Optional[int] = None
     location: Optional[str] = None
     uniform: Optional[dict[str, Any]] = None
     book: Optional[dict[str, Any]] = None
@@ -133,6 +137,8 @@ class ItemUpdate(CamelModel):
     quantity: Optional[int] = None
     available: Optional[int] = None
     reserved: Optional[int] = None
+    min_quantity: Optional[int] = None
+    reorder_qty: Optional[int] = None
     location: Optional[str] = None
     uniform: Optional[dict[str, Any]] = None
     book: Optional[dict[str, Any]] = None
@@ -412,11 +418,38 @@ class UserUpdate(CamelModel):
 # Procurement
 # ---------------------------------------------------------------------------
 
+class POLineItemOut(CamelModel):
+    id: str
+    po_id: str
+    item_id: Optional[str] = None
+    item_name: str
+    quantity_ordered: int = 0
+    quantity_received: int = 0
+    unit_price: int = 0
+
+
+class POLineItemCreate(CamelModel):
+    item_id: Optional[str] = None
+    item_name: str
+    quantity_ordered: int
+    unit_price: int = 0
+
+
+class ReceiveLineItem(CamelModel):
+    line_item_id: str
+    quantity_received: int
+
+
+class ReceivePOBody(CamelModel):
+    lines: list[ReceiveLineItem]
+
+
 class PurchaseOrderOut(CamelModel):
     id: str
     organization_id: str
     po_number: str
     supplier: str
+    supplier_id: Optional[str] = None
     items_desc: Optional[str] = None
     item_count: int = 0
     ordered_date: Optional[str] = None
@@ -426,12 +459,14 @@ class PurchaseOrderOut(CamelModel):
     raised_by: Optional[str] = None
     notes: Optional[str] = None
     created_at: Optional[str] = None
+    line_items: list[POLineItemOut] = []
 
 
 class PurchaseOrderCreate(CamelModel):
     organization_id: str
-    po_number: str
+    po_number: Optional[str] = None
     supplier: str
+    supplier_id: Optional[str] = None
     items_desc: Optional[str] = None
     item_count: int = 0
     ordered_date: Optional[str] = None
@@ -440,10 +475,12 @@ class PurchaseOrderCreate(CamelModel):
     status: str = "draft"
     raised_by: Optional[str] = None
     notes: Optional[str] = None
+    line_items: list[POLineItemCreate] = []
 
 
 class PurchaseOrderUpdate(CamelModel):
     supplier: Optional[str] = None
+    supplier_id: Optional[str] = None
     items_desc: Optional[str] = None
     item_count: Optional[int] = None
     ordered_date: Optional[str] = None

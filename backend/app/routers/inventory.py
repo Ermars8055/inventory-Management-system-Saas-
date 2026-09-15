@@ -1,6 +1,5 @@
 import time
 from datetime import date
-from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from ..database import get_db
@@ -10,25 +9,24 @@ from ..schemas import ItemOut, ItemCreate, ItemUpdate, StockAdjust
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
 
-def _compute_status(qty: int) -> str:
+def _compute_status(qty: int, min_qty: int = 10) -> str:
     if qty == 0:
         return "out_of_stock"
-    if qty < 20:
+    if qty <= min_qty:
         return "low_stock"
     return "in_stock"
 
 
 @router.get("", response_model=list[ItemOut])
-def list_items(
-    org_id: str = Query(...),
-    db: Session = Depends(get_db),
-):
+def list_items(org_id: str = Query(...), db: Session = Depends(get_db)):
     return db.query(Item).filter(Item.organization_id == org_id).all()
 
 
 @router.post("", response_model=ItemOut, status_code=201)
 def create_item(body: ItemCreate, db: Session = Depends(get_db)):
     avail = body.available if body.available is not None else body.quantity
+    min_qty = body.min_quantity if body.min_quantity is not None else 10
+    reorder_qty = body.reorder_qty if body.reorder_qty is not None else 50
     item = Item(
         id=f"item_{int(time.time() * 1000)}",
         organization_id=body.organization_id,
@@ -40,8 +38,10 @@ def create_item(body: ItemCreate, db: Session = Depends(get_db)):
         quantity=body.quantity,
         available=avail,
         reserved=body.reserved,
+        min_quantity=min_qty,
+        reorder_qty=reorder_qty,
         location=body.location,
-        status=_compute_status(body.quantity),
+        status=_compute_status(body.quantity, min_qty),
         last_updated=date.today().isoformat(),
         uniform=body.uniform,
         book=body.book,
@@ -71,7 +71,9 @@ def update_item(item_id: str, body: ItemUpdate, db: Session = Depends(get_db)):
     for field, value in data.items():
         setattr(item, field, value)
     if "quantity" in data:
-        item.status = _compute_status(item.quantity)
+        item.status = _compute_status(item.quantity, item.min_quantity or 10)
+    if "min_quantity" in data and "quantity" not in data:
+        item.status = _compute_status(item.quantity, item.min_quantity or 10)
     item.last_updated = date.today().isoformat()
     db.commit()
     db.refresh(item)
@@ -85,7 +87,7 @@ def adjust_stock(item_id: str, body: StockAdjust, db: Session = Depends(get_db))
         raise HTTPException(404, "Item not found")
     item.quantity = max(0, item.quantity + body.delta)
     item.available = max(0, item.quantity - item.reserved)
-    item.status = _compute_status(item.quantity)
+    item.status = _compute_status(item.quantity, item.min_quantity or 10)
     item.last_updated = date.today().isoformat()
     db.commit()
     db.refresh(item)

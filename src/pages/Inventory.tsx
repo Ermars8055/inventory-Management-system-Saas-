@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Package, MoreHorizontal, Eye, ArrowRightLeft,
-  ShieldAlert, LayoutGrid, List, MapPin, PackagePlus,
+  ShieldAlert, LayoutGrid, List, MapPin, PackagePlus, Pencil, Trash2,
 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
@@ -22,7 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import type { Item, Category, Recipient } from '@/types';
 
-const EMPTY_FORM = { name: '', sku: '', categoryId: '', categoryName: '', quantity: '', location: '' };
+const EMPTY_FORM = { name: '', sku: '', categoryId: '', categoryName: '', quantity: '', location: '', minQuantity: '10', reorderQty: '50' };
 const EMPTY_ISSUE = { recipientId: '', quantity: '1', conditionIssued: 'Good', expectedReturn: '' };
 
 // ── Colour helpers ─────────────────────────────────────────────────────────────
@@ -152,6 +152,7 @@ export function InventoryPage() {
   const [view, setView] = useState<'grid' | 'table'>('grid');
 
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [editItem, setEditItem] = useState<Item | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
 
@@ -199,25 +200,67 @@ export function InventoryPage() {
   ], [items]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
+  function openEdit(item: Item, e: React.MouseEvent) {
+    e.stopPropagation();
+    setEditItem(item);
+    setForm({
+      name: item.name, sku: item.sku,
+      categoryId: item.categoryId,
+      categoryName: item.categoryName,
+      quantity: String(item.quantity),
+      location: item.location,
+      minQuantity: String(item.minQuantity ?? 10),
+      reorderQty: String(item.reorderQty ?? 50),
+    });
+    setShowAddDialog(true);
+  }
+
+  async function handleDeleteItem(item: Item, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!confirm(`Delete "${item.name}"? This cannot be undone.`)) return;
+    try {
+      await inventoryService.delete(item.id);
+      setItems(prev => prev.filter(i => i.id !== item.id));
+      toast({ title: `${item.name} deleted` });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete item', variant: 'destructive' });
+    }
+  }
+
   async function handleAddItem(e: React.FormEvent) {
     e.preventDefault();
     if (!currentOrg) return;
     const cat = categories.find(c => c.id === form.categoryId);
     setSaving(true);
     try {
-      const created = await inventoryService.create({
-        organizationId: currentOrg.id,
-        name: form.name, sku: form.sku,
-        categoryId: form.categoryId,
-        categoryName: cat?.name || form.categoryId,
-        module: 'general',
-        quantity: Number(form.quantity),
-        available: Number(form.quantity),
-        reserved: 0,
-        location: form.location,
-      });
-      setItems(prev => [...prev, created]);
+      if (editItem) {
+        const updated = await inventoryService.update(editItem.id, {
+          name: form.name, sku: form.sku,
+          categoryId: form.categoryId,
+          categoryName: cat?.name || form.categoryName,
+          location: form.location,
+          minQuantity: Number(form.minQuantity),
+          reorderQty: Number(form.reorderQty),
+        });
+        setItems(prev => prev.map(i => i.id === editItem.id ? updated : i));
+      } else {
+        const created = await inventoryService.create({
+          organizationId: currentOrg.id,
+          name: form.name, sku: form.sku,
+          categoryId: form.categoryId,
+          categoryName: cat?.name || form.categoryId,
+          module: 'general',
+          quantity: Number(form.quantity),
+          available: Number(form.quantity),
+          reserved: 0,
+          minQuantity: Number(form.minQuantity),
+          reorderQty: Number(form.reorderQty),
+          location: form.location,
+        });
+        setItems(prev => [...prev, created]);
+      }
       setShowAddDialog(false);
+      setEditItem(null);
       setForm(EMPTY_FORM);
     } finally { setSaving(false); }
   }
@@ -516,6 +559,9 @@ export function InventoryPage() {
                         <DropdownMenuItem onClick={() => navigate(`/inventory/${item.id}`)}>
                           <Eye className="h-4 w-4 mr-2" /> View Details
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={e => openEdit(item, e)}>
+                          <Pencil className="h-4 w-4 mr-2" /> Edit Item
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={e => openRestock(item, e)}>
                           <PackagePlus className="h-4 w-4 mr-2" /> Add Stock
                         </DropdownMenuItem>
@@ -524,6 +570,12 @@ export function InventoryPage() {
                           onClick={e => openDamage(item, e)}
                         >
                           <ShieldAlert className="h-4 w-4 mr-2" /> Report Damage
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={e => handleDeleteItem(item, e)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" /> Delete Item
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -611,11 +663,23 @@ export function InventoryPage() {
                               <DropdownMenuItem onClick={() => navigate(`/inventory/${item.id}`)}>
                                 <Eye className="h-4 w-4 mr-2" /> View Details
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={e => openEdit(item, e)}>
+                                <Pencil className="h-4 w-4 mr-2" /> Edit Item
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={e => openRestock(item, e)}>
+                                <PackagePlus className="h-4 w-4 mr-2" /> Add Stock
+                              </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
                                 onClick={e => openDamage(item, e)}
                               >
                                 <ShieldAlert className="h-4 w-4 mr-2" /> Report Damage
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={e => handleDeleteItem(item, e)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" /> Delete Item
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -634,10 +698,10 @@ export function InventoryPage() {
           DIALOGS
       ══════════════════════════════════════════════════════════ */}
 
-      {/* Add Item */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+      {/* Add / Edit Item */}
+      <Dialog open={showAddDialog} onOpenChange={(open) => { setShowAddDialog(open); if (!open) { setEditItem(null); setForm(EMPTY_FORM); } }}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Add New Item</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editItem ? 'Edit Item' : 'Add New Item'}</DialogTitle></DialogHeader>
           <form onSubmit={handleAddItem} className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label htmlFor="item-name">Item Name *</Label>
@@ -658,21 +722,35 @@ export function InventoryPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            {!editItem && (
               <div className="space-y-1.5">
                 <Label htmlFor="item-qty">Initial Quantity *</Label>
                 <Input id="item-qty" type="number" min="0" placeholder="0" required
                   value={form.quantity} onChange={e => setForm({ ...form, quantity: e.target.value })} />
               </div>
+            )}
+            <div className="space-y-1.5">
+              <Label htmlFor="item-loc">Location *</Label>
+              <Input id="item-loc" placeholder="e.g. Main Store" required
+                value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="item-loc">Location *</Label>
-                <Input id="item-loc" placeholder="e.g. Main Store" required
-                  value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} />
+                <Label htmlFor="item-min">Low Stock Threshold</Label>
+                <Input id="item-min" type="number" min="0" placeholder="10"
+                  value={form.minQuantity} onChange={e => setForm({ ...form, minQuantity: e.target.value })} />
+                <p className="text-xs text-muted-foreground">Alert when stock ≤ this</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="item-reorder">Reorder Quantity</Label>
+                <Input id="item-reorder" type="number" min="0" placeholder="50"
+                  value={form.reorderQty} onChange={e => setForm({ ...form, reorderQty: e.target.value })} />
+                <p className="text-xs text-muted-foreground">Suggested PO qty</p>
               </div>
             </div>
             <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
-              <Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Add Item'}</Button>
+              <Button type="button" variant="outline" onClick={() => { setShowAddDialog(false); setEditItem(null); setForm(EMPTY_FORM); }}>Cancel</Button>
+              <Button type="submit" disabled={saving}>{saving ? 'Saving…' : editItem ? 'Save Changes' : 'Add Item'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

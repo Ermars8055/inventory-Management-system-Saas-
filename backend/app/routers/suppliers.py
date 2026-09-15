@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Supplier
-from ..schemas import SupplierOut, SupplierCreate
+from ..schemas import SupplierOut, SupplierCreate, SupplierUpdate
 
 router = APIRouter(prefix="/suppliers", tags=["suppliers"])
 
@@ -36,7 +36,7 @@ def get_supplier(supplier_id: str, db: Session = Depends(get_db)):
 
 
 @router.put("/{supplier_id}", response_model=SupplierOut)
-def update_supplier(supplier_id: str, body: SupplierCreate, db: Session = Depends(get_db)):
+def update_supplier(supplier_id: str, body: SupplierUpdate, db: Session = Depends(get_db)):
     supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
     if not supplier:
         raise HTTPException(404, "Supplier not found")
@@ -45,3 +45,12 @@ def update_supplier(supplier_id: str, body: SupplierCreate, db: Session = Depend
     db.commit()
     db.refresh(supplier)
     return supplier
+
+
+@router.delete("/{supplier_id}", status_code=204)
+def delete_supplier(supplier_id: str, db: Session = Depends(get_db)):
+    supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
+    if not supplier:
+        raise HTTPException(404, "Supplier not found")
+    db.delete(supplier)
+    db.commit()
