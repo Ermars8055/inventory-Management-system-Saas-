@@ -112,12 +112,12 @@ export function ClassIssueReportPage() {
           <Filter className="h-4 w-4 mt-2 text-muted-foreground shrink-0" />
           <div className="space-y-1">
             <Label className="text-xs">{config.groupLabel}</Label>
-            <Select value={filterGroup} onValueChange={setFilterGroup}>
+            <Select value={filterGroup || '__all__'} onValueChange={v => setFilterGroup(v === '__all__' ? '' : v)}>
               <SelectTrigger className="w-44 h-8 text-sm">
                 <SelectValue placeholder="All classes" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All classes</SelectItem>
+                <SelectItem value="__all__">All classes</SelectItem>
                 {groups.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
               </SelectContent>
             </Select>
