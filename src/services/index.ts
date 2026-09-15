@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import type {
   Organization, ModuleId, OrgConfig, Item, Category, StockTransaction,
   Supplier, User, Recipient, Assignment, Batch, ReceiptTemplate, CustomField, Subscription,
-  PurchaseOrder, POLineItem, MaintenanceTicket, Asset,
+  PurchaseOrder, POLineItem, MaintenanceTicket, Asset, ClassTemplate, ClassTemplateItem,
 } from '@/types';
 
 export const organizationService = {
@@ -265,6 +265,49 @@ export const maintenanceService = {
   },
   async delete(id: string): Promise<void> {
     return api.delete(`/maintenance/${id}`);
+  },
+};
+
+export const classTemplateService = {
+  async getByOrganization(orgId: string): Promise<ClassTemplate[]> {
+    return api.get(`/class-templates?org_id=${orgId}`);
+  },
+  async getById(id: string): Promise<ClassTemplate> {
+    return api.get(`/class-templates/${id}`);
+  },
+  async create(data: {
+    organizationId: string;
+    name: string;
+    group: string;
+    academicYear?: string;
+    notes?: string;
+    items: { itemId?: string; itemName: string; quantity: number; conditionIssued: string; notes?: string }[];
+  }): Promise<ClassTemplate> {
+    return api.post('/class-templates', data);
+  },
+  async update(id: string, data: { name?: string; group?: string; academicYear?: string; notes?: string }): Promise<ClassTemplate> {
+    return api.put(`/class-templates/${id}`, data);
+  },
+  async delete(id: string): Promise<void> {
+    return api.delete(`/class-templates/${id}`);
+  },
+  async addItem(templateId: string, item: { itemId?: string; itemName: string; quantity: number; conditionIssued: string; notes?: string }): Promise<ClassTemplateItem> {
+    return api.post(`/class-templates/${templateId}/items`, item);
+  },
+  async updateItem(templateId: string, itemId: string, item: { itemId?: string; itemName: string; quantity: number; conditionIssued: string; notes?: string }): Promise<ClassTemplateItem> {
+    return api.put(`/class-templates/${templateId}/items/${itemId}`, item);
+  },
+  async deleteItem(templateId: string, itemId: string): Promise<void> {
+    return api.delete(`/class-templates/${templateId}/items/${itemId}`);
+  },
+  async bulkIssue(templateId: string, data: {
+    recipientIds: string[];
+    issueDate: string;
+    issuedBy?: string;
+    expectedReturn?: string;
+    notes?: string;
+  }): Promise<Assignment[]> {
+    return api.post(`/class-templates/${templateId}/bulk-issue`, data);
   },
 };
 

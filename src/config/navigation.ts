@@ -21,6 +21,8 @@ import {
   ShoppingCart,
   Wrench,
   Building2,
+  ClipboardList,
+  FileChartColumn,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -66,6 +68,8 @@ export function getNavSections(config?: OrgConfig): NavSection[] {
         // Config-driven labels — "Students" or "Patients" or "Employees" etc.
         { label: c.recipientPluralLabel, path: '/recipients', icon: Users2 },
         { label: `${c.assignmentLabel}s`, path: '/assignments', icon: UserCheck },
+        { label: 'Bulk Issue', path: '/bulk-issue', icon: ClipboardList },
+        { label: 'Class Report', path: '/class-report', icon: FileChartColumn },
         { label: 'Medicines', path: '/medicines', icon: Pill, module: 'pharmacy' },
         { label: 'Batches', path: '/batches', icon: Layers, module: 'batches' },
         { label: 'Expiry Tracking', path: '/expiry', icon: CalendarClock, module: 'expiry' },

@@ -344,7 +344,6 @@ export function InventoryPage() {
         issueDate: new Date().toISOString().slice(0, 10),
         expectedReturn: issueForm.expectedReturn || undefined,
       });
-      await inventoryService.adjustStock(issueItem.id, -qty);
       await transactionService.create({
         organizationId: currentOrg.id,
         date: new Date().toISOString().slice(0, 16).replace('T', ' '),

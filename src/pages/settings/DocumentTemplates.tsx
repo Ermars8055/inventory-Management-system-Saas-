@@ -21,6 +21,7 @@ const TYPE_LABELS: Record<ReceiptTemplate['type'], string> = {
   book_issue: 'Book Issue',
   stock_receipt: 'Stock Receipt',
   return_receipt: 'Return Receipt',
+  class_issue_report: 'Class Issue Report',
 };
 
 export function DocumentTemplatesPage() {

@@ -31,6 +31,33 @@ def run():
         """))
         conn.commit()
 
+        # Class material templates
+        conn.execute(__import__('sqlalchemy').text("""
+            CREATE TABLE IF NOT EXISTS class_templates (
+                id VARCHAR PRIMARY KEY,
+                organization_id VARCHAR NOT NULL REFERENCES organizations(id),
+                name VARCHAR NOT NULL,
+                "group" VARCHAR NOT NULL,
+                academic_year VARCHAR,
+                notes TEXT,
+                created_at VARCHAR
+            )
+        """))
+        conn.commit()
+
+        conn.execute(__import__('sqlalchemy').text("""
+            CREATE TABLE IF NOT EXISTS class_template_items (
+                id VARCHAR PRIMARY KEY,
+                template_id VARCHAR NOT NULL REFERENCES class_templates(id),
+                item_id VARCHAR REFERENCES items(id),
+                item_name VARCHAR NOT NULL,
+                quantity INTEGER DEFAULT 1,
+                condition_issued VARCHAR DEFAULT 'New',
+                notes VARCHAR
+            )
+        """))
+        conn.commit()
+
         for sql in migrations:
             try:
                 conn.execute(__import__('sqlalchemy').text(sql))

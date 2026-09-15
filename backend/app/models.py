@@ -265,3 +265,41 @@ class Asset(Base):
     value = Column(Integer, default=0)
     notes = Column(String)
     created_at = Column(String)
+
+
+# ---------------------------------------------------------------------------
+# Class Material Templates — define which items belong to each class/group
+# ---------------------------------------------------------------------------
+
+class ClassTemplate(Base):
+    """
+    A named material kit for one class/group + academic year.
+    e.g.  name="Grade 5A Kit", group="Grade 5A", academic_year="2025-26"
+    """
+    __tablename__ = "class_templates"
+    id = Column(String, primary_key=True)
+    organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
+    name = Column(String, nullable=False)
+    group = Column(String, nullable=False)          # Class / Ward / Department
+    academic_year = Column(String)
+    notes = Column(Text)
+    created_at = Column(String)
+    items = relationship(
+        "ClassTemplateItem",
+        back_populates="template",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+
+class ClassTemplateItem(Base):
+    """One line item inside a ClassTemplate."""
+    __tablename__ = "class_template_items"
+    id = Column(String, primary_key=True)
+    template_id = Column(String, ForeignKey("class_templates.id"), nullable=False)
+    item_id = Column(String, ForeignKey("items.id"), nullable=True)   # nullable for free-text
+    item_name = Column(String, nullable=False)
+    quantity = Column(Integer, default=1)
+    condition_issued = Column(String, default="New")
+    notes = Column(String)
+    template = relationship("ClassTemplate", back_populates="items")

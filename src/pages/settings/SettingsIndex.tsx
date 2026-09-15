@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Building2, Sliders, FileText, CreditCard, ChevronRight } from 'lucide-react';
+import { Building2, Sliders, FileText, CreditCard, BookOpen, ChevronRight } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -21,6 +21,12 @@ const SETTINGS_ITEMS = [
     icon: FileText,
     label: 'Document Templates',
     description: 'Configure receipt and document templates for your organization.',
+  },
+  {
+    path: '/settings/class-templates',
+    icon: BookOpen,
+    label: 'Class Material Templates',
+    description: 'Define item kits per class/group for one-click bulk issue.',
   },
   {
     path: '/settings/subscription',

@@ -585,6 +585,63 @@ class AssetUpdate(CamelModel):
 
 
 # ---------------------------------------------------------------------------
+# Class Material Templates
+# ---------------------------------------------------------------------------
+
+class ClassTemplateItemOut(CamelModel):
+    id: str
+    template_id: str
+    item_id: Optional[str] = None
+    item_name: str
+    quantity: int = 1
+    condition_issued: str = "New"
+    notes: Optional[str] = None
+
+
+class ClassTemplateItemCreate(CamelModel):
+    item_id: Optional[str] = None
+    item_name: str
+    quantity: int = 1
+    condition_issued: str = "New"
+    notes: Optional[str] = None
+
+
+class ClassTemplateOut(CamelModel):
+    id: str
+    organization_id: str
+    name: str
+    group: str
+    academic_year: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: Optional[str] = None
+    items: list[ClassTemplateItemOut] = []
+
+
+class ClassTemplateCreate(CamelModel):
+    organization_id: str
+    name: str
+    group: str
+    academic_year: Optional[str] = None
+    notes: Optional[str] = None
+    items: list[ClassTemplateItemCreate] = []
+
+
+class ClassTemplateUpdate(CamelModel):
+    name: Optional[str] = None
+    group: Optional[str] = None
+    academic_year: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class BulkIssueBody(CamelModel):
+    recipient_ids: list[str]
+    issue_date: str
+    issued_by: Optional[str] = None
+    expected_return: Optional[str] = None
+    notes: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
 # Subscriptions (static plan data)
 # ---------------------------------------------------------------------------
 

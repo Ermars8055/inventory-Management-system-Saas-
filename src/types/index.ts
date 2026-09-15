@@ -295,7 +295,7 @@ export interface ReceiptTemplate {
   id: string;
   organizationId: string;
   name: string;
-  type: 'uniform_issue' | 'book_issue' | 'stock_receipt' | 'return_receipt';
+  type: 'uniform_issue' | 'book_issue' | 'stock_receipt' | 'return_receipt' | 'class_issue_report';
   orgName: string;
   orgAddress: string;
   title: string;
@@ -391,6 +391,29 @@ export interface Asset {
   value: number;
   notes?: string;
   createdAt?: string;
+}
+
+// --- Class Material Templates ---
+
+export interface ClassTemplateItem {
+  id: string;
+  templateId: string;
+  itemId?: string;
+  itemName: string;
+  quantity: number;
+  conditionIssued: string;
+  notes?: string;
+}
+
+export interface ClassTemplate {
+  id: string;
+  organizationId: string;
+  name: string;
+  group: string;
+  academicYear?: string;
+  notes?: string;
+  createdAt?: string;
+  items: ClassTemplateItem[];
 }
 
 // --- Dashboard KPIs ---

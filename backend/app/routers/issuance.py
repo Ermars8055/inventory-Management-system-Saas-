@@ -97,15 +97,14 @@ def create_assignment(body: AssignmentCreate, db: Session = Depends(get_db)):
         status="issued",
     )
     db.add(a)
-    # Deduct stock from item
+    # Reserve stock — total quantity never changes on issue
     item = db.query(Item).filter(Item.id == body.item_id).first()
     if item:
-        item.quantity = max(0, item.quantity - body.quantity)
+        item.reserved = (item.reserved or 0) + body.quantity
         item.available = max(0, item.quantity - item.reserved)
         from ..routers.inventory import _compute_status
-        item.status = _compute_status(item.quantity)
-        from datetime import date as _date
-        item.last_updated = _date.today().isoformat()
+        item.status = _compute_status(item.available, item.min_quantity or 10)
+        item.last_updated = date.today().isoformat()
     db.commit()
     db.refresh(a)
     return a
@@ -146,13 +145,13 @@ def return_assignment(assignment_id: str, body: ReturnBody, db: Session = Depend
     else:
         a.status = "returned_damaged"
 
-    # Return stock to item
+    # Release reservation — quantity only changes if item is permanently lost/destroyed
     item = db.query(Item).filter(Item.id == a.item_id).first()
     if item:
-        item.quantity = item.quantity + a.quantity
+        item.reserved = max(0, (item.reserved or 0) - a.quantity)
         item.available = max(0, item.quantity - item.reserved)
         from ..routers.inventory import _compute_status
-        item.status = _compute_status(item.quantity)
+        item.status = _compute_status(item.available, item.min_quantity or 10)
         item.last_updated = date.today().isoformat()
 
     db.commit()
@@ -171,6 +170,15 @@ def mark_lost(assignment_id: str, body: LostBody, db: Session = Depends(get_db))
     a.return_date = date.today().isoformat()
     if body.notes:
         a.notes = body.notes
+    # Item is permanently gone — reduce total quantity and release reservation
+    item = db.query(Item).filter(Item.id == a.item_id).first()
+    if item:
+        item.quantity = max(0, item.quantity - a.quantity)
+        item.reserved = max(0, (item.reserved or 0) - a.quantity)
+        item.available = max(0, item.quantity - item.reserved)
+        from ..routers.inventory import _compute_status
+        item.status = _compute_status(item.available, item.min_quantity or 10)
+        item.last_updated = date.today().isoformat()
     db.commit()
     db.refresh(a)
     return a

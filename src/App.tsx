@@ -36,6 +36,9 @@ import { OrganizationSettingsPage } from '@/pages/settings/Organization';
 import { CustomFieldsPage } from '@/pages/settings/CustomFields';
 import { DocumentTemplatesPage } from '@/pages/settings/DocumentTemplates';
 import { SubscriptionPage } from '@/pages/settings/Subscription';
+import { ClassTemplatesPage } from '@/pages/settings/ClassTemplates';
+import { BulkIssuePage } from '@/pages/BulkIssue';
+import { ClassIssueReportPage } from '@/pages/ClassIssueReport';
 
 // Loads orgs after auth is ready
 function AppInitializer({ children }: { children: React.ReactNode }) {
@@ -118,6 +121,9 @@ export default function App() {
                   <Route path="settings/custom-fields" element={<CustomFieldsPage />} />
                   <Route path="settings/document-templates" element={<DocumentTemplatesPage />} />
                   <Route path="settings/subscription" element={<SubscriptionPage />} />
+                  <Route path="settings/class-templates" element={<ClassTemplatesPage />} />
+                  <Route path="bulk-issue" element={<BulkIssuePage />} />
+                  <Route path="class-report" element={<ClassIssueReportPage />} />
                 </Route>
               </Route>
 
