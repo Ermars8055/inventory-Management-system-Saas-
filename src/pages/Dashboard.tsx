@@ -96,13 +96,13 @@ export function DashboardPage() {
       />
 
       {/* KPI Cards */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-6">
+      <div data-tutorial="kpi-cards" className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-6">
         {kpis.map((kpi) => (
           <KPICard key={kpi.label} {...kpi} />
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3 mb-6">
+      <div data-tutorial="charts" className="grid gap-6 lg:grid-cols-3 mb-6">
         {/* Inventory Overview Chart */}
         <Card className="lg:col-span-2">
           <CardHeader>

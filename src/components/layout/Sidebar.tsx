@@ -91,6 +91,7 @@ export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
                       to={item.path}
                       end={item.path === '/dashboard' || item.path === '/settings'}
                       onClick={onClose}
+                      data-tutorial={`nav-${item.path.replace(/^\//, '')}`}
                       className={({ isActive: navActive }) =>
                         cn(
                           'flex items-center gap-3 rounded-md px-2.5 py-2 text-sm font-medium transition-colors',

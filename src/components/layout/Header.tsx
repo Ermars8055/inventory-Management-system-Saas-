@@ -1,13 +1,14 @@
-import { Menu, Search, Bell } from 'lucide-react';
+import { Menu, Search, Bell, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface HeaderProps {
   onMenuClick: () => void;
+  onStartTutorial: () => void;
 }
 
-export function Header({ onMenuClick }: HeaderProps) {
+export function Header({ onMenuClick, onStartTutorial }: HeaderProps) {
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/95 backdrop-blur px-4 lg:px-6">
       <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenuClick}>
@@ -25,6 +26,9 @@ export function Header({ onMenuClick }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2 ml-auto">
+        <Button variant="ghost" size="icon" onClick={onStartTutorial} title="Take the tour">
+          <HelpCircle className="h-5 w-5" />
+        </Button>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
           <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500" />
