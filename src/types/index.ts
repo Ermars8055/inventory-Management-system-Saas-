@@ -429,3 +429,47 @@ export interface CategoryStockData {
   category: string;
   count: number;
 }
+
+// --- Vendor Quotation System ---
+
+export interface QuotationItem {
+  id: string;
+  quotationId: string;
+  itemId?: string;
+  itemName: string;
+  qtyNeeded: number;
+}
+
+export interface VendorQuoteItem {
+  id: string;
+  vendorQuoteId: string;
+  quotationItemId: string;
+  unitPrice: number | null;
+  leadTimeDays: number | null;
+  notes?: string;
+}
+
+export interface VendorQuote {
+  id: string;
+  quotationId: string;
+  supplierId?: string;
+  supplierName: string;
+  supplierEmail?: string;
+  status: 'invited' | 'quoted' | 'rejected';
+  quotedAt?: string;
+  notes?: string;
+  quoteItems: VendorQuoteItem[];
+}
+
+export type QuotationStatus = 'draft' | 'sent' | 'comparing' | 'converted' | 'cancelled';
+
+export interface Quotation {
+  id: string;
+  organizationId: string;
+  title: string;
+  status: QuotationStatus;
+  notes?: string;
+  createdAt?: string;
+  items: QuotationItem[];
+  vendorQuotes: VendorQuote[];
+}

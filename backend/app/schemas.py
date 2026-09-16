@@ -669,3 +669,82 @@ class SubscriptionOut(BaseModel):
             "maxModules": d["max_modules"],
             "features": d["features"],
         }
+
+
+# ---------------------------------------------------------------------------
+# Vendor Quotation System
+# ---------------------------------------------------------------------------
+
+class QuotationItemOut(CamelModel):
+    id: str
+    quotation_id: str
+    item_id: Optional[str] = None
+    item_name: str
+    qty_needed: int = 1
+
+class QuotationItemCreate(CamelModel):
+    item_id: Optional[str] = None
+    item_name: str
+    qty_needed: int = 1
+
+class VendorQuoteItemOut(CamelModel):
+    id: str
+    vendor_quote_id: str
+    quotation_item_id: str
+    unit_price: Optional[float] = None
+    lead_time_days: Optional[int] = None
+    notes: Optional[str] = None
+
+class VendorQuoteItemCreate(CamelModel):
+    quotation_item_id: str
+    unit_price: Optional[float] = None
+    lead_time_days: Optional[int] = None
+    notes: Optional[str] = None
+
+class VendorQuoteOut(CamelModel):
+    id: str
+    quotation_id: str
+    supplier_id: Optional[str] = None
+    supplier_name: str
+    supplier_email: Optional[str] = None
+    status: str = "invited"
+    quoted_at: Optional[str] = None
+    notes: Optional[str] = None
+    quote_items: list[VendorQuoteItemOut] = []
+
+class VendorQuoteCreate(CamelModel):
+    supplier_id: Optional[str] = None
+    supplier_name: str
+    supplier_email: Optional[str] = None
+
+class VendorQuoteSubmit(CamelModel):
+    items: list[VendorQuoteItemCreate]
+    notes: Optional[str] = None
+
+class QuotationOut(CamelModel):
+    id: str
+    organization_id: str
+    title: str
+    status: str = "draft"
+    notes: Optional[str] = None
+    created_at: Optional[str] = None
+    items: list[QuotationItemOut] = []
+    vendor_quotes: list[VendorQuoteOut] = []
+
+class QuotationCreate(CamelModel):
+    organization_id: str
+    title: str
+    notes: Optional[str] = None
+    items: list[QuotationItemCreate] = []
+
+class QuotationUpdate(CamelModel):
+    title: Optional[str] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+class GeneratePOsBody(CamelModel):
+    # quotation_item_id → vendor_quote_id
+    selections: dict[str, str]
+    expected_date: Optional[str] = None
+    raised_by: Optional[str] = None
+    notes: Optional[str] = None

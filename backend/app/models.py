@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Boolean, JSON, ForeignKey, Text
+from sqlalchemy import Column, String, Integer, Boolean, JSON, ForeignKey, Text, Float
 from sqlalchemy.orm import relationship
 from .database import Base
 
@@ -217,6 +217,7 @@ class PurchaseOrder(Base):
     raised_by = Column(String)
     notes = Column(String)
     created_at = Column(String)
+    quotation_id = Column(String, ForeignKey("quotations.id"), nullable=True)
     line_items = relationship("POLineItem", back_populates="purchase_order", cascade="all, delete-orphan", lazy="selectin")
 
 
@@ -303,3 +304,71 @@ class ClassTemplateItem(Base):
     condition_issued = Column(String, default="New")
     notes = Column(String)
     template = relationship("ClassTemplate", back_populates="items")
+
+
+# ---------------------------------------------------------------------------
+# Vendor Quotation System (Option B — prices collected per quotation)
+# ---------------------------------------------------------------------------
+
+class Quotation(Base):
+    """
+    A reorder session. Admin picks items needed, invites vendors via email,
+    manually enters vendor-quoted prices, compares, and generates POs.
+    status: draft → sent → comparing → converted | cancelled
+    """
+    __tablename__ = "quotations"
+    id = Column(String, primary_key=True)
+    organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
+    title = Column(String, nullable=False)
+    status = Column(String, default="draft")
+    notes = Column(Text)
+    created_at = Column(String)
+    items = relationship(
+        "QuotationItem", back_populates="quotation",
+        cascade="all, delete-orphan", lazy="selectin",
+    )
+    vendor_quotes = relationship(
+        "VendorQuote", back_populates="quotation",
+        cascade="all, delete-orphan", lazy="selectin",
+    )
+
+
+class QuotationItem(Base):
+    """One line item (what to buy) inside a Quotation."""
+    __tablename__ = "quotation_items"
+    id = Column(String, primary_key=True)
+    quotation_id = Column(String, ForeignKey("quotations.id"), nullable=False)
+    item_id = Column(String, ForeignKey("items.id"), nullable=True)
+    item_name = Column(String, nullable=False)
+    qty_needed = Column(Integer, default=1)
+    quotation = relationship("Quotation", back_populates="items")
+
+
+class VendorQuote(Base):
+    """One vendor's participation in a Quotation (their invite + price submission)."""
+    __tablename__ = "vendor_quotes"
+    id = Column(String, primary_key=True)
+    quotation_id = Column(String, ForeignKey("quotations.id"), nullable=False)
+    supplier_id = Column(String, ForeignKey("suppliers.id"), nullable=True)
+    supplier_name = Column(String, nullable=False)
+    supplier_email = Column(String)
+    status = Column(String, default="invited")  # invited|quoted|rejected
+    quoted_at = Column(String)
+    notes = Column(String)
+    quotation = relationship("Quotation", back_populates="vendor_quotes")
+    quote_items = relationship(
+        "VendorQuoteItem", back_populates="vendor_quote",
+        cascade="all, delete-orphan", lazy="selectin",
+    )
+
+
+class VendorQuoteItem(Base):
+    """Price submitted by one vendor for one quotation line item."""
+    __tablename__ = "vendor_quote_items"
+    id = Column(String, primary_key=True)
+    vendor_quote_id = Column(String, ForeignKey("vendor_quotes.id"), nullable=False)
+    quotation_item_id = Column(String, ForeignKey("quotation_items.id"), nullable=False)
+    unit_price = Column(Float, nullable=True)   # None = vendor did not quote this item
+    lead_time_days = Column(Integer, nullable=True)
+    notes = Column(String)
+    vendor_quote = relationship("VendorQuote", back_populates="quote_items")

@@ -23,6 +23,7 @@ import {
   Building2,
   ClipboardList,
   FileChartColumn,
+  FileSearch,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -80,6 +81,7 @@ export function getNavSections(config?: OrgConfig): NavSection[] {
       items: [
         { label: 'Assets', path: '/assets', icon: Briefcase, module: 'assets' },
         { label: 'Procurement', path: '/procurement', icon: ShoppingCart, module: 'procurement' },
+        { label: 'Vendor Quotations', path: '/quotations', icon: FileSearch },
         { label: 'Maintenance', path: '/maintenance', icon: Wrench, module: 'maintenance' },
         { label: 'Barcode / QR', path: '/barcode', icon: QrCode, module: 'barcode' },
       ],

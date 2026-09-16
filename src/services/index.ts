@@ -7,6 +7,7 @@ import type {
   Organization, ModuleId, OrgConfig, Item, Category, StockTransaction,
   Supplier, User, Recipient, Assignment, Batch, ReceiptTemplate, CustomField, Subscription,
   PurchaseOrder, POLineItem, MaintenanceTicket, Asset, ClassTemplate, ClassTemplateItem,
+  Quotation,
 } from '@/types';
 
 export const organizationService = {
@@ -323,5 +324,44 @@ export const assetService = {
   },
   async delete(id: string): Promise<void> {
     return api.delete(`/assets/${id}`);
+  },
+};
+
+export const quotationService = {
+  async getByOrganization(orgId: string): Promise<Quotation[]> {
+    return api.get(`/quotations?org_id=${orgId}`);
+  },
+  async getById(id: string): Promise<Quotation> {
+    return api.get(`/quotations/${id}`);
+  },
+  async create(data: { organizationId: string; title: string; notes?: string; items: { itemId?: string; itemName: string; qtyNeeded: number }[] }): Promise<Quotation> {
+    return api.post('/quotations', data);
+  },
+  async update(id: string, data: { title?: string; status?: string; notes?: string }): Promise<Quotation> {
+    return api.put(`/quotations/${id}`, data);
+  },
+  async delete(id: string): Promise<void> {
+    return api.delete(`/quotations/${id}`);
+  },
+  async addItem(id: string, data: { itemId?: string; itemName: string; qtyNeeded: number }): Promise<Quotation> {
+    return api.post(`/quotations/${id}/items`, data);
+  },
+  async removeItem(id: string, itemId: string): Promise<Quotation> {
+    return api.delete(`/quotations/${id}/items/${itemId}`);
+  },
+  async inviteVendor(id: string, data: { supplierId?: string; supplierName: string; supplierEmail?: string }): Promise<Quotation> {
+    return api.post(`/quotations/${id}/vendors`, data);
+  },
+  async removeVendor(id: string, vqId: string): Promise<Quotation> {
+    return api.delete(`/quotations/${id}/vendors/${vqId}`);
+  },
+  async submitVendorQuote(id: string, vqId: string, data: { items: { quotationItemId: string; unitPrice?: number; leadTimeDays?: number; notes?: string }[]; notes?: string }): Promise<Quotation> {
+    return api.post(`/quotations/${id}/vendors/${vqId}/submit`, data);
+  },
+  async rejectVendor(id: string, vqId: string): Promise<Quotation> {
+    return api.patch(`/quotations/${id}/vendors/${vqId}/reject`, {});
+  },
+  async generatePOs(id: string, data: { selections: Record<string, string>; expectedDate?: string; raisedBy?: string; notes?: string }): Promise<PurchaseOrder[]> {
+    return api.post(`/quotations/${id}/generate-pos`, data);
   },
 };

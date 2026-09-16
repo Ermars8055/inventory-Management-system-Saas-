@@ -22,6 +22,7 @@ from .routers import (
 from .routers.asset_router import router as asset_router
 from .routers.auth_router import router as auth_router
 from .routers.class_templates import router as class_templates_router
+from .routers.quotations import router as quotations_router
 
 load_dotenv()
 
@@ -56,6 +57,7 @@ app.include_router(procurement.router)
 app.include_router(maintenance.router)
 app.include_router(asset_router)
 app.include_router(class_templates_router)
+app.include_router(quotations_router)
 
 
 @app.get("/health")

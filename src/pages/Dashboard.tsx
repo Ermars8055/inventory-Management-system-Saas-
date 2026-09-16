@@ -157,12 +157,23 @@ export function DashboardPage() {
                 <ShoppingCart className="h-4 w-4 text-amber-600" />
                 Reorder Suggestions ({reorderItems.length})
               </CardTitle>
-              <button
-                onClick={() => navigate('/procurement')}
-                className="text-xs font-medium text-amber-700 hover:text-amber-900 underline"
-              >
-                Create PO →
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    const ids = reorderItems.map(i => i.id).join(',');
+                    navigate(`/quotations?reorder=1&items=${ids}`);
+                  }}
+                  className="text-xs font-medium text-amber-700 hover:text-amber-900 underline"
+                >
+                  Get Quotes →
+                </button>
+                <button
+                  onClick={() => navigate('/procurement')}
+                  className="text-xs font-medium text-amber-700 hover:text-amber-900 underline"
+                >
+                  Create PO →
+                </button>
+              </div>
             </div>
           </CardHeader>
           <CardContent>

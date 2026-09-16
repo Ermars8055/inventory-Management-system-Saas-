@@ -12,8 +12,9 @@ def run():
         # Items: low-stock threshold + reorder quantity
         "ALTER TABLE items ADD COLUMN min_quantity INTEGER DEFAULT 10",
         "ALTER TABLE items ADD COLUMN reorder_qty INTEGER DEFAULT 50",
-        # Purchase orders: link to supplier
+        # Purchase orders: link to supplier + quotation
         "ALTER TABLE purchase_orders ADD COLUMN supplier_id VARCHAR REFERENCES suppliers(id)",
+        "ALTER TABLE purchase_orders ADD COLUMN quotation_id VARCHAR REFERENCES quotations(id)",
     ]
 
     with engine.connect() as conn:
@@ -53,6 +54,56 @@ def run():
                 item_name VARCHAR NOT NULL,
                 quantity INTEGER DEFAULT 1,
                 condition_issued VARCHAR DEFAULT 'New',
+                notes VARCHAR
+            )
+        """))
+        conn.commit()
+
+        # Quotation tables (must exist before ALTER TABLE references them)
+        conn.execute(__import__('sqlalchemy').text("""
+            CREATE TABLE IF NOT EXISTS quotations (
+                id VARCHAR PRIMARY KEY,
+                organization_id VARCHAR NOT NULL REFERENCES organizations(id),
+                title VARCHAR NOT NULL,
+                status VARCHAR DEFAULT 'draft',
+                notes TEXT,
+                created_at VARCHAR
+            )
+        """))
+        conn.commit()
+
+        conn.execute(__import__('sqlalchemy').text("""
+            CREATE TABLE IF NOT EXISTS quotation_items (
+                id VARCHAR PRIMARY KEY,
+                quotation_id VARCHAR NOT NULL REFERENCES quotations(id),
+                item_id VARCHAR REFERENCES items(id),
+                item_name VARCHAR NOT NULL,
+                qty_needed INTEGER DEFAULT 1
+            )
+        """))
+        conn.commit()
+
+        conn.execute(__import__('sqlalchemy').text("""
+            CREATE TABLE IF NOT EXISTS vendor_quotes (
+                id VARCHAR PRIMARY KEY,
+                quotation_id VARCHAR NOT NULL REFERENCES quotations(id),
+                supplier_id VARCHAR REFERENCES suppliers(id),
+                supplier_name VARCHAR NOT NULL,
+                supplier_email VARCHAR,
+                status VARCHAR DEFAULT 'invited',
+                quoted_at VARCHAR,
+                notes VARCHAR
+            )
+        """))
+        conn.commit()
+
+        conn.execute(__import__('sqlalchemy').text("""
+            CREATE TABLE IF NOT EXISTS vendor_quote_items (
+                id VARCHAR PRIMARY KEY,
+                vendor_quote_id VARCHAR NOT NULL REFERENCES vendor_quotes(id),
+                quotation_item_id VARCHAR NOT NULL REFERENCES quotation_items(id),
+                unit_price FLOAT,
+                lead_time_days INTEGER,
                 notes VARCHAR
             )
         """))

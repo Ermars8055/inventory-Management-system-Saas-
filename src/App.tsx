@@ -39,6 +39,8 @@ import { SubscriptionPage } from '@/pages/settings/Subscription';
 import { ClassTemplatesPage } from '@/pages/settings/ClassTemplates';
 import { BulkIssuePage } from '@/pages/BulkIssue';
 import { ClassIssueReportPage } from '@/pages/ClassIssueReport';
+import { QuotationsPage } from '@/pages/Quotations';
+import { QuotationDetailPage } from '@/pages/QuotationDetail';
 
 // Loads orgs after auth is ready
 function AppInitializer({ children }: { children: React.ReactNode }) {
@@ -124,6 +126,8 @@ export default function App() {
                   <Route path="settings/class-templates" element={<ClassTemplatesPage />} />
                   <Route path="bulk-issue" element={<BulkIssuePage />} />
                   <Route path="class-report" element={<ClassIssueReportPage />} />
+                  <Route path="quotations" element={<QuotationsPage />} />
+                  <Route path="quotations/:id" element={<QuotationDetailPage />} />
                 </Route>
               </Route>
 
