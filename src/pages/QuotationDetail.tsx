@@ -168,11 +168,13 @@ export function QuotationDetailPage() {
   }
 
   async function handleRemoveItem(itemId: string) {
+    if (!q) return;
     const updated = await quotationService.removeItem(q.id, itemId);
     setQ(updated);
   }
 
   async function handleInviteVendor() {
+    if (!q) return;
     if (!selectedSupplierId) return;
     const sup = suppliers.find(s => s.id === selectedSupplierId);
     if (!sup) return;
@@ -187,23 +189,27 @@ export function QuotationDetailPage() {
   }
 
   async function handleRemoveVendor(vqId: string) {
+    if (!q) return;
     const updated = await quotationService.removeVendor(q.id, vqId);
     setQ(updated);
   }
 
   async function handleMarkSent() {
+    if (!q) return;
     const updated = await quotationService.update(q.id, { status: 'sent' });
     setQ(updated);
     toast({ title: 'Marked as Sent', description: 'Vendors have been notified (via email).' });
   }
 
   async function handleStartComparing() {
+    if (!q) return;
     const updated = await quotationService.update(q.id, { status: 'comparing' });
     setQ(updated);
     setActiveTab('compare');
   }
 
   function openQuoteEntry(vqId: string) {
+    if (!q) return;
     const vq = q.vendorQuotes.find(v => v.id === vqId);
     if (!vq) return;
     const initial: Record<string, { price: string; leadDays: string }> = {};
@@ -219,6 +225,7 @@ export function QuotationDetailPage() {
   }
 
   async function handleSubmitQuote() {
+    if (!q) return;
     if (!enteringQuoteFor) return;
     const items = Object.entries(quoteEntryPrices)
       .filter(([, v]) => v.price !== '')
@@ -234,11 +241,13 @@ export function QuotationDetailPage() {
   }
 
   async function handleRejectVendor(vqId: string) {
+    if (!q) return;
     const updated = await quotationService.rejectVendor(q.id, vqId);
     setQ(updated);
   }
 
   async function handleGeneratePOs() {
+    if (!q) return;
     setGenerating(true);
     try {
       const pos = await quotationService.generatePOs(q.id, {
