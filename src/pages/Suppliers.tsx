@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Truck, Mail, Phone, MapPin, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Truck, Mail, Phone, MapPin, Pencil, Trash2, Settings2 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { supplierService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { CustomFieldsSheet } from '@/components/shared/CustomFieldsSheet';
+import { CustomFieldsRenderer } from '@/components/shared/CustomFieldsRenderer';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +20,7 @@ import type { Supplier } from '@/types';
 const EMPTY_FORM = {
   name: '', contactPerson: '', phone: '', email: '',
   address: '', itemsSupplied: '', status: 'active' as 'active' | 'inactive',
+  attributes: {} as Record<string, string | number | boolean>,
 };
 
 export function SuppliersPage() {
@@ -30,6 +33,7 @@ export function SuppliersPage() {
   const [editTarget, setEditTarget] = useState<Supplier | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [fieldsSheetOpen, setFieldsSheetOpen] = useState(false);
 
   useEffect(() => {
     if (!currentOrg) return;
@@ -59,6 +63,7 @@ export function SuppliersPage() {
       address: s.address || '',
       itemsSupplied: s.itemsSupplied || '',
       status: s.status,
+      attributes: (s.attributes ?? {}) as Record<string, string | number | boolean>,
     });
     setShowDialog(true);
   }
@@ -81,11 +86,11 @@ export function SuppliersPage() {
     setSaving(true);
     try {
       if (editTarget) {
-        const updated = await supplierService.update(editTarget.id, form);
+        const updated = await supplierService.update(editTarget.id, { ...form, attributes: form.attributes });
         setSuppliers((prev) => prev.map((s) => (s.id === editTarget.id ? updated : s)));
         toast({ title: `${updated.name} updated` });
       } else {
-        const created = await supplierService.create({ ...form, organizationId: currentOrg.id });
+        const created = await supplierService.create({ ...form, organizationId: currentOrg.id, attributes: form.attributes });
         setSuppliers((prev) => [...prev, created]);
         toast({ title: `${created.name} added` });
       }
@@ -104,7 +109,14 @@ export function SuppliersPage() {
       <PageHeader
         title="Suppliers"
         description={`${suppliers.length} supplier${suppliers.length !== 1 ? 's' : ''}`}
-        actions={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-1" />Add Supplier</Button>}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setFieldsSheetOpen(true)}>
+              <Settings2 className="h-4 w-4 mr-1" />Custom Fields
+            </Button>
+            <Button onClick={openAdd}><Plus className="h-4 w-4 mr-1" />Add Supplier</Button>
+          </div>
+        }
       />
 
       <Card className="mb-4">
@@ -230,6 +242,11 @@ export function SuppliersPage() {
                 </Select>
               </div>
             )}
+            <CustomFieldsRenderer
+              entity="supplier"
+              values={form.attributes}
+              onChange={(attrs) => setForm({ ...form, attributes: attrs })}
+            />
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>
               <Button type="submit" disabled={saving}>{saving ? 'Saving…' : editTarget ? 'Save Changes' : 'Add Supplier'}</Button>
@@ -237,6 +254,13 @@ export function SuppliersPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <CustomFieldsSheet
+        entity="supplier"
+        entityLabel="Suppliers"
+        open={fieldsSheetOpen}
+        onOpenChange={setFieldsSheetOpen}
+      />
     </div>
   );
 }

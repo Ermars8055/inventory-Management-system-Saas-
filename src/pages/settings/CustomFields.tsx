@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Trash2, Sliders } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Sliders, Pencil, ChevronUp, ChevronDown, Asterisk } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useOrganization } from '@/context/OrganizationContext';
 import { customFieldService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import type { CustomField, CustomFieldType } from '@/types';
+import type { CustomField, CustomFieldType, CustomFieldEntity } from '@/types';
 
 const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
   text: 'Text',
@@ -23,11 +25,26 @@ const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
   boolean: 'Boolean',
 };
 
-const ENTITY_LABELS = {
-  item: 'Item',
-  supplier: 'Supplier',
-  transaction: 'Transaction',
-};
+const ENTITY_TABS: { value: CustomFieldEntity; label: string }[] = [
+  { value: 'item', label: 'Items' },
+  { value: 'supplier', label: 'Suppliers' },
+  { value: 'vendor', label: 'Vendors' },
+  { value: 'recipient', label: 'Recipients' },
+  { value: 'asset', label: 'Assets' },
+  { value: 'transaction', label: 'Transactions' },
+  { value: 'purchase_order', label: 'Purchase Orders' },
+];
+
+interface FieldForm {
+  name: string;
+  type: CustomFieldType;
+  entity: CustomFieldEntity;
+  optionsText: string;
+  required: boolean;
+  placeholder: string;
+}
+
+const EMPTY_FORM: FieldForm = { name: '', type: 'text', entity: 'item', optionsText: '', required: false, placeholder: '' };
 
 export function CustomFieldsPage() {
   const { currentOrg } = useOrganization();
@@ -35,13 +52,10 @@ export function CustomFieldsPage() {
   const { toast } = useToast();
 
   const [fields, setFields] = useState<CustomField[]>([]);
-  const [addDialog, setAddDialog] = useState(false);
-  const [form, setForm] = useState<{
-    name: string;
-    type: CustomFieldType;
-    entity: CustomField['entity'];
-    optionsText: string;
-  }>({ name: '', type: 'text', entity: 'item', optionsText: '' });
+  const [activeTab, setActiveTab] = useState<CustomFieldEntity>('item');
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingField, setEditingField] = useState<CustomField | null>(null);
+  const [form, setForm] = useState<FieldForm>(EMPTY_FORM);
 
   const loadFields = async () => {
     if (!currentOrg) return;
@@ -51,29 +65,84 @@ export function CustomFieldsPage() {
 
   useEffect(() => { loadFields(); }, [currentOrg]);
 
-  const handleAdd = async () => {
+  const tabFields = fields
+    .filter((f) => f.entity === activeTab)
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+
+  function openAddDialog() {
+    setEditingField(null);
+    setForm({ ...EMPTY_FORM, entity: activeTab });
+    setDialogOpen(true);
+  }
+
+  function openEditDialog(field: CustomField) {
+    setEditingField(field);
+    setForm({
+      name: field.name,
+      type: field.type,
+      entity: field.entity,
+      optionsText: field.options?.join('\n') ?? '',
+      required: field.required,
+      placeholder: field.placeholder ?? '',
+    });
+    setDialogOpen(true);
+  }
+
+  async function handleSave() {
     if (!currentOrg || !form.name) return;
     const options = form.type === 'dropdown'
       ? form.optionsText.split('\n').map((s) => s.trim()).filter(Boolean)
       : undefined;
-    await customFieldService.create({
-      organizationId: currentOrg.id,
-      name: form.name,
-      type: form.type,
-      entity: form.entity,
-      options,
-    });
-    await loadFields();
-    setAddDialog(false);
-    setForm({ name: '', type: 'text', entity: 'item', optionsText: '' });
-    toast({ title: `Field "${form.name}" added` });
-  };
 
-  const handleDelete = async (id: string) => {
+    if (editingField) {
+      await customFieldService.update(editingField.id, {
+        name: form.name,
+        type: form.type,
+        entity: form.entity,
+        options,
+        required: form.required,
+        placeholder: form.placeholder || undefined,
+      });
+      toast({ title: `Field "${form.name}" updated` });
+    } else {
+      await customFieldService.create({
+        organizationId: currentOrg.id,
+        name: form.name,
+        type: form.type,
+        entity: form.entity,
+        options,
+        required: form.required,
+        sortOrder: tabFields.length,
+        placeholder: form.placeholder || undefined,
+      });
+      toast({ title: `Field "${form.name}" added` });
+    }
+    await loadFields();
+    setDialogOpen(false);
+  }
+
+  async function handleDelete(id: string) {
     await customFieldService.delete(id);
     await loadFields();
     toast({ title: 'Custom field removed' });
-  };
+  }
+
+  async function handleMove(field: CustomField, direction: 'up' | 'down') {
+    const idx = tabFields.findIndex((f) => f.id === field.id);
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= tabFields.length) return;
+
+    const other = tabFields[swapIdx];
+    await Promise.all([
+      customFieldService.update(field.id, { sortOrder: other.sortOrder }),
+      customFieldService.update(other.id, { sortOrder: field.sortOrder }),
+    ]);
+    await loadFields();
+  }
+
+  function entityCount(entity: CustomFieldEntity) {
+    return fields.filter((f) => f.entity === entity).length;
+  }
 
   if (!currentOrg) return null;
 
@@ -85,74 +154,123 @@ export function CustomFieldsPage() {
       </Button>
       <PageHeader
         title="Custom Fields"
-        description="Define additional fields for your organization's data"
+        description="Define additional fields for your organization's data. Fields are grouped by entity type."
         actions={
-          <Button size="sm" onClick={() => setAddDialog(true)}>
+          <Button size="sm" onClick={openAddDialog}>
             <Plus className="h-4 w-4 mr-2" />
             Add Field
           </Button>
         }
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Item Custom Fields</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {fields.length === 0 ? (
-            <EmptyState
-              icon={Sliders}
-              title="No custom fields yet"
-              description="Add custom fields to capture additional data for your organization."
-            />
-          ) : (
-            <div className="divide-y">
-              {fields.map((field) => (
-                <div key={field.id} className="flex items-center justify-between px-4 py-3 gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center">
-                      <Sliders className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">{field.name}</p>
-                      {field.options && field.options.length > 0 && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Options: {field.options.join(', ')}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">{FIELD_TYPE_LABELS[field.type]}</Badge>
-                    <Badge variant="outline" className="text-xs text-muted-foreground">
-                      {ENTITY_LABELS[field.entity]}
-                    </Badge>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(field.id)}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as CustomFieldEntity)}>
+        <TabsList className="mb-4 flex-wrap h-auto gap-1">
+          {ENTITY_TABS.map((tab) => {
+            const count = entityCount(tab.value);
+            return (
+              <TabsTrigger key={tab.value} value={tab.value} className="gap-1.5">
+                {tab.label}
+                {count > 0 && (
+                  <Badge variant="secondary" className="h-5 min-w-[20px] px-1.5 text-xs">
+                    {count}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
 
-      <Dialog open={addDialog} onOpenChange={setAddDialog}>
+        {ENTITY_TABS.map((tab) => (
+          <TabsContent key={tab.value} value={tab.value}>
+            <Card>
+              <CardContent className="p-0">
+                {tabFields.length === 0 ? (
+                  <EmptyState
+                    icon={Sliders}
+                    title={`No custom fields for ${tab.label}`}
+                    description={`Add custom fields to capture additional data for ${tab.label.toLowerCase()}.`}
+                  />
+                ) : (
+                  <div className="divide-y">
+                    {tabFields.map((field, idx) => (
+                      <div key={field.id} className="flex items-center justify-between px-4 py-3 gap-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex flex-col gap-0.5">
+                            <Button
+                              variant="ghost" size="sm" className="h-5 w-5 p-0"
+                              disabled={idx === 0}
+                              onClick={() => handleMove(field, 'up')}
+                            >
+                              <ChevronUp className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost" size="sm" className="h-5 w-5 p-0"
+                              disabled={idx === tabFields.length - 1}
+                              onClick={() => handleMove(field, 'down')}
+                            >
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                          <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center shrink-0">
+                            <Sliders className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-medium text-sm truncate">{field.name}</p>
+                              {field.required && (
+                                <Asterisk className="h-3 w-3 text-destructive shrink-0" />
+                              )}
+                            </div>
+                            {field.options && field.options.length > 0 && (
+                              <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                Options: {field.options.join(', ')}
+                              </p>
+                            )}
+                            {field.placeholder && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                Placeholder: {field.placeholder}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge variant="outline" className="text-xs">{FIELD_TYPE_LABELS[field.type]}</Badge>
+                          <Button
+                            variant="ghost" size="sm"
+                            onClick={() => openEditDialog(field)}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost" size="sm"
+                            onClick={() => handleDelete(field.id)}
+                            className="text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        ))}
+      </Tabs>
+
+      {/* Add / Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Custom Field</DialogTitle>
+            <DialogTitle>{editingField ? 'Edit Custom Field' : 'Add Custom Field'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Field Name</Label>
               <Input
-                placeholder="e.g. Academic Year"
+                placeholder="e.g. Drug License No."
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
@@ -176,32 +294,49 @@ export function CustomFieldsPage() {
                 <Label>Applies to</Label>
                 <Select
                   value={form.entity}
-                  onValueChange={(v) => setForm({ ...form, entity: v as CustomField['entity'] })}
+                  onValueChange={(v) => setForm({ ...form, entity: v as CustomFieldEntity })}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="item">Item</SelectItem>
-                    <SelectItem value="supplier">Supplier</SelectItem>
-                    <SelectItem value="transaction">Transaction</SelectItem>
+                    {ENTITY_TABS.map((tab) => (
+                      <SelectItem key={tab.value} value={tab.value}>{tab.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Placeholder (optional)</Label>
+              <Input
+                placeholder="e.g. Enter license number..."
+                value={form.placeholder}
+                onChange={(e) => setForm({ ...form, placeholder: e.target.value })}
+              />
             </div>
             {form.type === 'dropdown' && (
               <div className="space-y-2">
                 <Label>Options (one per line)</Label>
                 <textarea
                   className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  placeholder="2025-26&#10;2026-27&#10;2027-28"
+                  placeholder={"Option 1\nOption 2\nOption 3"}
                   value={form.optionsText}
                   onChange={(e) => setForm({ ...form, optionsText: e.target.value })}
                 />
               </div>
             )}
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={form.required}
+                onCheckedChange={(checked) => setForm({ ...form, required: checked })}
+              />
+              <Label>Required field</Label>
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddDialog(false)}>Cancel</Button>
-            <Button onClick={handleAdd} disabled={!form.name}>Add Field</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSave} disabled={!form.name}>
+              {editingField ? 'Save Changes' : 'Add Field'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

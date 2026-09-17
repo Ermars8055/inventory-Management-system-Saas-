@@ -184,6 +184,7 @@ export interface Supplier {
   status: 'active' | 'inactive';
   purchaseHistory: { date: string; item: string; quantity: number; amount: number }[];
   outstandingOrders: { item: string; quantity: number; expectedDate: string; status: string }[];
+  attributes?: Record<string, string | number | boolean>;
 }
 
 // --- Users & Roles ---
@@ -310,13 +311,25 @@ export interface ReceiptTemplate {
 
 export type CustomFieldType = 'text' | 'number' | 'dropdown' | 'date' | 'boolean';
 
+export type CustomFieldEntity =
+  | 'item'
+  | 'supplier'
+  | 'transaction'
+  | 'vendor'
+  | 'recipient'
+  | 'asset'
+  | 'purchase_order';
+
 export interface CustomField {
   id: string;
   organizationId: string;
   name: string;
   type: CustomFieldType;
   options?: string[];
-  entity: 'item' | 'supplier' | 'transaction';
+  entity: CustomFieldEntity;
+  required: boolean;
+  sortOrder: number;
+  placeholder?: string;
 }
 
 // --- Procurement ---

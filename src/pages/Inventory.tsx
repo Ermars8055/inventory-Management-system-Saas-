@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Package, MoreHorizontal, Eye, ArrowRightLeft,
-  ShieldAlert, LayoutGrid, List, MapPin, PackagePlus, Pencil, Trash2,
+  ShieldAlert, LayoutGrid, List, MapPin, PackagePlus, Pencil, Trash2, Settings2,
 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
@@ -10,6 +10,8 @@ import { inventoryService, categoryService, recipientService, assignmentService,
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { CustomFieldsSheet } from '@/components/shared/CustomFieldsSheet';
+import { CustomFieldsRenderer } from '@/components/shared/CustomFieldsRenderer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,7 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import type { Item, Category, Recipient } from '@/types';
 
-const EMPTY_FORM = { name: '', sku: '', categoryId: '', categoryName: '', quantity: '', location: '', minQuantity: '10', reorderQty: '50' };
+const EMPTY_FORM = { name: '', sku: '', categoryId: '', categoryName: '', quantity: '', location: '', minQuantity: '10', reorderQty: '50', attributes: {} as Record<string, string | number | boolean> };
 const EMPTY_ISSUE = { recipientId: '', quantity: '1', conditionIssued: 'Good', expectedReturn: '' };
 
 // ── Colour helpers ─────────────────────────────────────────────────────────────
@@ -168,6 +170,7 @@ export function InventoryPage() {
   const [restockItem, setRestockItem] = useState<Item | null>(null);
   const [restockForm, setRestockForm] = useState({ quantity: '', reference: '', notes: '' });
   const [restockSaving, setRestockSaving] = useState(false);
+  const [fieldsSheetOpen, setFieldsSheetOpen] = useState(false);
 
   useEffect(() => {
     if (!currentOrg) return;
@@ -211,6 +214,7 @@ export function InventoryPage() {
       location: item.location,
       minQuantity: String(item.minQuantity ?? 10),
       reorderQty: String(item.reorderQty ?? 50),
+      attributes: (item.attributes ?? {}) as Record<string, string | number | boolean>,
     });
     setShowAddDialog(true);
   }
@@ -241,6 +245,7 @@ export function InventoryPage() {
           location: form.location,
           minQuantity: Number(form.minQuantity),
           reorderQty: Number(form.reorderQty),
+          attributes: form.attributes,
         });
         setItems(prev => prev.map(i => i.id === editItem.id ? updated : i));
       } else {
@@ -256,6 +261,7 @@ export function InventoryPage() {
           minQuantity: Number(form.minQuantity),
           reorderQty: Number(form.reorderQty),
           location: form.location,
+          attributes: form.attributes,
         });
         setItems(prev => [...prev, created]);
       }
@@ -366,9 +372,14 @@ export function InventoryPage() {
         title="Inventory"
         description={`${items.length} items · ${currentOrg.name}`}
         actions={
-          <Button onClick={() => setShowAddDialog(true)}>
-            <Plus className="h-4 w-4 mr-1" /> Add Item
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setFieldsSheetOpen(true)}>
+              <Settings2 className="h-4 w-4 mr-1" />Custom Fields
+            </Button>
+            <Button onClick={() => setShowAddDialog(true)}>
+              <Plus className="h-4 w-4 mr-1" /> Add Item
+            </Button>
+          </div>
         }
       />
 
@@ -747,6 +758,11 @@ export function InventoryPage() {
                 <p className="text-xs text-muted-foreground">Suggested PO qty</p>
               </div>
             </div>
+            <CustomFieldsRenderer
+              entity="item"
+              values={form.attributes}
+              onChange={(attrs) => setForm({ ...form, attributes: attrs })}
+            />
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => { setShowAddDialog(false); setEditItem(null); setForm(EMPTY_FORM); }}>Cancel</Button>
               <Button type="submit" disabled={saving}>{saving ? 'Saving…' : editItem ? 'Save Changes' : 'Add Item'}</Button>
@@ -922,6 +938,13 @@ export function InventoryPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <CustomFieldsSheet
+        entity="item"
+        entityLabel="Items"
+        open={fieldsSheetOpen}
+        onOpenChange={setFieldsSheetOpen}
+      />
     </div>
   );
 }

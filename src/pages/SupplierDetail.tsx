@@ -132,6 +132,24 @@ export function SupplierDetailPage() {
         </Card>
       </div>
 
+      {supplier.attributes && Object.keys(supplier.attributes).length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-base">Custom Fields</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3">
+              {Object.entries(supplier.attributes).map(([key, val]) => (
+                <div key={key} className="flex justify-between items-center py-1.5 border-b last:border-0">
+                  <span className="text-sm text-muted-foreground">{key}</span>
+                  <span className="text-sm font-medium">{typeof val === 'boolean' ? (val ? 'Yes' : 'No') : String(val)}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs defaultValue="orders">
         <TabsList className="mb-4">
           <TabsTrigger value="orders">

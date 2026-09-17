@@ -217,6 +217,9 @@ export const customFieldService = {
   async create(field: Omit<CustomField, 'id'>): Promise<CustomField> {
     return api.post('/custom-fields', field);
   },
+  async update(id: string, data: Partial<CustomField>): Promise<CustomField> {
+    return api.put(`/custom-fields/${id}`, data);
+  },
   async delete(id: string): Promise<void> {
     return api.delete(`/custom-fields/${id}`);
   },

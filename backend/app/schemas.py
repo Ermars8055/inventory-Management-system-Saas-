@@ -197,6 +197,7 @@ class SupplierOut(CamelModel):
     status: str = "active"
     purchase_history: list[dict[str, Any]] = []
     outstanding_orders: list[dict[str, Any]] = []
+    attributes: Optional[dict[str, Any]] = None
 
 
 class SupplierCreate(CamelModel):
@@ -207,6 +208,7 @@ class SupplierCreate(CamelModel):
     email: Optional[str] = None
     address: Optional[str] = None
     items_supplied: Optional[str] = None
+    attributes: Optional[dict[str, Any]] = None
 
 
 class SupplierUpdate(CamelModel):
@@ -217,6 +219,7 @@ class SupplierUpdate(CamelModel):
     address: Optional[str] = None
     items_supplied: Optional[str] = None
     status: Optional[str] = None
+    attributes: Optional[dict[str, Any]] = None
 
 
 # ---------------------------------------------------------------------------
@@ -385,6 +388,9 @@ class CustomFieldOut(CamelModel):
     type: Optional[str] = None
     options: Optional[list[str]] = None
     entity: Optional[str] = None
+    required: bool = False
+    sort_order: int = 0
+    placeholder: Optional[str] = None
 
 
 class CustomFieldCreate(CamelModel):
@@ -393,6 +399,19 @@ class CustomFieldCreate(CamelModel):
     type: str
     entity: str
     options: Optional[list[str]] = None
+    required: bool = False
+    sort_order: int = 0
+    placeholder: Optional[str] = None
+
+
+class CustomFieldUpdate(CamelModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    entity: Optional[str] = None
+    options: Optional[list[str]] = None
+    required: Optional[bool] = None
+    sort_order: Optional[int] = None
+    placeholder: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
