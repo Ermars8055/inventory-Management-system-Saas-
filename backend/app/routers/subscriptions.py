@@ -1,10 +1,10 @@
-from typing import Optional
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import Organization
+from ..models import Organization, User
 from ..schemas import SubscriptionOut
+from ..dependencies import get_current_user, require
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 
@@ -34,15 +34,9 @@ def list_plans():
 
 
 @router.get("/current")
-def get_current_subscription(
-    org_id: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
-):
-    tier = "starter"
-    if org_id:
-        org = db.query(Organization).filter(Organization.id == org_id).first()
-        if org and org.plan:
-            tier = org.plan
+def get_current_subscription(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    org = db.query(Organization).filter(Organization.id == user.organization_id).first()
+    tier = org.plan if org and org.plan else "starter"
     plan = PLANS_BY_TIER.get(tier, PLANS[0])
     return plan.model_dump()
 
@@ -52,14 +46,10 @@ class PlanUpdateBody(BaseModel):
 
 
 @router.patch("/current")
-def update_current_subscription(
-    body: PlanUpdateBody,
-    org_id: str = Query(...),
-    db: Session = Depends(get_db),
-):
+def update_current_subscription(body: PlanUpdateBody, user: User = Depends(require("settings:update")), db: Session = Depends(get_db)):
     if body.tier not in PLANS_BY_TIER:
         raise HTTPException(400, f"Unknown plan tier: {body.tier}")
-    org = db.query(Organization).filter(Organization.id == org_id).first()
+    org = db.query(Organization).filter(Organization.id == user.organization_id).first()
     if not org:
         raise HTTPException(404, "Organization not found")
     org.plan = body.tier
