@@ -13,8 +13,8 @@ import { DashboardPage } from '@/pages/Dashboard';
 import { InventoryPage } from '@/pages/Inventory';
 import { ItemDetailPage } from '@/pages/ItemDetail';
 import { TransactionsPage } from '@/pages/Transactions';
-import { SuppliersPage } from '@/pages/Suppliers';
-import { SupplierDetailPage } from '@/pages/SupplierDetail';
+import { VendorsPage } from '@/pages/Vendors';
+import { VendorDetailPage } from '@/pages/VendorDetail';
 import { UniformsPage } from '@/pages/Uniforms';
 import { BooksPage } from '@/pages/Books';
 import { AssignmentsPage } from '@/pages/Assignments';
@@ -99,8 +99,8 @@ export default function App() {
                   <Route path="inventory" element={<InventoryPage />} />
                   <Route path="inventory/:id" element={<ItemDetailPage />} />
                   <Route path="transactions" element={<TransactionsPage />} />
-                  <Route path="suppliers" element={<SuppliersPage />} />
-                  <Route path="suppliers/:id" element={<SupplierDetailPage />} />
+                  <Route path="vendors" element={<VendorsPage />} />
+                  <Route path="vendors/:id" element={<VendorDetailPage />} />
                   <Route path="uniforms" element={<UniformsPage />} />
                   <Route path="books" element={<BooksPage />} />
                   <Route path="student-issues" element={<AssignmentsPage />} />

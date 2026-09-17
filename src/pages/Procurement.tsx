@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { ShoppingCart, Clock, CheckCircle, Package, Plus, Trash2, Search, PackageCheck, X } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useAuth } from '@/context/AuthContext';
-import { procurementService, supplierService, inventoryService } from '@/services';
+import { procurementService, vendorService, inventoryService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { KPICard } from '@/components/shared/KPICard';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import type { PurchaseOrder, POStatus, Supplier, Item } from '@/types';
+import type { PurchaseOrder, POStatus, Vendor, Item } from '@/types';
 
 const STATUS_CONFIG: Record<POStatus, { label: string; className: string }> = {
   draft:               { label: 'Draft',              className: 'bg-muted text-muted-foreground' },
@@ -36,7 +36,7 @@ interface LineItemDraft {
 }
 
 const EMPTY_FORM = {
-  supplierId: '', supplier: '',
+  vendorId: '', vendorName: '',
   orderedDate: '', expectedDate: '',
   status: 'draft' as POStatus, notes: '',
 };
@@ -47,7 +47,7 @@ export function ProcurementPage() {
   const { toast } = useToast();
 
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -68,13 +68,13 @@ export function ProcurementPage() {
     if (!currentOrg) return;
     setLoading(true);
     try {
-      const [data, sups, invItems] = await Promise.all([
+      const [data, vens, invItems] = await Promise.all([
         procurementService.getByOrganization(currentOrg.id),
-        supplierService.getByOrganization(currentOrg.id),
+        vendorService.getByOrganization(currentOrg.id),
         inventoryService.getByOrganization(currentOrg.id),
       ]);
       setOrders(data);
-      setSuppliers(sups);
+      setVendors(vens);
       setItems(invItems);
     } finally {
       setLoading(false);
@@ -88,7 +88,7 @@ export function ProcurementPage() {
   const filtered = orders.filter((po) => {
     const matchSearch = !search ||
       po.poNumber.toLowerCase().includes(search.toLowerCase()) ||
-      po.supplier.toLowerCase().includes(search.toLowerCase());
+      po.vendorName.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'all' || po.status === statusFilter;
     return matchSearch && matchStatus;
   });
@@ -122,18 +122,18 @@ export function ProcurementPage() {
   // ── Create PO ─────────────────────────────────────────────────────────────
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.supplierId && !form.supplier) {
-      toast({ title: 'Select a supplier', variant: 'destructive' });
+    if (!form.vendorId && !form.vendorName) {
+      toast({ title: 'Select a vendor', variant: 'destructive' });
       return;
     }
-    const selectedSupplier = suppliers.find((s) => s.id === form.supplierId);
+    const selectedVendor = vendors.find((s) => s.id === form.vendorId);
     setSaving(true);
     try {
       await procurementService.create({
         organizationId: currentOrg!.id,
         poNumber: '',
-        supplier: selectedSupplier?.name || form.supplier,
-        supplierId: form.supplierId || undefined,
+        vendorName: selectedVendor?.name || form.vendorName,
+        vendorId: form.vendorId || undefined,
         orderedDate: form.orderedDate,
         expectedDate: form.expectedDate,
         status: form.status,
@@ -237,7 +237,7 @@ export function ProcurementPage() {
       <div className="flex flex-wrap gap-3 mb-4">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search PO number or supplier..." value={search}
+          <Input placeholder="Search PO number or vendor..." value={search}
             onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -257,7 +257,7 @@ export function ProcurementPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>PO Number</TableHead>
-                <TableHead>Supplier</TableHead>
+                <TableHead>Vendor</TableHead>
                 <TableHead>Line Items</TableHead>
                 <TableHead>Order Date</TableHead>
                 <TableHead>Expected</TableHead>
@@ -279,7 +279,7 @@ export function ProcurementPage() {
                     <TableCell>
                       <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">{po.poNumber}</code>
                     </TableCell>
-                    <TableCell className="font-medium text-sm">{po.supplier}</TableCell>
+                    <TableCell className="font-medium text-sm">{po.vendorName}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {po.lineItems && po.lineItems.length > 0 ? (
                         <span className="text-xs">
@@ -341,19 +341,19 @@ export function ProcurementPage() {
           <DialogHeader><DialogTitle>New Purchase Order</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4 py-2">
 
-            {/* Supplier */}
+            {/* Vendor */}
             <div className="space-y-1.5">
-              <Label>Supplier *</Label>
-              {suppliers.length > 0 ? (
-                <Select value={form.supplierId} onValueChange={(v) => setForm({ ...form, supplierId: v, supplier: suppliers.find((s) => s.id === v)?.name || '' })}>
-                  <SelectTrigger><SelectValue placeholder="Select supplier…" /></SelectTrigger>
+              <Label>Vendor *</Label>
+              {vendors.length > 0 ? (
+                <Select value={form.vendorId} onValueChange={(v) => setForm({ ...form, vendorId: v, vendorName: vendors.find((s) => s.id === v)?.name || '' })}>
+                  <SelectTrigger><SelectValue placeholder="Select vendor…" /></SelectTrigger>
                   <SelectContent>
-                    {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                    {vendors.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               ) : (
-                <Input required placeholder="Supplier name" value={form.supplier}
-                  onChange={(e) => setForm({ ...form, supplier: e.target.value })} />
+                <Input required placeholder="Vendor name" value={form.vendorName}
+                  onChange={(e) => setForm({ ...form, vendorName: e.target.value })} />
               )}
             </div>
 
@@ -428,7 +428,7 @@ export function ProcurementPage() {
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-              <Button type="submit" disabled={saving || (!form.supplierId && !form.supplier)}>
+              <Button type="submit" disabled={saving || (!form.vendorId && !form.vendorName)}>
                 {saving ? 'Creating…' : 'Create PO'}
               </Button>
             </DialogFooter>

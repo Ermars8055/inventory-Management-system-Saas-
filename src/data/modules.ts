@@ -2,7 +2,7 @@ import type { ModuleDefinition, Industry, ModuleId } from '@/types';
 
 export const MODULE_DEFINITIONS: ModuleDefinition[] = [
   { id: 'inventory', name: 'Inventory Management', description: 'Core inventory functionality — items, stock levels, locations.', icon: 'Package', core: true },
-  { id: 'suppliers', name: 'Supplier Management', description: 'Manage suppliers, contacts, purchase history, and outstanding orders.', icon: 'Truck', core: true },
+  { id: 'vendors', name: 'Vendor Management', description: 'Manage vendors, contacts, purchase history, and outstanding orders.', icon: 'Store', core: true },
   { id: 'reports', name: 'Reports & Analytics', description: 'Stock reports, transaction summaries, and inventory insights.', icon: 'BarChart3', core: true },
   { id: 'uniforms', name: 'Uniform Management', description: 'Manage uniforms by class, gender, size and academic year.', icon: 'Shirt', core: false, configurable: true },
   { id: 'books', name: 'Book Management', description: 'Manage books with ISBN, subject, class, edition and publisher.', icon: 'BookOpen', core: false, configurable: true },
@@ -22,12 +22,12 @@ export function getModuleDef(id: ModuleId): ModuleDefinition | undefined {
 }
 
 export const INDUSTRY_RECOMMENDATIONS: Record<Industry, ModuleId[]> = {
-  school: ['inventory', 'uniforms', 'books', 'student_issue', 'suppliers', 'barcode', 'reports'],
-  pharmacy: ['inventory', 'pharmacy', 'batches', 'expiry', 'suppliers', 'barcode', 'reports'],
-  retail: ['inventory', 'suppliers', 'barcode', 'reports'],
-  office: ['inventory', 'assets', 'employee_assets', 'suppliers', 'reports'],
-  warehouse: ['inventory', 'suppliers', 'barcode', 'reports'],
-  other: ['inventory', 'suppliers', 'reports'],
+  school: ['inventory', 'uniforms', 'books', 'student_issue', 'vendors', 'barcode', 'reports'],
+  pharmacy: ['inventory', 'pharmacy', 'batches', 'expiry', 'vendors', 'barcode', 'reports'],
+  retail: ['inventory', 'vendors', 'barcode', 'reports'],
+  office: ['inventory', 'assets', 'employee_assets', 'vendors', 'reports'],
+  warehouse: ['inventory', 'vendors', 'barcode', 'reports'],
+  other: ['inventory', 'vendors', 'reports'],
 };
 
 export const INDUSTRY_LABELS: Record<Industry, string> = {

@@ -82,6 +82,22 @@ class Supplier(Base):
     attributes = Column(JSON)
 
 
+class Vendor(Base):
+    __tablename__ = "vendors"
+    id = Column(String, primary_key=True)
+    organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
+    name = Column(String, nullable=False)
+    contact_person = Column(String)
+    phone = Column(String)
+    email = Column(String)
+    address = Column(String)
+    vendor_type = Column(String)
+    status = Column(String, default="active")
+    purchase_history = Column(JSON, default=list)
+    outstanding_orders = Column(JSON, default=list)
+    attributes = Column(JSON)
+
+
 class User(Base):
     __tablename__ = "users"
     id = Column(String, primary_key=True)
@@ -210,8 +226,8 @@ class PurchaseOrder(Base):
     id = Column(String, primary_key=True)
     organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
     po_number = Column(String, nullable=False)
-    supplier = Column(String, nullable=False)
-    supplier_id = Column(String, ForeignKey("suppliers.id"), nullable=True)
+    vendor_name = Column(String, nullable=False)
+    vendor_id = Column(String, ForeignKey("vendors.id"), nullable=True)
     items_desc = Column(String)
     item_count = Column(Integer, default=0)
     ordered_date = Column(String)
@@ -353,9 +369,9 @@ class VendorQuote(Base):
     __tablename__ = "vendor_quotes"
     id = Column(String, primary_key=True)
     quotation_id = Column(String, ForeignKey("quotations.id"), nullable=False)
-    supplier_id = Column(String, ForeignKey("suppliers.id"), nullable=True)
-    supplier_name = Column(String, nullable=False)
-    supplier_email = Column(String)
+    vendor_id = Column(String, ForeignKey("vendors.id"), nullable=True)
+    vendor_name = Column(String, nullable=False)
+    vendor_email = Column(String)
     status = Column(String, default="invited")  # invited|quoted|rejected
     quoted_at = Column(String)
     notes = Column(String)

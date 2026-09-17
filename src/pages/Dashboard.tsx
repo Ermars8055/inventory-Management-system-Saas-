@@ -9,14 +9,14 @@ import {
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import { useOrganization } from '@/context/OrganizationContext';
-import { inventoryService, transactionService, supplierService, batchService } from '@/services';
+import { inventoryService, transactionService, vendorService, batchService } from '@/services';
 import { KPICard } from '@/components/shared/KPICard';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { INDUSTRY_LABELS } from '@/data/modules';
-import type { Item, StockTransaction, Supplier, Batch } from '@/types';
+import type { Item, StockTransaction, Vendor, Batch } from '@/types';
 
 const TRANSACTION_LABELS: Record<string, string> = {
   received: 'Stock Received',
@@ -32,14 +32,14 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const [items, setItems] = useState<Item[]>([]);
   const [transactions, setTransactions] = useState<StockTransaction[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
 
   useEffect(() => {
     if (!currentOrg) return;
     inventoryService.getByOrganization(currentOrg.id).then(setItems);
     transactionService.getByOrganization(currentOrg.id).then(setTransactions);
-    supplierService.getByOrganization(currentOrg.id).then(setSuppliers);
+    vendorService.getByOrganization(currentOrg.id).then(setVendors);
     if (currentOrg.industry === 'pharmacy') {
       batchService.getByOrganization(currentOrg.id).then(setBatches);
     }
@@ -62,14 +62,14 @@ export function DashboardPage() {
         { label: 'Low Stock', value: lowStockItems.length, icon: AlertTriangle, variant: 'warning' },
         { label: 'Expiring Soon', value: expiringSoon.length, icon: CalendarClock, variant: 'warning' },
         { label: 'Expired', value: expired.length, icon: XCircle, variant: 'danger' },
-        { label: 'Suppliers', value: suppliers.length, icon: Truck, variant: 'success' },
+        { label: 'Vendors', value: vendors.length, icon: Truck, variant: 'success' },
       ]
     : [
         { label: 'Total Items', value: items.length, icon: Package, variant: 'default' },
         { label: 'Low Stock', value: lowStockItems.length, icon: AlertTriangle, variant: 'warning' },
         { label: 'Out of Stock', value: outOfStockItems.length, icon: XCircle, variant: 'danger' },
         { label: 'Items Issued', value: issuedCount, icon: UserCheck, variant: 'success' },
-        { label: 'Suppliers', value: suppliers.length, icon: Truck, variant: 'default' },
+        { label: 'Vendors', value: vendors.length, icon: Truck, variant: 'default' },
       ];
 
   // Category chart data

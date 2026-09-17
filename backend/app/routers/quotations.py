@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import (
     Quotation, QuotationItem, VendorQuote, VendorQuoteItem,
-    PurchaseOrder, POLineItem, Supplier, User,
+    PurchaseOrder, POLineItem, Vendor, User,
 )
 from ..schemas import (
     QuotationOut, QuotationCreate, QuotationUpdate,
@@ -136,18 +136,18 @@ def invite_vendor(qid: str, body: VendorQuoteCreate, user: User = Depends(requir
         raise HTTPException(404, "Quotation not found")
     same_org(q.organization_id, user)
 
-    email = body.supplier_email
-    if not email and body.supplier_id:
-        sup = db.query(Supplier).filter(Supplier.id == body.supplier_id).first()
-        if sup:
-            email = sup.email
+    email = body.vendor_email
+    if not email and body.vendor_id:
+        ven = db.query(Vendor).filter(Vendor.id == body.vendor_id).first()
+        if ven:
+            email = ven.email
 
     vq = VendorQuote(
         id=f"vq_{int(time.time() * 1000)}",
         quotation_id=qid,
-        supplier_id=body.supplier_id,
-        supplier_name=body.supplier_name,
-        supplier_email=email,
+        vendor_id=body.vendor_id,
+        vendor_name=body.vendor_name,
+        vendor_email=email,
         status="invited",
     )
     db.add(vq)
@@ -265,8 +265,8 @@ def generate_pos(qid: str, body: GeneratePOsBody, user: User = Depends(require("
             id=f"po_{ts}_{po_counter}",
             organization_id=user.organization_id,
             po_number=f"PO-{date.today().strftime('%Y%m%d')}-{ts % 10000}-{po_counter:02d}",
-            supplier=vq.supplier_name,
-            supplier_id=vq.supplier_id,
+            vendor_name=vq.vendor_name,
+            vendor_id=vq.vendor_id,
             items_desc=items_desc,
             item_count=len(line_data),
             expected_date=body.expected_date,
