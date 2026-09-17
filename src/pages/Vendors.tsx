@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Truck, Mail, Phone, MapPin, Pencil, Trash2, Settings2 } from 'lucide-react';
+import { Plus, Search, Store, Mail, Phone, MapPin, Pencil, Trash2, Settings2 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
-import { supplierService } from '@/services';
+import { vendorService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -15,35 +15,35 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import type { Supplier } from '@/types';
+import type { Vendor } from '@/types';
 
 const EMPTY_FORM = {
   name: '', contactPerson: '', phone: '', email: '',
-  address: '', itemsSupplied: '', status: 'active' as 'active' | 'inactive',
+  address: '', vendorType: '', status: 'active' as 'active' | 'inactive',
   attributes: {} as Record<string, string | number | boolean>,
 };
 
-export function SuppliersPage() {
+export function VendorsPage() {
   const { currentOrg } = useOrganization();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [search, setSearch] = useState('');
   const [showDialog, setShowDialog] = useState(false);
-  const [editTarget, setEditTarget] = useState<Supplier | null>(null);
+  const [editTarget, setEditTarget] = useState<Vendor | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [fieldsSheetOpen, setFieldsSheetOpen] = useState(false);
 
   useEffect(() => {
     if (!currentOrg) return;
-    supplierService.getByOrganization(currentOrg.id).then(setSuppliers);
+    vendorService.getByOrganization(currentOrg.id).then(setVendors);
   }, [currentOrg]);
 
-  const filtered = suppliers.filter((s) =>
+  const filtered = vendors.filter((v) =>
     !search ||
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    (s.itemsSupplied || '').toLowerCase().includes(search.toLowerCase()),
+    v.name.toLowerCase().includes(search.toLowerCase()) ||
+    (v.vendorType || '').toLowerCase().includes(search.toLowerCase()),
   );
 
   function openAdd() {
@@ -52,31 +52,31 @@ export function SuppliersPage() {
     setShowDialog(true);
   }
 
-  function openEdit(s: Supplier, e: React.MouseEvent) {
+  function openEdit(v: Vendor, e: React.MouseEvent) {
     e.stopPropagation();
-    setEditTarget(s);
+    setEditTarget(v);
     setForm({
-      name: s.name,
-      contactPerson: s.contactPerson || '',
-      phone: s.phone || '',
-      email: s.email || '',
-      address: s.address || '',
-      itemsSupplied: s.itemsSupplied || '',
-      status: s.status,
-      attributes: (s.attributes ?? {}) as Record<string, string | number | boolean>,
+      name: v.name,
+      contactPerson: v.contactPerson || '',
+      phone: v.phone || '',
+      email: v.email || '',
+      address: v.address || '',
+      vendorType: v.vendorType || '',
+      status: v.status,
+      attributes: (v.attributes ?? {}) as Record<string, string | number | boolean>,
     });
     setShowDialog(true);
   }
 
-  async function handleDelete(s: Supplier, e: React.MouseEvent) {
+  async function handleDelete(v: Vendor, e: React.MouseEvent) {
     e.stopPropagation();
-    if (!confirm(`Delete supplier "${s.name}"?`)) return;
+    if (!confirm(`Delete vendor "${v.name}"?`)) return;
     try {
-      await supplierService.delete(s.id);
-      setSuppliers((prev) => prev.filter((x) => x.id !== s.id));
-      toast({ title: `${s.name} deleted` });
+      await vendorService.delete(v.id);
+      setVendors((prev) => prev.filter((x) => x.id !== v.id));
+      toast({ title: `${v.name} deleted` });
     } catch {
-      toast({ title: 'Error', description: 'Failed to delete supplier', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to delete vendor', variant: 'destructive' });
     }
   }
 
@@ -86,17 +86,17 @@ export function SuppliersPage() {
     setSaving(true);
     try {
       if (editTarget) {
-        const updated = await supplierService.update(editTarget.id, { ...form, attributes: form.attributes });
-        setSuppliers((prev) => prev.map((s) => (s.id === editTarget.id ? updated : s)));
+        const updated = await vendorService.update(editTarget.id, { ...form, attributes: form.attributes });
+        setVendors((prev) => prev.map((v) => (v.id === editTarget.id ? updated : v)));
         toast({ title: `${updated.name} updated` });
       } else {
-        const created = await supplierService.create({ ...form, organizationId: currentOrg.id, attributes: form.attributes });
-        setSuppliers((prev) => [...prev, created]);
+        const created = await vendorService.create({ ...form, organizationId: currentOrg.id, attributes: form.attributes });
+        setVendors((prev) => [...prev, created]);
         toast({ title: `${created.name} added` });
       }
       setShowDialog(false);
     } catch {
-      toast({ title: 'Error', description: 'Failed to save supplier', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to save vendor', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -107,14 +107,14 @@ export function SuppliersPage() {
   return (
     <div>
       <PageHeader
-        title="Suppliers"
-        description={`${suppliers.length} supplier${suppliers.length !== 1 ? 's' : ''}`}
+        title="Vendors"
+        description={`${vendors.length} vendor${vendors.length !== 1 ? 's' : ''}`}
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setFieldsSheetOpen(true)}>
               <Settings2 className="h-4 w-4 mr-1" />Custom Fields
             </Button>
-            <Button onClick={openAdd}><Plus className="h-4 w-4 mr-1" />Add Supplier</Button>
+            <Button onClick={openAdd}><Plus className="h-4 w-4 mr-1" />Add Vendor</Button>
           </div>
         }
       />
@@ -123,7 +123,7 @@ export function SuppliersPage() {
         <CardContent className="p-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search suppliers..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            <Input placeholder="Search vendors..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
         </CardContent>
       </Card>
@@ -132,41 +132,41 @@ export function SuppliersPage() {
         <Card>
           <CardContent className="p-0">
             <EmptyState
-              icon={Truck}
-              title="No suppliers found"
-              description="Add a supplier to start tracking purchases."
-              action={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-1" />Add Supplier</Button>}
+              icon={Store}
+              title="No vendors found"
+              description="Add a vendor to start tracking purchases."
+              action={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-1" />Add Vendor</Button>}
             />
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((supplier) => (
+          {filtered.map((vendor) => (
             <Card
-              key={supplier.id}
+              key={vendor.id}
               className="hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => navigate(`/suppliers/${supplier.id}`)}
+              onClick={() => navigate(`/vendors/${vendor.id}`)}
             >
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 shrink-0">
-                      <Truck className="h-5 w-5 text-primary" />
+                      <Store className="h-5 w-5 text-primary" />
                     </div>
                     <div className="min-w-0">
-                      <p className="font-semibold truncate">{supplier.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{supplier.itemsSupplied}</p>
+                      <p className="font-semibold truncate">{vendor.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{vendor.vendorType}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
                     <button
-                      onClick={(e) => openEdit(supplier, e)}
+                      onClick={(e) => openEdit(vendor, e)}
                       className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button
-                      onClick={(e) => handleDelete(supplier, e)}
+                      onClick={(e) => handleDelete(vendor, e)}
                       className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -174,15 +174,15 @@ export function SuppliersPage() {
                   </div>
                 </div>
                 <div className="space-y-1.5 text-sm text-muted-foreground">
-                  {supplier.email && <p className="flex items-center gap-2"><Mail className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{supplier.email}</span></p>}
-                  {supplier.phone && <p className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 shrink-0" />{supplier.phone}</p>}
-                  {supplier.address && <p className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{supplier.address}</span></p>}
+                  {vendor.email && <p className="flex items-center gap-2"><Mail className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{vendor.email}</span></p>}
+                  {vendor.phone && <p className="flex items-center gap-2"><Phone className="h-3.5 w-3.5 shrink-0" />{vendor.phone}</p>}
+                  {vendor.address && <p className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{vendor.address}</span></p>}
                 </div>
                 <div className="mt-3 pt-3 border-t flex justify-between text-sm">
                   <span className="text-muted-foreground">Contact</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">{supplier.contactPerson || '—'}</span>
-                    <StatusBadge status={supplier.status} />
+                    <span className="font-medium">{vendor.contactPerson || '—'}</span>
+                    <StatusBadge status={vendor.status} />
                   </div>
                 </div>
               </CardContent>
@@ -195,11 +195,11 @@ export function SuppliersPage() {
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editTarget ? 'Edit Supplier' : 'Add Supplier'}</DialogTitle>
+            <DialogTitle>{editTarget ? 'Edit Vendor' : 'Add Vendor'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-3 py-2">
             <div className="space-y-1.5">
-              <Label>Supplier Name *</Label>
+              <Label>Vendor Name *</Label>
               <Input required placeholder="e.g. ABC Trading Co." value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
@@ -217,7 +217,7 @@ export function SuppliersPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Email</Label>
-              <Input type="email" placeholder="supplier@example.com" value={form.email}
+              <Input type="email" placeholder="vendor@example.com" value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
             <div className="space-y-1.5">
@@ -226,9 +226,9 @@ export function SuppliersPage() {
                 onChange={(e) => setForm({ ...form, address: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label>Items Supplied</Label>
-              <Input placeholder="e.g. Uniforms, Stationery" value={form.itemsSupplied}
-                onChange={(e) => setForm({ ...form, itemsSupplied: e.target.value })} />
+              <Label>Vendor Type</Label>
+              <Input placeholder="e.g. Manufacturer, Distributor" value={form.vendorType}
+                onChange={(e) => setForm({ ...form, vendorType: e.target.value })} />
             </div>
             {editTarget && (
               <div className="space-y-1.5">
@@ -243,21 +243,21 @@ export function SuppliersPage() {
               </div>
             )}
             <CustomFieldsRenderer
-              entity="supplier"
+              entity="vendor"
               values={form.attributes}
               onChange={(attrs) => setForm({ ...form, attributes: attrs })}
             />
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>
-              <Button type="submit" disabled={saving}>{saving ? 'Saving…' : editTarget ? 'Save Changes' : 'Add Supplier'}</Button>
+              <Button type="submit" disabled={saving}>{saving ? 'Saving…' : editTarget ? 'Save Changes' : 'Add Vendor'}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
       <CustomFieldsSheet
-        entity="supplier"
-        entityLabel="Suppliers"
+        entity="vendor"
+        entityLabel="Vendors"
         open={fieldsSheetOpen}
         onOpenChange={setFieldsSheetOpen}
       />

@@ -6,7 +6,7 @@
 import { api } from '@/lib/api';
 import type {
   Organization, ModuleId, OrgConfig, Item, Category, StockTransaction,
-  Supplier, User, Recipient, Assignment, Batch, ReceiptTemplate, CustomField, Subscription,
+  Vendor, User, Recipient, Assignment, Batch, ReceiptTemplate, CustomField, Subscription,
   PurchaseOrder, POLineItem, MaintenanceTicket, Asset, ClassTemplate, ClassTemplateItem,
   Quotation,
 } from '@/types';
@@ -69,21 +69,23 @@ export const transactionService = {
   },
 };
 
-export const supplierService = {
-  async getByOrganization(_orgId?: string): Promise<Supplier[]> {
-    return api.get('/suppliers');
+// ─── Vendor service ──────────────────────────────────────────────────────────
+
+export const vendorService = {
+  async getByOrganization(_orgId?: string): Promise<Vendor[]> {
+    return api.get('/vendors');
   },
-  async getById(id: string): Promise<Supplier | undefined> {
-    return api.get<Supplier>(`/suppliers/${id}`).catch(() => undefined);
+  async getById(id: string): Promise<Vendor | undefined> {
+    return api.get<Vendor>(`/vendors/${id}`).catch(() => undefined);
   },
-  async create(data: Omit<Supplier, 'id' | 'purchaseHistory' | 'outstandingOrders'>): Promise<Supplier> {
-    return api.post('/suppliers', data);
+  async create(data: Omit<Vendor, 'id' | 'purchaseHistory' | 'outstandingOrders'>): Promise<Vendor> {
+    return api.post('/vendors', data);
   },
-  async update(id: string, data: Partial<Supplier>): Promise<Supplier> {
-    return api.put(`/suppliers/${id}`, data);
+  async update(id: string, data: Partial<Vendor>): Promise<Vendor> {
+    return api.put(`/vendors/${id}`, data);
   },
   async delete(id: string): Promise<void> {
-    return api.delete(`/suppliers/${id}`);
+    return api.delete(`/vendors/${id}`);
   },
 };
 
@@ -351,7 +353,7 @@ export const quotationService = {
   async removeItem(id: string, itemId: string): Promise<Quotation> {
     return api.delete(`/quotations/${id}/items/${itemId}`);
   },
-  async inviteVendor(id: string, data: { supplierId?: string; supplierName: string; supplierEmail?: string }): Promise<Quotation> {
+  async inviteVendor(id: string, data: { vendorId?: string; vendorName: string; vendorEmail?: string }): Promise<Quotation> {
     return api.post(`/quotations/${id}/vendors`, data);
   },
   async removeVendor(id: string, vqId: string): Promise<Quotation> {

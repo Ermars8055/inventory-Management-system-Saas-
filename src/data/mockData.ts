@@ -2,7 +2,7 @@ import type {
   Organization,
   Item,
   Category,
-  Supplier,
+  Vendor,
   StockTransaction,
   User,
   Role,
@@ -23,7 +23,7 @@ export const ORGANIZATIONS: Organization[] = [
     id: 'org_school_001',
     name: 'ABC International School',
     industry: 'school',
-    enabledModules: ['inventory', 'uniforms', 'books', 'student_issue', 'suppliers', 'barcode', 'reports'],
+    enabledModules: ['inventory', 'uniforms', 'books', 'student_issue', 'vendors', 'barcode', 'reports'],
     address: '123 Education Lane, Bengaluru, KA 560001',
     phone: '+91 80 2345 6789',
     email: 'admin@abcinternationalschool.edu',
@@ -35,7 +35,7 @@ export const ORGANIZATIONS: Organization[] = [
     id: 'org_pharmacy_001',
     name: 'Apollo Medical Store',
     industry: 'pharmacy',
-    enabledModules: ['inventory', 'pharmacy', 'batches', 'expiry', 'suppliers', 'barcode', 'reports'],
+    enabledModules: ['inventory', 'pharmacy', 'batches', 'expiry', 'vendors', 'barcode', 'reports'],
     address: '45 MG Road, Bengaluru, KA 560001',
     phone: '+91 80 2233 4455',
     email: 'store@apollomedical.in',
@@ -90,8 +90,8 @@ export const SUBSCRIPTIONS: Subscription[] = [
 // ============================================================================
 
 export const ROLES: Role[] = [
-  { id: 'role_admin', name: 'Organization Admin', permissions: ['view_inventory', 'create_items', 'edit_items', 'delete_items', 'stock_in', 'stock_out', 'manage_suppliers', 'manage_modules', 'manage_users', 'view_reports'] },
-  { id: 'role_inv_mgr', name: 'Inventory Manager', permissions: ['view_inventory', 'create_items', 'edit_items', 'stock_in', 'stock_out', 'manage_suppliers', 'view_reports'] },
+  { id: 'role_admin', name: 'Organization Admin', permissions: ['view_inventory', 'create_items', 'edit_items', 'delete_items', 'stock_in', 'stock_out', 'manage_vendors', 'manage_modules', 'manage_users', 'view_reports'] },
+  { id: 'role_inv_mgr', name: 'Inventory Manager', permissions: ['view_inventory', 'create_items', 'edit_items', 'stock_in', 'stock_out', 'manage_vendors', 'view_reports'] },
   { id: 'role_store_mgr', name: 'Store Manager', permissions: ['view_inventory', 'create_items', 'edit_items', 'stock_in', 'stock_out', 'view_reports'] },
   { id: 'role_staff', name: 'Staff', permissions: ['view_inventory', 'stock_in', 'stock_out'] },
   { id: 'role_viewer', name: 'Viewer', permissions: ['view_inventory', 'view_reports'] },
@@ -228,11 +228,11 @@ export const TRANSACTIONS: StockTransaction[] = [
 ];
 
 // ============================================================================
-// SUPPLIERS
+// VENDORS
 // ============================================================================
 
-export const SUPPLIERS: Supplier[] = [
-  { id: 'sup1', organizationId: 'org_school_001', name: 'ABC Uniform Suppliers', contactPerson: 'Mahesh Gupta', phone: '+91 98765 43210', email: 'mahesh@abcuniforms.com', address: '78 Textile Hub, Bengaluru, KA 560002', itemsSupplied: 'School Uniforms', status: 'active',
+export const VENDORS: Vendor[] = [
+  { id: 'sup1', organizationId: 'org_school_001', name: 'ABC Uniform Suppliers', contactPerson: 'Mahesh Gupta', phone: '+91 98765 43210', email: 'mahesh@abcuniforms.com', address: '78 Textile Hub, Bengaluru, KA 560002', vendorType: 'School Uniforms', status: 'active',
     purchaseHistory: [
       { date: '2026-09-05', item: 'School Shirt', quantity: 50, amount: 12500 },
       { date: '2026-08-20', item: 'School Pant', quantity: 50, amount: 10000 },
@@ -242,7 +242,7 @@ export const SUPPLIERS: Supplier[] = [
       { item: 'Blazer (Grade 8)', quantity: 20, expectedDate: '2026-09-20', status: 'Pending' },
     ],
   },
-  { id: 'sup2', organizationId: 'org_school_001', name: 'Global Book Distributors', contactPerson: 'Lakshmi Nair', phone: '+91 98450 11223', email: 'orders@globalbooks.in', address: '12 Knowledge Park, Bengaluru, KA 560003', itemsSupplied: 'Books', status: 'active',
+  { id: 'sup2', organizationId: 'org_school_001', name: 'Global Book Distributors', contactPerson: 'Lakshmi Nair', phone: '+91 98450 11223', email: 'orders@globalbooks.in', address: '12 Knowledge Park, Bengaluru, KA 560003', vendorType: 'Books', status: 'active',
     purchaseHistory: [
       { date: '2026-09-11', item: 'Mathematics Textbook', quantity: 45, amount: 6750 },
       { date: '2026-08-25', item: 'English Textbook', quantity: 30, amount: 4500 },
@@ -252,21 +252,21 @@ export const SUPPLIERS: Supplier[] = [
       { item: 'Science Workbook', quantity: 50, expectedDate: '2026-09-15', status: 'Shipped' },
     ],
   },
-  { id: 'sup3', organizationId: 'org_school_001', name: 'Sports Gear India', contactPerson: 'Ramesh Singh', phone: '+91 99876 54321', email: 'info@sportsgear.in', address: '45 Stadium Road, Bengaluru, KA 560004', itemsSupplied: 'Sports Equipment', status: 'active',
+  { id: 'sup3', organizationId: 'org_school_001', name: 'Sports Gear India', contactPerson: 'Ramesh Singh', phone: '+91 99876 54321', email: 'info@sportsgear.in', address: '45 Stadium Road, Bengaluru, KA 560004', vendorType: 'Sports Equipment', status: 'active',
     purchaseHistory: [
       { date: '2026-08-30', item: 'Cricket Bat', quantity: 10, amount: 8000 },
       { date: '2026-08-15', item: 'Football', quantity: 5, amount: 2500 },
     ],
     outstandingOrders: [],
   },
-  { id: 'sup4', organizationId: 'org_school_001', name: 'Stationery World', contactPerson: 'Deepak Jain', phone: '+91 97000 33445', email: 'sales@stationeryworld.com', address: '90 Commercial St, Bengaluru, KA 560005', itemsSupplied: 'Stationery', status: 'active',
+  { id: 'sup4', organizationId: 'org_school_001', name: 'Stationery World', contactPerson: 'Deepak Jain', phone: '+91 97000 33445', email: 'sales@stationeryworld.com', address: '90 Commercial St, Bengaluru, KA 560005', vendorType: 'Stationery', status: 'active',
     purchaseHistory: [
       { date: '2026-09-01', item: 'Notebook (200pg)', quantity: 200, amount: 20000 },
       { date: '2026-08-20', item: 'Blue Pen (Box)', quantity: 50, amount: 5000 },
     ],
     outstandingOrders: [],
   },
-  { id: 'sup5', organizationId: 'org_pharmacy_001', name: 'ABC Pharma Distributors', contactPerson: 'Naveen Kumar', phone: '+91 98220 55667', email: 'naven@abcpharma.in', address: '33 Pharma Zone, Bengaluru, KA 560010', itemsSupplied: 'Tablets & Capsules', status: 'active',
+  { id: 'sup5', organizationId: 'org_pharmacy_001', name: 'ABC Pharma Distributors', contactPerson: 'Naveen Kumar', phone: '+91 98220 55667', email: 'naven@abcpharma.in', address: '33 Pharma Zone, Bengaluru, KA 560010', vendorType: 'Tablets & Capsules', status: 'active',
     purchaseHistory: [
       { date: '2026-09-10', item: 'Paracetamol 500mg', quantity: 100, amount: 1200 },
       { date: '2026-08-28', item: 'Ibuprofen 400mg', quantity: 80, amount: 1280 },
@@ -276,14 +276,14 @@ export const SUPPLIERS: Supplier[] = [
       { item: 'Azithromycin 500mg', quantity: 50, expectedDate: '2026-09-18', status: 'Pending' },
     ],
   },
-  { id: 'sup6', organizationId: 'org_pharmacy_001', name: 'Cipla Direct Supply', contactPerson: 'Aisha Khan', phone: '+91 99330 88990', email: 'aisha@ciplasupply.in', address: '7 Medical Enclave, Bengaluru, KA 560011', itemsSupplied: 'Antibiotics', status: 'active',
+  { id: 'sup6', organizationId: 'org_pharmacy_001', name: 'Cipla Direct Supply', contactPerson: 'Aisha Khan', phone: '+91 99330 88990', email: 'aisha@ciplasupply.in', address: '7 Medical Enclave, Bengaluru, KA 560011', vendorType: 'Antibiotics', status: 'active',
     purchaseHistory: [
       { date: '2026-09-05', item: 'Amoxicillin 250mg', quantity: 50, amount: 1100 },
       { date: '2026-08-22', item: 'Ciprofloxacin 500mg', quantity: 40, amount: 960 },
     ],
     outstandingOrders: [],
   },
-  { id: 'sup7', organizationId: 'org_pharmacy_001', name: 'Biocon Cold Chain', contactPerson: 'Sanjay Rao', phone: '+91 98111 22334', email: 'cold@biocon.in', address: '21 Biotech Park, Bengaluru, KA 560012', itemsSupplied: 'Injectables & Cold Storage', status: 'active',
+  { id: 'sup7', organizationId: 'org_pharmacy_001', name: 'Biocon Cold Chain', contactPerson: 'Sanjay Rao', phone: '+91 98111 22334', email: 'cold@biocon.in', address: '21 Biotech Park, Bengaluru, KA 560012', vendorType: 'Injectables & Cold Storage', status: 'active',
     purchaseHistory: [
       { date: '2026-09-01', item: 'Insulin Injection', quantity: 20, amount: 5600 },
     ],
@@ -344,9 +344,9 @@ export const BATCHES: Batch[] = [
 export const RECEIPT_TEMPLATES: ReceiptTemplate[] = [
   { id: 'rt1', organizationId: 'org_school_001', name: 'Uniform Issue Receipt', type: 'uniform_issue', orgName: 'ABC INTERNATIONAL SCHOOL', orgAddress: '123 Education Lane, Bengaluru, KA 560001', title: 'UNIFORM ISSUE RECEIPT', fields: ['Student', 'Class', 'Academic Year'], showLogo: true, showSignature: true, footer: 'This receipt must be retained for the academic year.', notes: 'Items must be returned in good condition at end of academic year.' },
   { id: 'rt2', organizationId: 'org_school_001', name: 'Book Issue Receipt', type: 'book_issue', orgName: 'ABC INTERNATIONAL SCHOOL', orgAddress: '123 Education Lane, Bengaluru, KA 560001', title: 'BOOK ISSUE RECEIPT', fields: ['Student', 'Class', 'Academic Year'], showLogo: true, showSignature: true, footer: 'Books must be returned before final exams.', notes: 'Damage to books may incur a replacement fee.' },
-  { id: 'rt3', organizationId: 'org_school_001', name: 'Stock Receipt', type: 'stock_receipt', orgName: 'ABC INTERNATIONAL SCHOOL', orgAddress: '123 Education Lane, Bengaluru, KA 560001', title: 'STOCK RECEIPT', fields: ['Supplier', 'Date', 'Reference'], showLogo: true, showSignature: false, footer: 'Goods received in good condition.', notes: '' },
+  { id: 'rt3', organizationId: 'org_school_001', name: 'Stock Receipt', type: 'stock_receipt', orgName: 'ABC INTERNATIONAL SCHOOL', orgAddress: '123 Education Lane, Bengaluru, KA 560001', title: 'STOCK RECEIPT', fields: ['Vendor', 'Date', 'Reference'], showLogo: true, showSignature: false, footer: 'Goods received in good condition.', notes: '' },
   { id: 'rt4', organizationId: 'org_school_001', name: 'Return Receipt', type: 'return_receipt', orgName: 'ABC INTERNATIONAL SCHOOL', orgAddress: '123 Education Lane, Bengaluru, KA 560001', title: 'RETURN RECEIPT', fields: ['Student', 'Class', 'Return Date'], showLogo: true, showSignature: true, footer: '', notes: 'Item condition will be assessed upon return.' },
-  { id: 'rt5', organizationId: 'org_pharmacy_001', name: 'Stock Receipt', type: 'stock_receipt', orgName: 'APOLLO MEDICAL STORE', orgAddress: '45 MG Road, Bengaluru, KA 560001', title: 'STOCK RECEIPT', fields: ['Supplier', 'Date', 'Reference'], showLogo: true, showSignature: false, footer: 'Medicines received and verified.', notes: 'Check batch numbers and expiry dates.' },
+  { id: 'rt5', organizationId: 'org_pharmacy_001', name: 'Stock Receipt', type: 'stock_receipt', orgName: 'APOLLO MEDICAL STORE', orgAddress: '45 MG Road, Bengaluru, KA 560001', title: 'STOCK RECEIPT', fields: ['Vendor', 'Date', 'Reference'], showLogo: true, showSignature: false, footer: 'Medicines received and verified.', notes: 'Check batch numbers and expiry dates.' },
 ];
 
 // ============================================================================

@@ -24,6 +24,7 @@ import {
   ClipboardList,
   FileChartColumn,
   FileSearch,
+  Store,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -58,7 +59,6 @@ export function getNavSections(config?: OrgConfig): NavSection[] {
       items: [
         { label: 'Inventory', path: '/inventory', icon: Package, module: 'inventory' },
         { label: 'Stock Transactions', path: '/transactions', icon: ArrowLeftRight, module: 'inventory' },
-        { label: 'Suppliers', path: '/suppliers', icon: Truck, module: 'suppliers' },
       ],
     },
     {
@@ -81,6 +81,7 @@ export function getNavSections(config?: OrgConfig): NavSection[] {
       items: [
         { label: 'Assets', path: '/assets', icon: Briefcase, module: 'assets' },
         { label: 'Procurement', path: '/procurement', icon: ShoppingCart, module: 'procurement' },
+        { label: 'Vendors', path: '/vendors', icon: Store },
         { label: 'Vendor Quotations', path: '/quotations', icon: FileSearch },
         { label: 'Maintenance', path: '/maintenance', icon: Wrench, module: 'maintenance' },
         { label: 'Barcode / QR', path: '/barcode', icon: QrCode, module: 'barcode' },

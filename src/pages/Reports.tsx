@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { Download } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
-import { inventoryService, transactionService, supplierService } from '@/services';
+import { inventoryService, transactionService, vendorService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,13 +37,13 @@ export function ReportsPage() {
   const { currentOrg } = useOrganization();
   const [items, setItems] = useState<Item[]>([]);
   const [transactions, setTransactions] = useState<StockTransaction[]>([]);
-  const [supplierCount, setSupplierCount] = useState(0);
+  const [vendorCount, setVendorCount] = useState(0);
 
   useEffect(() => {
     if (!currentOrg) return;
     inventoryService.getByOrganization(currentOrg.id).then(setItems);
     transactionService.getByOrganization(currentOrg.id).then(setTransactions);
-    supplierService.getByOrganization(currentOrg.id).then((s) => setSupplierCount(s.length));
+    vendorService.getByOrganization(currentOrg.id).then((s) => setVendorCount(s.length));
   }, [currentOrg]);
 
   const categoryData = useMemo(() =>

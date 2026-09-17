@@ -223,6 +223,47 @@ class SupplierUpdate(CamelModel):
 
 
 # ---------------------------------------------------------------------------
+# Vendors
+# ---------------------------------------------------------------------------
+
+class VendorOut(CamelModel):
+    id: str
+    organization_id: str
+    name: str
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    vendor_type: Optional[str] = None
+    status: str = "active"
+    purchase_history: list[dict[str, Any]] = []
+    outstanding_orders: list[dict[str, Any]] = []
+    attributes: Optional[dict[str, Any]] = None
+
+
+class VendorCreate(CamelModel):
+    organization_id: str
+    name: str
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    vendor_type: Optional[str] = None
+    attributes: Optional[dict[str, Any]] = None
+
+
+class VendorUpdate(CamelModel):
+    name: Optional[str] = None
+    contact_person: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    vendor_type: Optional[str] = None
+    status: Optional[str] = None
+    attributes: Optional[dict[str, Any]] = None
+
+
+# ---------------------------------------------------------------------------
 # Users & Roles
 # ---------------------------------------------------------------------------
 
@@ -467,8 +508,8 @@ class PurchaseOrderOut(CamelModel):
     id: str
     organization_id: str
     po_number: str
-    supplier: str
-    supplier_id: Optional[str] = None
+    vendor_name: str
+    vendor_id: Optional[str] = None
     items_desc: Optional[str] = None
     item_count: int = 0
     ordered_date: Optional[str] = None
@@ -484,8 +525,8 @@ class PurchaseOrderOut(CamelModel):
 class PurchaseOrderCreate(CamelModel):
     organization_id: str
     po_number: Optional[str] = None
-    supplier: str
-    supplier_id: Optional[str] = None
+    vendor_name: str
+    vendor_id: Optional[str] = None
     items_desc: Optional[str] = None
     item_count: int = 0
     ordered_date: Optional[str] = None
@@ -498,8 +539,8 @@ class PurchaseOrderCreate(CamelModel):
 
 
 class PurchaseOrderUpdate(CamelModel):
-    supplier: Optional[str] = None
-    supplier_id: Optional[str] = None
+    vendor_name: Optional[str] = None
+    vendor_id: Optional[str] = None
     items_desc: Optional[str] = None
     item_count: Optional[int] = None
     ordered_date: Optional[str] = None
@@ -723,18 +764,18 @@ class VendorQuoteItemCreate(CamelModel):
 class VendorQuoteOut(CamelModel):
     id: str
     quotation_id: str
-    supplier_id: Optional[str] = None
-    supplier_name: str
-    supplier_email: Optional[str] = None
+    vendor_id: Optional[str] = None
+    vendor_name: str
+    vendor_email: Optional[str] = None
     status: str = "invited"
     quoted_at: Optional[str] = None
     notes: Optional[str] = None
     quote_items: list[VendorQuoteItemOut] = []
 
 class VendorQuoteCreate(CamelModel):
-    supplier_id: Optional[str] = None
-    supplier_name: str
-    supplier_email: Optional[str] = None
+    vendor_id: Optional[str] = None
+    vendor_name: str
+    vendor_email: Optional[str] = None
 
 class VendorQuoteSubmit(CamelModel):
     items: list[VendorQuoteItemCreate]
