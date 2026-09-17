@@ -3,8 +3,9 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import PurchaseOrder, POLineItem, Item, StockTransaction
+from ..models import PurchaseOrder, POLineItem, Item, StockTransaction, User
 from ..schemas import PurchaseOrderOut, PurchaseOrderCreate, PurchaseOrderUpdate, ReceivePOBody
+from ..dependencies import require, same_org
 
 router = APIRouter(prefix="/procurement", tags=["procurement"])
 
@@ -24,27 +25,26 @@ def _compute_status(qty: int, min_qty: int = 10) -> str:
 
 
 @router.get("", response_model=list[PurchaseOrderOut])
-def list_orders(org_id: str = Query(...), db: Session = Depends(get_db)):
+def list_orders(user: User = Depends(require("inventory:read")), db: Session = Depends(get_db)):
     return (
         db.query(PurchaseOrder)
-        .filter(PurchaseOrder.organization_id == org_id)
+        .filter(PurchaseOrder.organization_id == user.organization_id)
         .order_by(PurchaseOrder.created_at.desc())
         .all()
     )
 
 
 @router.post("", response_model=PurchaseOrderOut, status_code=201)
-def create_order(body: PurchaseOrderCreate, db: Session = Depends(get_db)):
-    po_number = body.po_number or _next_po_number(db, body.organization_id)
+def create_order(body: PurchaseOrderCreate, user: User = Depends(require("inventory:create")), db: Session = Depends(get_db)):
+    po_number = body.po_number or _next_po_number(db, user.organization_id)
 
-    # Auto-compute amount from line items if not provided
     amount = body.amount
     if amount == 0 and body.line_items:
         amount = sum(li.quantity_ordered * li.unit_price for li in body.line_items)
 
     po = PurchaseOrder(
         id=f"po_{int(time.time() * 1000)}",
-        organization_id=body.organization_id,
+        organization_id=user.organization_id,
         po_number=po_number,
         supplier=body.supplier,
         supplier_id=body.supplier_id,
@@ -79,10 +79,11 @@ def create_order(body: PurchaseOrderCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{po_id}", response_model=PurchaseOrderOut)
-def update_order(po_id: str, body: PurchaseOrderUpdate, db: Session = Depends(get_db)):
+def update_order(po_id: str, body: PurchaseOrderUpdate, user: User = Depends(require("inventory:update")), db: Session = Depends(get_db)):
     po = db.query(PurchaseOrder).filter(PurchaseOrder.id == po_id).first()
     if not po:
         raise HTTPException(404, "Purchase order not found")
+    same_org(po.organization_id, user)
     for field, value in body.model_dump(exclude_none=True, by_alias=False).items():
         setattr(po, field, value)
     db.commit()
@@ -91,10 +92,11 @@ def update_order(po_id: str, body: PurchaseOrderUpdate, db: Session = Depends(ge
 
 
 @router.patch("/{po_id}/status", response_model=PurchaseOrderOut)
-def update_status(po_id: str, status: str = Query(...), db: Session = Depends(get_db)):
+def update_status(po_id: str, status: str = Query(...), user: User = Depends(require("inventory:update")), db: Session = Depends(get_db)):
     po = db.query(PurchaseOrder).filter(PurchaseOrder.id == po_id).first()
     if not po:
         raise HTTPException(404, "Purchase order not found")
+    same_org(po.organization_id, user)
     po.status = status
     db.commit()
     db.refresh(po)
@@ -102,10 +104,11 @@ def update_status(po_id: str, status: str = Query(...), db: Session = Depends(ge
 
 
 @router.post("/{po_id}/receive", response_model=PurchaseOrderOut)
-def receive_order(po_id: str, body: ReceivePOBody, db: Session = Depends(get_db)):
+def receive_order(po_id: str, body: ReceivePOBody, user: User = Depends(require("inventory:update")), db: Session = Depends(get_db)):
     po = db.query(PurchaseOrder).filter(PurchaseOrder.id == po_id).first()
     if not po:
         raise HTTPException(404, "Purchase order not found")
+    same_org(po.organization_id, user)
 
     for receive_line in body.lines:
         line = db.query(POLineItem).filter(POLineItem.id == receive_line.line_item_id).first()
@@ -114,7 +117,6 @@ def receive_order(po_id: str, body: ReceivePOBody, db: Session = Depends(get_db)
 
         line.quantity_received = receive_line.quantity_received
 
-        # Update inventory stock
         if line.item_id:
             item = db.query(Item).filter(Item.id == line.item_id).first()
             if item:
@@ -123,7 +125,6 @@ def receive_order(po_id: str, body: ReceivePOBody, db: Session = Depends(get_db)
                 item.status = _compute_status(item.quantity, item.min_quantity or 10)
                 item.last_updated = date.today().isoformat()
 
-        # Create stock transaction record
         tx = StockTransaction(
             id=f"tx_{int(time.time() * 1000)}_{line.id[-4:]}",
             organization_id=po.organization_id,
@@ -132,7 +133,7 @@ def receive_order(po_id: str, body: ReceivePOBody, db: Session = Depends(get_db)
             item_name=line.item_name,
             type="received",
             quantity=receive_line.quantity_received,
-            user="Store Manager",
+            user=user.name,
             reference=po.po_number,
             notes=f"Received against {po.po_number}",
         )
@@ -140,7 +141,6 @@ def receive_order(po_id: str, body: ReceivePOBody, db: Session = Depends(get_db)
 
     db.flush()
 
-    # Update PO status based on line item fulfillment
     all_lines = db.query(POLineItem).filter(POLineItem.po_id == po_id).all()
     if all_lines:
         all_received = all(l.quantity_received >= l.quantity_ordered for l in all_lines)
@@ -156,9 +156,10 @@ def receive_order(po_id: str, body: ReceivePOBody, db: Session = Depends(get_db)
 
 
 @router.delete("/{po_id}", status_code=204)
-def delete_order(po_id: str, db: Session = Depends(get_db)):
+def delete_order(po_id: str, user: User = Depends(require("inventory:delete")), db: Session = Depends(get_db)):
     po = db.query(PurchaseOrder).filter(PurchaseOrder.id == po_id).first()
     if not po:
         raise HTTPException(404, "Purchase order not found")
+    same_org(po.organization_id, user)
     db.delete(po)
     db.commit()

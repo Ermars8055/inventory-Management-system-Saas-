@@ -31,11 +31,11 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="StockPilot API", version="1.0.0")
 
-# CORS — allow the Vite dev server and any VPS-hosted frontend
-origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+# CORS — allow the Vite dev server and configured origins
+origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:8060").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # tighten in production
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

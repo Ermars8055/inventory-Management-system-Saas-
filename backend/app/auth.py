@@ -3,7 +3,11 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 import os
 
-SECRET_KEY = os.getenv("JWT_SECRET", "dev-secret-change-in-production")
+SECRET_KEY = os.getenv("JWT_SECRET")
+if not SECRET_KEY:
+    import warnings
+    warnings.warn("JWT_SECRET not set — using insecure default. Set JWT_SECRET in production!", stacklevel=2)
+    SECRET_KEY = "dev-secret-DO-NOT-USE-IN-PRODUCTION"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8  # 8 hours
 

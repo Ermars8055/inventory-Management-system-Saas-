@@ -61,18 +61,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Hydrate from stored token (or impersonation token from URL)
+  // Hydrate from stored token
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const impersonateToken = params.get('impersonate');
-
-    if (impersonateToken) {
-      // Store impersonation token and clean URL
-      localStorage.setItem('token', impersonateToken);
-      const clean = window.location.pathname;
-      window.history.replaceState({}, '', clean);
-    }
-
     const token = localStorage.getItem('token');
     if (!token) {
       setLoading(false);

@@ -1,13 +1,14 @@
 import time
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import Recipient, Assignment, Item
+from ..models import Recipient, Assignment, Item, User
 from ..schemas import (
     RecipientOut, RecipientCreate, RecipientUpdate,
     AssignmentOut, AssignmentCreate, ReturnBody, LostBody,
 )
+from ..dependencies import require, same_org
 
 router = APIRouter(tags=["issuance"])
 
@@ -15,15 +16,20 @@ router = APIRouter(tags=["issuance"])
 # ─── Recipients ─────────────────────────────────────────────────────────────
 
 @router.get("/recipients", response_model=list[RecipientOut])
-def list_recipients(org_id: str = Query(...), db: Session = Depends(get_db)):
-    return db.query(Recipient).filter(Recipient.organization_id == org_id).all()
+def list_recipients(user: User = Depends(require("recipients:read")), db: Session = Depends(get_db)):
+    return db.query(Recipient).filter(Recipient.organization_id == user.organization_id).all()
 
 
 @router.post("/recipients", response_model=RecipientOut, status_code=201)
-def create_recipient(body: RecipientCreate, db: Session = Depends(get_db)):
+def create_recipient(body: RecipientCreate, user: User = Depends(require("recipients:create")), db: Session = Depends(get_db)):
     r = Recipient(
         id=f"rec_{int(time.time() * 1000)}",
-        **body.model_dump(by_alias=False),
+        organization_id=user.organization_id,
+        name=body.name,
+        identifier=body.identifier,
+        group=body.group,
+        contact=body.contact,
+        extra_data=body.extra_data,
     )
     db.add(r)
     db.commit()
@@ -32,18 +38,20 @@ def create_recipient(body: RecipientCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/recipients/{recipient_id}", response_model=RecipientOut)
-def get_recipient(recipient_id: str, db: Session = Depends(get_db)):
+def get_recipient(recipient_id: str, user: User = Depends(require("recipients:read")), db: Session = Depends(get_db)):
     r = db.query(Recipient).filter(Recipient.id == recipient_id).first()
     if not r:
         raise HTTPException(404, "Recipient not found")
+    same_org(r.organization_id, user)
     return r
 
 
 @router.put("/recipients/{recipient_id}", response_model=RecipientOut)
-def update_recipient(recipient_id: str, body: RecipientUpdate, db: Session = Depends(get_db)):
+def update_recipient(recipient_id: str, body: RecipientUpdate, user: User = Depends(require("recipients:update")), db: Session = Depends(get_db)):
     r = db.query(Recipient).filter(Recipient.id == recipient_id).first()
     if not r:
         raise HTTPException(404, "Recipient not found")
+    same_org(r.organization_id, user)
     for field, value in body.model_dump(exclude_none=True, by_alias=False).items():
         setattr(r, field, value)
     db.commit()
@@ -52,24 +60,21 @@ def update_recipient(recipient_id: str, body: RecipientUpdate, db: Session = Dep
 
 
 @router.delete("/recipients/{recipient_id}", status_code=204)
-def delete_recipient(recipient_id: str, db: Session = Depends(get_db)):
+def delete_recipient(recipient_id: str, user: User = Depends(require("recipients:delete")), db: Session = Depends(get_db)):
     r = db.query(Recipient).filter(Recipient.id == recipient_id).first()
     if not r:
         raise HTTPException(404, "Recipient not found")
+    same_org(r.organization_id, user)
     db.delete(r)
     db.commit()
 
 
 @router.get("/recipients/{recipient_id}/assignments", response_model=list[AssignmentOut])
-def get_recipient_assignments(
-    recipient_id: str,
-    org_id: str = Query(...),
-    db: Session = Depends(get_db),
-):
+def get_recipient_assignments(recipient_id: str, user: User = Depends(require("assignments:read")), db: Session = Depends(get_db)):
     return (
         db.query(Assignment)
         .filter(
-            Assignment.organization_id == org_id,
+            Assignment.organization_id == user.organization_id,
             Assignment.recipient_id == recipient_id,
         )
         .order_by(Assignment.issue_date.desc())
@@ -80,26 +85,39 @@ def get_recipient_assignments(
 # ─── Assignments ────────────────────────────────────────────────────────────
 
 @router.get("/assignments", response_model=list[AssignmentOut])
-def list_assignments(org_id: str = Query(...), db: Session = Depends(get_db)):
+def list_assignments(user: User = Depends(require("assignments:read")), db: Session = Depends(get_db)):
     return (
         db.query(Assignment)
-        .filter(Assignment.organization_id == org_id)
+        .filter(Assignment.organization_id == user.organization_id)
         .order_by(Assignment.issue_date.desc())
         .all()
     )
 
 
 @router.post("/assignments", response_model=AssignmentOut, status_code=201)
-def create_assignment(body: AssignmentCreate, db: Session = Depends(get_db)):
+def create_assignment(body: AssignmentCreate, user: User = Depends(require("assignments:create")), db: Session = Depends(get_db)):
     a = Assignment(
         id=f"asgn_{int(time.time() * 1000)}",
-        **body.model_dump(by_alias=False),
+        organization_id=user.organization_id,
+        recipient_id=body.recipient_id,
+        recipient_name=body.recipient_name,
+        recipient_identifier=body.recipient_identifier,
+        recipient_group=body.recipient_group,
+        item_id=body.item_id,
+        item_name=body.item_name,
+        item_details=body.item_details,
+        quantity=body.quantity,
+        condition_issued=body.condition_issued,
+        issue_date=body.issue_date,
+        expected_return=body.expected_return,
+        issued_by=body.issued_by,
+        notes=body.notes,
         status="issued",
     )
     db.add(a)
-    # Reserve stock — total quantity never changes on issue
     item = db.query(Item).filter(Item.id == body.item_id).first()
     if item:
+        same_org(item.organization_id, user)
         item.reserved = (item.reserved or 0) + body.quantity
         item.available = max(0, item.quantity - item.reserved)
         from ..routers.inventory import _compute_status
@@ -111,24 +129,20 @@ def create_assignment(body: AssignmentCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/assignments/{assignment_id}", response_model=AssignmentOut)
-def get_assignment(assignment_id: str, db: Session = Depends(get_db)):
+def get_assignment(assignment_id: str, user: User = Depends(require("assignments:read")), db: Session = Depends(get_db)):
     a = db.query(Assignment).filter(Assignment.id == assignment_id).first()
     if not a:
         raise HTTPException(404, "Assignment not found")
+    same_org(a.organization_id, user)
     return a
 
 
 @router.patch("/assignments/{assignment_id}/return", response_model=AssignmentOut)
-def return_assignment(assignment_id: str, body: ReturnBody, db: Session = Depends(get_db)):
-    """
-    Return an item. Condition and damage info determine the new status:
-    - Good → returned
-    - Damaged/Heavily Damaged + fine > 0 → fine_pending
-    - Damaged/Heavily Damaged + no fine  → returned_damaged
-    """
+def return_assignment(assignment_id: str, body: ReturnBody, user: User = Depends(require("assignments:update")), db: Session = Depends(get_db)):
     a = db.query(Assignment).filter(Assignment.id == assignment_id).first()
     if not a:
         raise HTTPException(404, "Assignment not found")
+    same_org(a.organization_id, user)
 
     a.condition_returned = body.condition_returned
     a.damage_notes = body.damage_notes
@@ -145,7 +159,6 @@ def return_assignment(assignment_id: str, body: ReturnBody, db: Session = Depend
     else:
         a.status = "returned_damaged"
 
-    # Release reservation — quantity only changes if item is permanently lost/destroyed
     item = db.query(Item).filter(Item.id == a.item_id).first()
     if item:
         item.reserved = max(0, (item.reserved or 0) - a.quantity)
@@ -160,17 +173,17 @@ def return_assignment(assignment_id: str, body: ReturnBody, db: Session = Depend
 
 
 @router.patch("/assignments/{assignment_id}/lost", response_model=AssignmentOut)
-def mark_lost(assignment_id: str, body: LostBody, db: Session = Depends(get_db)):
+def mark_lost(assignment_id: str, body: LostBody, user: User = Depends(require("assignments:update")), db: Session = Depends(get_db)):
     a = db.query(Assignment).filter(Assignment.id == assignment_id).first()
     if not a:
         raise HTTPException(404, "Assignment not found")
+    same_org(a.organization_id, user)
     a.status = "fine_pending" if body.fine_amount else "lost"
     a.fine_amount = body.fine_amount
     a.condition_returned = "Lost"
     a.return_date = date.today().isoformat()
     if body.notes:
         a.notes = body.notes
-    # Item is permanently gone — reduce total quantity and release reservation
     item = db.query(Item).filter(Item.id == a.item_id).first()
     if item:
         item.quantity = max(0, item.quantity - a.quantity)
@@ -185,10 +198,11 @@ def mark_lost(assignment_id: str, body: LostBody, db: Session = Depends(get_db))
 
 
 @router.patch("/assignments/{assignment_id}/fine-paid", response_model=AssignmentOut)
-def mark_fine_paid(assignment_id: str, db: Session = Depends(get_db)):
+def mark_fine_paid(assignment_id: str, user: User = Depends(require("assignments:update")), db: Session = Depends(get_db)):
     a = db.query(Assignment).filter(Assignment.id == assignment_id).first()
     if not a:
         raise HTTPException(404, "Assignment not found")
+    same_org(a.organization_id, user)
     a.fine_paid = True
     a.status = "fine_paid"
     db.commit()
