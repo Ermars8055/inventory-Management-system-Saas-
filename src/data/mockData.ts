@@ -354,9 +354,9 @@ export const RECEIPT_TEMPLATES: ReceiptTemplate[] = [
 // ============================================================================
 
 export const CUSTOM_FIELDS: CustomField[] = [
-  { id: 'cf1', organizationId: 'org_school_001', name: 'Academic Year', type: 'dropdown', options: ['2025-26', '2026-27', '2027-28'], entity: 'item' },
-  { id: 'cf2', organizationId: 'org_school_001', name: 'Department', type: 'text', entity: 'item' },
-  { id: 'cf3', organizationId: 'org_school_001', name: 'Reorder Level', type: 'number', entity: 'item' },
-  { id: 'cf4', organizationId: 'org_pharmacy_001', name: 'Storage Temperature', type: 'dropdown', options: ['Room Temp', 'Cold Storage (2-8°C)', 'Frozen (-20°C)'], entity: 'item' },
-  { id: 'cf5', organizationId: 'org_pharmacy_001', name: 'GST Rate', type: 'number', entity: 'item' },
+  { id: 'cf1', organizationId: 'org_school_001', name: 'Academic Year', type: 'dropdown', options: ['2025-26', '2026-27', '2027-28'], entity: 'item', required: false, sortOrder: 0 },
+  { id: 'cf2', organizationId: 'org_school_001', name: 'Department', type: 'text', entity: 'item', required: false, sortOrder: 1 },
+  { id: 'cf3', organizationId: 'org_school_001', name: 'Reorder Level', type: 'number', entity: 'item', required: false, sortOrder: 2 },
+  { id: 'cf4', organizationId: 'org_pharmacy_001', name: 'Storage Temperature', type: 'dropdown', options: ['Room Temp', 'Cold Storage (2-8°C)', 'Frozen (-20°C)'], entity: 'item', required: false, sortOrder: 0 },
+  { id: 'cf5', organizationId: 'org_pharmacy_001', name: 'GST Rate', type: 'number', entity: 'item', required: false, sortOrder: 1 },
 ];

@@ -143,6 +143,22 @@ export function ItemDetailPage() {
                 </CardContent>
               </Card>
             )}
+
+            {item.attributes && Object.keys(item.attributes).length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Custom Fields</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {Object.entries(item.attributes).map(([key, val]) => (
+                    <div key={key} className="flex justify-between items-center py-1.5 border-b last:border-0">
+                      <span className="text-sm text-muted-foreground">{key}</span>
+                      <span className="text-sm font-medium">{typeof val === 'boolean' ? (val ? 'Yes' : 'No') : String(val)}</span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 

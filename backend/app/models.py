@@ -79,6 +79,7 @@ class Supplier(Base):
     status = Column(String, default="active")
     purchase_history = Column(JSON, default=list)
     outstanding_orders = Column(JSON, default=list)
+    attributes = Column(JSON)
 
 
 class User(Base):
@@ -199,6 +200,9 @@ class CustomField(Base):
     type = Column(String)
     options = Column(JSON)
     entity = Column(String)
+    required = Column(Boolean, default=False)
+    sort_order = Column(Integer, default=0)
+    placeholder = Column(String)
 
 
 class PurchaseOrder(Base):

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, Monitor, Wrench, User, Plus, Trash2, Search, Pencil } from 'lucide-react';
+import { Briefcase, Monitor, Wrench, User, Plus, Trash2, Search, Pencil, Settings2 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { assetService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { CustomFieldsSheet } from '@/components/shared/CustomFieldsSheet';
 import { KPICard } from '@/components/shared/KPICard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -47,6 +48,7 @@ export function AssetsPage() {
   const [editAsset, setEditAsset] = useState<Asset | null>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
+  const [fieldsSheetOpen, setFieldsSheetOpen] = useState(false);
 
   const load = async () => {
     if (!currentOrg) return;
@@ -134,9 +136,14 @@ export function AssetsPage() {
         title="Asset Management"
         description="Track and manage organizational assets and equipment"
         actions={
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-2" /> Add Asset
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setFieldsSheetOpen(true)}>
+              <Settings2 className="h-4 w-4 mr-1" />Custom Fields
+            </Button>
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="h-4 w-4 mr-2" /> Add Asset
+            </Button>
+          </div>
         }
       />
 
@@ -340,6 +347,13 @@ export function AssetsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <CustomFieldsSheet
+        entity="asset"
+        entityLabel="Assets"
+        open={fieldsSheetOpen}
+        onOpenChange={setFieldsSheetOpen}
+      />
     </div>
   );
 }

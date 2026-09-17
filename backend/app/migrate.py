@@ -15,6 +15,12 @@ def run():
         # Purchase orders: link to supplier + quotation
         "ALTER TABLE purchase_orders ADD COLUMN supplier_id VARCHAR REFERENCES suppliers(id)",
         "ALTER TABLE purchase_orders ADD COLUMN quotation_id VARCHAR REFERENCES quotations(id)",
+        # Custom fields: required, sort_order, placeholder
+        "ALTER TABLE custom_fields ADD COLUMN required BOOLEAN DEFAULT 0",
+        "ALTER TABLE custom_fields ADD COLUMN sort_order INTEGER DEFAULT 0",
+        "ALTER TABLE custom_fields ADD COLUMN placeholder VARCHAR",
+        # Suppliers: attributes JSON for custom field values
+        "ALTER TABLE suppliers ADD COLUMN attributes JSON",
     ]
 
     with engine.connect() as conn:
