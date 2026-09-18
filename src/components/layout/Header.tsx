@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { Menu, Search, Bell, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { CommandPalette } from '@/components/shared/CommandPalette';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -16,29 +17,33 @@ export function Header({ onMenuClick, onStartTutorial }: HeaderProps) {
       </Button>
 
       <div className="flex-1 max-w-md">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search..."
-            className="pl-9 h-9 bg-muted/50 border-transparent focus-visible:border-input"
-          />
-        </div>
+        <button
+          onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+          className="relative w-full flex items-center gap-2 h-9 px-3 rounded-md bg-muted/50 border border-transparent hover:border-input transition-colors text-left"
+        >
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Search...</span>
+          <kbd className="ml-auto hidden sm:inline-flex h-5 items-center gap-0.5 rounded border bg-background px-1.5 text-[10px] font-mono text-muted-foreground">
+            Ctrl+K
+          </kbd>
+        </button>
       </div>
 
       <div className="flex items-center gap-2 ml-auto">
         <Button variant="ghost" size="icon" onClick={onStartTutorial} title="Take the tour">
           <HelpCircle className="h-5 w-5" />
         </Button>
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon">
           <Bell className="h-5 w-5" />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500" />
         </Button>
         <Avatar className="h-8 w-8">
-          <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-            PS
+          <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+            {/* Will be populated from user context later */}
           </AvatarFallback>
         </Avatar>
       </div>
+
+      <CommandPalette />
     </header>
   );
 }
