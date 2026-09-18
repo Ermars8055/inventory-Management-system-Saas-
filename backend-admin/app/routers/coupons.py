@@ -2,7 +2,8 @@ import uuid
 from datetime import datetime, date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
 from typing import Optional
 from ..database import get_admin_db
 from ..models import Coupon, OrgCoupon, AuditLog, AdminUser
@@ -13,7 +14,11 @@ router = APIRouter(prefix="/coupons", tags=["admin-coupons"])
 
 # ─── Schemas ─────────────────────────────────────────────────────────────────
 
-class CouponCreate(BaseModel):
+class _Camel(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+
+class CouponCreate(_Camel):
     code: str
     discount_type: str  # "percent" | "flat"
     discount_value: float
@@ -23,7 +28,7 @@ class CouponCreate(BaseModel):
     valid_until: Optional[str] = None
 
 
-class CouponUpdate(BaseModel):
+class CouponUpdate(_Camel):
     discount_type: Optional[str] = None
     discount_value: Optional[float] = None
     applicable_plans: Optional[str] = None
@@ -33,7 +38,7 @@ class CouponUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
-class RedeemRequest(BaseModel):
+class RedeemRequest(_Camel):
     code: str
     org_id: str
     org_plan: str = "starter"
