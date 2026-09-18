@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Organization, User
 from ..schemas import SubscriptionOut
-from ..dependencies import get_current_user, require
+from ..dependencies import get_current_user, require, get_plan_limits, get_usage
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 
@@ -39,6 +39,16 @@ def get_current_subscription(user: User = Depends(get_current_user), db: Session
     tier = org.plan if org and org.plan else "starter"
     plan = PLANS_BY_TIER.get(tier, PLANS[0])
     return plan.model_dump()
+
+
+@router.get("/usage")
+def get_plan_usage(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    limits = get_plan_limits(user.organization_id, db)
+    usage = get_usage(user.organization_id, db)
+    return {
+        "limits": limits,
+        "usage": usage,
+    }
 
 
 class PlanUpdateBody(BaseModel):

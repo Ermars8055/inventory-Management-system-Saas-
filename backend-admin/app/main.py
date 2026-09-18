@@ -11,6 +11,7 @@ from .routers.organizations import router as orgs_router
 from .routers.admin_users import router as admin_users_router
 from .routers.stats import router as stats_router
 from .routers.audit import router as audit_router
+from .routers.coupons import router as coupons_router
 
 AdminBase.metadata.create_all(bind=admin_engine)
 
@@ -30,6 +31,7 @@ app.include_router(orgs_router)
 app.include_router(admin_users_router)
 app.include_router(stats_router)
 app.include_router(audit_router)
+app.include_router(coupons_router)
 
 
 @app.get("/health")

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Organization, User
 from ..schemas import OrganizationOut, OrganizationCreate, OrganizationUpdate, ModulesUpdate, ConfigUpdate
-from ..dependencies import get_current_user, require, same_org
+from ..dependencies import get_current_user, require, same_org, get_plan_limits
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 
@@ -59,6 +59,9 @@ def update_modules(org_id: str, body: ModulesUpdate, user: User = Depends(requir
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
         raise HTTPException(404, "Organization not found")
+    limits = get_plan_limits(org_id, db)
+    if len(body.enabled_modules) > limits["max_modules"]:
+        raise HTTPException(403, f"Plan limit reached: {limits['max_modules']} modules max. Upgrade your plan to enable more.")
     org.enabled_modules = body.enabled_modules
     db.commit()
     db.refresh(org)
