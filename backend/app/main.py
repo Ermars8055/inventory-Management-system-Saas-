@@ -24,6 +24,7 @@ from .routers.class_templates import router as class_templates_router
 from .routers.quotations import router as quotations_router
 from .routers.vendors import router as vendors_router
 from .routers.support import router as support_router
+from .routers.signup import router as signup_router
 
 load_dotenv()
 
@@ -60,6 +61,7 @@ app.include_router(class_templates_router)
 app.include_router(quotations_router)
 app.include_router(vendors_router)
 app.include_router(support_router)
+app.include_router(signup_router)
 
 
 @app.get("/health")

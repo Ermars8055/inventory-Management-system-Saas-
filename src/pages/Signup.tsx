@@ -4,6 +4,7 @@ import {
   Check, ChevronRight, Package, Building2, Layers,
   Eye, EyeOff, CreditCard, Lock, ArrowLeft,
 } from 'lucide-react';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -79,13 +80,30 @@ export function SignupPage() {
     setSubdomain(slugify(val));
   }
 
+  const [signupError, setSignupError] = useState('');
+  const [signupResult, setSignupResult] = useState<{ domain: string } | null>(null);
+
   async function handleComplete(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    // Mock delay — simulating Stripe + subdomain provisioning
-    await new Promise((r) => setTimeout(r, 1800));
-    setLoading(false);
-    setDone(true);
+    setSignupError('');
+    try {
+      const res = await api.post<{
+        access_token: string;
+        user: { id: string; name: string; email: string; role: string; organizationId: string };
+        organization: { id: string; name: string; subdomain: string; domain: string };
+      }>('/signup', {
+        orgName, industry, subdomain, name, email, password,
+        enabledModules: ['inventory', 'reports'],
+      });
+      localStorage.setItem('token', res.access_token);
+      setSignupResult({ domain: res.organization.domain });
+      setDone(true);
+    } catch (err: unknown) {
+      setSignupError(err instanceof Error ? err.message : 'Signup failed');
+    } finally {
+      setLoading(false);
+    }
   }
 
   // ── Success screen ──────────────────────────────────────────
@@ -112,7 +130,7 @@ export function SignupPage() {
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-800">
                 <span className="text-sm text-slate-400">Your URL</span>
-                <span className="text-sm font-mono text-indigo-400">{subdomain}.stockpilot.com</span>
+                <span className="text-sm font-mono text-indigo-400">{signupResult?.domain || `${subdomain}.stockpilot.ermarscastar.in`}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-slate-800">
                 <span className="text-sm text-slate-400">Login email</span>
@@ -133,7 +151,10 @@ export function SignupPage() {
 
           <Button
             className="w-full bg-indigo-600 hover:bg-indigo-500 h-11 text-base gap-2"
-            onClick={() => navigate('/login')}
+            onClick={() => {
+              const domain = signupResult?.domain || `${subdomain}.stockpilot.ermarscastar.in`;
+              window.location.href = `https://${domain}/dashboard`;
+            }}
           >
             Go to Dashboard <ChevronRight className="h-4 w-4" />
           </Button>
@@ -281,13 +302,13 @@ export function SignupPage() {
                       className="h-10 rounded-none border-0 focus-visible:ring-0 flex-1"
                     />
                     <span className="px-3 h-10 flex items-center text-sm text-slate-500 bg-slate-50 border-l border-slate-200 font-mono whitespace-nowrap">
-                      .stockpilot.com
+                      .stockpilot.ermarscastar.in
                     </span>
                   </div>
                   {subdomain && (
                     <p className="text-xs text-indigo-600 flex items-center gap-1 mt-1">
                       <Check className="h-3 w-3" />
-                      Your app will live at <strong>{subdomain}.stockpilot.com</strong>
+                      Your app will live at <strong>{subdomain}.stockpilot.ermarscastar.in</strong>
                     </p>
                   )}
                 </div>
@@ -426,6 +447,10 @@ export function SignupPage() {
                     <p className="font-semibold mb-1">Enterprise plan selected</p>
                     <p className="text-indigo-600 text-xs">Our team will reach out within 24 hours to discuss pricing and onboarding.</p>
                   </div>
+                )}
+
+                {signupError && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">{signupError}</div>
                 )}
 
                 <Button

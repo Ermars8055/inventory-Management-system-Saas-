@@ -47,6 +47,7 @@ class OrganizationOut(CamelModel):
     email: Optional[str] = None
     logo_text: Optional[str] = None
     plan: str = "starter"
+    subdomain: Optional[str] = None
     created_at: Optional[str] = None
     config: Optional[dict[str, Any]] = None
 
@@ -55,6 +56,7 @@ class OrganizationCreate(CamelModel):
     name: str
     industry: str
     enabled_modules: list[str] = []
+    subdomain: Optional[str] = None
 
 
 class OrganizationUpdate(CamelModel):

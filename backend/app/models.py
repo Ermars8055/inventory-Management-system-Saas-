@@ -14,6 +14,7 @@ class Organization(Base):
     email = Column(String)
     logo_text = Column(String)
     plan = Column(String, default="starter")
+    subdomain = Column(String, unique=True)
     created_at = Column(String)
     # Drives all labels and feature toggles across the app
     config = Column(JSON, default=dict)
