@@ -58,11 +58,19 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Shows landing page for guests, redirects to dashboard for logged-in users
+// Detect if we're on a tenant subdomain
+function isSubdomain(): boolean {
+  const host = window.location.hostname;
+  return host.includes('.stockpilot.') && host !== 'stockpilot.ermarscastar.in';
+}
+
+// Shows landing page for guests on main domain, login on subdomains
 function RootRoute() {
   const { user, loading } = useAuth();
   if (loading) return <div className="flex h-screen items-center justify-center"><div className="text-muted-foreground text-sm">Loading…</div></div>;
   if (user) return <Navigate to="/dashboard" replace />;
+  // On subdomain → go to login, not landing page
+  if (isSubdomain()) return <Navigate to="/login" replace />;
   return <LandingPage />;
 }
 
@@ -90,7 +98,7 @@ export default function App() {
           <AppInitializer>
             <Routes>
               <Route path="/" element={<RootRoute />} />
-              <Route path="/signup" element={<SignupPage />} />
+              <Route path="/signup" element={isSubdomain() ? <Navigate to="/login" replace /> : <SignupPage />} />
               <Route path="/login" element={<LoginPage />} />
 
               <Route element={<ProtectedRoutes />}>
