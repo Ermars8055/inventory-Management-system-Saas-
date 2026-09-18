@@ -1,9 +1,15 @@
 import os
-from fastapi import FastAPI
+import re
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from dotenv import load_dotenv
+from sqlalchemy.orm import Session
 
-from .database import engine, Base
+from .database import engine, Base, SessionLocal
+from .models import Organization
+from .auth import decode_token
 from .routers import (
     organizations,
     inventory,
@@ -33,11 +39,87 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="StockPilot API", version="1.0.0")
 
-# CORS — allow the Vite dev server and configured origins
-origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:8060").split(",") if o.strip()]
+SUBDOMAIN_BASE = os.getenv("SUBDOMAIN_BASE", "stockpilot")
+TENANT_DOMAIN = os.getenv("TENANT_DOMAIN", "ermarscastar.in")
+SUBDOMAIN_SUFFIX = f".{SUBDOMAIN_BASE}.{TENANT_DOMAIN}"
+
+# Public paths that don't need subdomain validation
+PUBLIC_PATHS = {"/health", "/auth/login", "/auth/me", "/signup", "/signup/check-subdomain",
+                "/subscriptions", "/subscriptions/plans"}
+
+
+# ─── Subdomain enforcement middleware ────────────────────────────────────────
+
+class SubdomainMiddleware(BaseHTTPMiddleware):
+    """
+    Extracts subdomain from Host header (e.g. abcschool.stockpilot.ermarscastar.in).
+    If a subdomain is present:
+      - Looks up the org by subdomain
+      - For authenticated requests, verifies user belongs to that org
+      - Blocks access if mismatch
+    Requests to the main domain (no subdomain) pass through normally.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(":")[0].lower()
+        path = request.url.path
+
+        # Skip for public/non-API paths
+        if path in PUBLIC_PATHS or path.startswith("/docs") or path.startswith("/openapi"):
+            return await call_next(request)
+
+        # Extract subdomain
+        subdomain = None
+        if host.endswith(SUBDOMAIN_SUFFIX):
+            subdomain = host[: -len(SUBDOMAIN_SUFFIX)]
+
+        if not subdomain:
+            # Main domain or localhost — no subdomain enforcement
+            return await call_next(request)
+
+        # Look up org by subdomain
+        db: Session = SessionLocal()
+        try:
+            org = db.query(Organization).filter(Organization.subdomain == subdomain).first()
+            if not org:
+                return JSONResponse(status_code=404, content={"detail": f"Organization not found for subdomain: {subdomain}"})
+
+            # If request has auth token, verify user belongs to this org
+            auth_header = request.headers.get("authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:]
+                payload = decode_token(token)
+                user_org_id = payload.get("org_id")
+                if not user_org_id:
+                    # Fallback: look up user's org from DB
+                    from .models import User
+                    user = db.query(User).filter(User.id == payload.get("sub")).first()
+                    user_org_id = user.organization_id if user else None
+
+                if user_org_id and user_org_id != org.id:
+                    return JSONResponse(
+                        status_code=403,
+                        content={"detail": "Access denied: your account does not belong to this organization"}
+                    )
+
+            # Store org info in request state for routes to use
+            request.state.subdomain_org_id = org.id
+            request.state.subdomain = subdomain
+        finally:
+            db.close()
+
+        return await call_next(request)
+
+
+# ─── CORS — allow subdomains + configured origins ────────────────────────────
+
+static_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:8060").split(",") if o.strip()]
+
+app.add_middleware(SubdomainMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origin_regex=rf"https?://([a-z0-9-]+\.)?{re.escape(SUBDOMAIN_BASE)}\.{re.escape(TENANT_DOMAIN)}",
+    allow_origins=static_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

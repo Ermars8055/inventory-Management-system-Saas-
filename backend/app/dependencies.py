@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from .database import SessionLocal
@@ -18,6 +18,7 @@ def get_db():
 
 
 def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
     db: Session = Depends(get_db),
 ) -> User:
@@ -30,6 +31,10 @@ def get_current_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user or user.status != "active":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
+    # Enforce subdomain org isolation
+    subdomain_org_id = getattr(request.state, "subdomain_org_id", None)
+    if subdomain_org_id and user.organization_id != subdomain_org_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: account does not belong to this organization")
     return user
 
 

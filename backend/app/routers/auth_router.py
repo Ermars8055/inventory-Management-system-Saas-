@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from ..database import SessionLocal
-from ..models import User
+from ..models import User, Organization
 from ..auth import verify_password, create_access_token
 from ..dependencies import get_db, get_current_user
 
@@ -21,7 +21,7 @@ class TokenResponse(BaseModel):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(body: LoginRequest, db: Session = Depends(get_db)):
+def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == body.email).first()
     if not user or not user.password_hash:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
@@ -29,6 +29,11 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     if user.status != "active":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account inactive")
+
+    # If login is on a subdomain, verify user belongs to that org
+    subdomain_org_id = getattr(request.state, "subdomain_org_id", None)
+    if subdomain_org_id and user.organization_id != subdomain_org_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This account does not belong to this organization")
 
     token = create_access_token({
         "sub": user.id,
