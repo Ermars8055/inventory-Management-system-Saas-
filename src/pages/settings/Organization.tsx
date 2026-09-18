@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Building2, SlidersHorizontal } from 'lucide-react';
+import { ArrowLeft, Building2, SlidersHorizontal, Globe } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
@@ -12,7 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { INDUSTRY_LABELS } from '@/data/modules';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { LANGUAGES, CURRENCIES, TIMEZONES } from '@/i18n';
 import type { OrgConfig } from '@/types';
 
 export function OrganizationSettingsPage() {
@@ -192,6 +194,53 @@ export function OrganizationSettingsPage() {
                   placeholder="₹ / $ / €…"
                   maxLength={3}
                 />
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Language, Currency, Timezone */}
+          <div>
+            <p className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide text-xs flex items-center gap-1.5">
+              <Globe className="h-3.5 w-3.5" /> Localization
+            </p>
+            <div className="grid sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Language</Label>
+                <Select value={cfg.language || 'en'} onValueChange={(v) => setCfg({ ...cfg, language: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGES.map(l => (
+                      <SelectItem key={l.code} value={l.code}>{l.nativeName} ({l.name})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Currency</Label>
+                <Select value={cfg.currencyCode || 'INR'} onValueChange={(v) => {
+                  const cur = CURRENCIES.find(c => c.code === v);
+                  setCfg({ ...cfg, currencyCode: v, currencySymbol: cur?.symbol || '₹' });
+                }}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map(c => (
+                      <SelectItem key={c.code} value={c.code}>{c.symbol} {c.name} ({c.code})</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Timezone</Label>
+                <Select value={cfg.timezone || 'Asia/Kolkata'} onValueChange={(v) => setCfg({ ...cfg, timezone: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {TIMEZONES.map(tz => (
+                      <SelectItem key={tz} value={tz}>{tz}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
