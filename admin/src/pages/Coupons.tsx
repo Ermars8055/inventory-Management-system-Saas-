@@ -44,7 +44,7 @@ export function CouponsPage() {
   }
 
   async function toggleActive(c: Coupon) {
-    await api.put(`/coupons/${c.id}`, { isActive: !c.isActive });
+    await api.patch(`/coupons/${c.id}`, { isActive: !c.isActive });
     setCoupons(prev => prev.map(x => x.id === c.id ? { ...x, isActive: !x.isActive } : x));
     toast({ title: `${c.code} ${c.isActive ? 'deactivated' : 'activated'}` });
   }

@@ -84,7 +84,7 @@ def create_coupon(body: CouponCreate, admin: AdminUser = Depends(require("orgs:b
     return {"id": c.id, "code": c.code}
 
 
-@router.put("/{coupon_id}")
+@router.patch("/{coupon_id}")
 def update_coupon(coupon_id: str, body: CouponUpdate, admin: AdminUser = Depends(require("orgs:billing")), db: Session = Depends(get_admin_db)):
     c = db.query(Coupon).filter(Coupon.id == coupon_id).first()
     if not c:
