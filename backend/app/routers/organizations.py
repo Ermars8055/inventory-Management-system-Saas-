@@ -26,6 +26,10 @@ def create_organization(body: OrganizationCreate, user: User = Depends(get_curre
         created_at=__import__("datetime").date.today().isoformat(),
     )
     db.add(org)
+    db.flush()
+    # Move the creating user to the new org as org_admin
+    user.organization_id = org.id
+    user.role = "org_admin"
     db.commit()
     db.refresh(org)
     return org
