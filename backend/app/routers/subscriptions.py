@@ -1,6 +1,12 @@
+import os
+import uuid
+from datetime import date, datetime
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
+from pydantic.alias_generators import to_camel
+from typing import Optional
 from sqlalchemy.orm import Session
+from sqlalchemy import create_engine, text
 from ..database import get_db
 from ..models import Organization, User
 from ..schemas import SubscriptionOut
@@ -65,3 +71,77 @@ def update_current_subscription(body: PlanUpdateBody, user: User = Depends(requi
     org.plan = body.tier
     db.commit()
     return PLANS_BY_TIER[body.tier].model_dump()
+
+
+# ─── Coupon Redemption (reads admin DB directly) ────────────────────────────
+
+def _get_admin_engine():
+    admin_db_url = os.getenv("ADMIN_DB_URL", "sqlite:////data/admin.db")
+    kwargs = {"check_same_thread": False} if admin_db_url.startswith("sqlite") else {}
+    return create_engine(admin_db_url, connect_args=kwargs)
+
+
+class _Camel(BaseModel):
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+
+
+class RedeemCouponBody(_Camel):
+    code: str
+
+
+@router.post("/redeem-coupon")
+def redeem_coupon(body: RedeemCouponBody, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    org = db.query(Organization).filter(Organization.id == user.organization_id).first()
+    if not org:
+        raise HTTPException(404, "Organization not found")
+
+    engine = _get_admin_engine()
+    code = body.code.upper()
+    today = date.today().isoformat()
+
+    with engine.connect() as conn:
+        c = conn.execute(text(
+            "SELECT * FROM coupons WHERE code = :code AND is_active = 1"
+        ), {"code": code}).fetchone()
+        if not c:
+            raise HTTPException(404, "Invalid or expired coupon code")
+
+        c_dict = dict(c._mapping)
+
+        if c_dict.get("valid_from") and today < c_dict["valid_from"]:
+            raise HTTPException(400, "Coupon is not yet valid")
+        if c_dict.get("valid_until") and today > c_dict["valid_until"]:
+            raise HTTPException(400, "Coupon has expired")
+        if c_dict["max_uses"] > 0 and (c_dict.get("uses_count") or 0) >= c_dict["max_uses"]:
+            raise HTTPException(400, "Coupon has reached maximum uses")
+
+        applicable = c_dict.get("applicable_plans") or "all"
+        if applicable != "all":
+            allowed = [p.strip() for p in applicable.split(",")]
+            if org.plan not in allowed:
+                raise HTTPException(400, f"Coupon not valid for {org.plan} plan")
+
+        existing = conn.execute(text(
+            "SELECT id FROM org_coupons WHERE org_id = :oid AND coupon_id = :cid"
+        ), {"oid": org.id, "cid": c_dict["id"]}).fetchone()
+        if existing:
+            raise HTTPException(400, "Coupon already applied to this organization")
+
+        conn.execute(text(
+            "INSERT INTO org_coupons (id, org_id, coupon_id, coupon_code, discount_type, discount_value, applied_at) VALUES (:id, :oid, :cid, :code, :dt, :dv, :at)"
+        ), {
+            "id": str(uuid.uuid4()), "oid": org.id, "cid": c_dict["id"],
+            "code": code, "dt": c_dict["discount_type"], "dv": c_dict["discount_value"],
+            "at": datetime.utcnow().isoformat(),
+        })
+        conn.execute(text(
+            "UPDATE coupons SET uses_count = uses_count + 1 WHERE id = :id"
+        ), {"id": c_dict["id"]})
+        conn.commit()
+
+    return {
+        "applied": True,
+        "code": code,
+        "discountType": c_dict["discount_type"],
+        "discountValue": c_dict["discount_value"],
+    }

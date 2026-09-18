@@ -3,6 +3,7 @@ import { ArrowLeft, CreditCard, Check, Zap, Users, Package, Boxes, Tag } from 'l
 import { useNavigate } from 'react-router-dom';
 import { useOrganization } from '@/context/OrganizationContext';
 import { subscriptionService } from '@/services';
+import { api } from '@/lib/api';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -75,14 +76,7 @@ export function SubscriptionPage() {
     if (!couponCode.trim() || !currentOrg) return;
     setRedeeming(true);
     try {
-      const adminUrl = import.meta.env.VITE_ADMIN_API_URL || 'http://localhost:8061/api';
-      const res = await fetch(`${adminUrl}/coupons/redeem`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: couponCode, orgId: currentOrg.id, orgPlan: currentOrg.plan }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Failed to redeem');
+      const data = await api.post<{ applied: boolean; code: string; discountType: string; discountValue: number }>('/subscriptions/redeem-coupon', { code: couponCode });
       toast({ title: 'Coupon applied!', description: `${data.discountType === 'percent' ? data.discountValue + '%' : '₹' + data.discountValue} discount applied` });
       setCouponCode('');
     } catch (err: unknown) {
