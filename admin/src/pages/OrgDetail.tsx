@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
-import { ArrowLeft, LogIn, ShieldOff, ShieldCheck, Users, Package, UserCheck, ClipboardList } from 'lucide-react';
+import { ArrowLeft, LogIn, ShieldOff, ShieldCheck, Users, Package, UserCheck, ClipboardList, CheckCircle2, Circle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+interface OnboardingStep { key: string; label: string; done: boolean }
 interface OrgDetail {
   id: string; name: string; industry: string; plan: string;
   created_at: string; email: string; address: string;
   user_count: number; item_count: number; recipient_count: number; assignment_count: number;
-  enabled_modules: string[];
+  vendor_count: number; enabled_modules: string[];
+  onboarding: { steps: OnboardingStep[]; completed: number; total: number; percent: number };
 }
 
 const PLANS = ['starter', 'professional', 'enterprise'];
@@ -191,6 +193,34 @@ export function OrgDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Onboarding Checklist */}
+        {org.onboarding && (
+          <div className="rounded-3xl p-5 card-shadow mt-4" style={{ background: '#ffffff' }}>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[12px] font-semibold uppercase tracking-widest" style={{ color: '#a0a89a' }}>
+                Onboarding Progress
+              </p>
+              <span className="text-[13px] font-bold" style={{ color: org.onboarding.percent === 100 ? '#059669' : '#a16207' }}>
+                {org.onboarding.percent}%
+              </span>
+            </div>
+            <div className="h-2 rounded-full overflow-hidden mb-4" style={{ background: '#f4f7f2' }}>
+              <div className="h-full rounded-full transition-all" style={{ width: `${org.onboarding.percent}%`, background: org.onboarding.percent === 100 ? '#10b981' : '#f59e0b' }} />
+            </div>
+            <div className="space-y-2.5">
+              {org.onboarding.steps.map(step => (
+                <div key={step.key} className="flex items-center gap-2.5">
+                  {step.done
+                    ? <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: '#10b981' }} />
+                    : <Circle className="h-4 w-4 shrink-0" style={{ color: '#d1d5db' }} />
+                  }
+                  <span className="text-[13px]" style={{ color: step.done ? '#141414' : '#a0a89a' }}>{step.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

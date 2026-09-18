@@ -8,6 +8,8 @@ interface Org {
   id: string; name: string; industry: string; plan: string;
   created_at: string; email: string;
   user_count: number; item_count: number; recipient_count: number; assignment_count: number;
+  vendor_count: number;
+  onboarding: { completed: number; total: number; percent: number };
 }
 
 const PLAN_STYLE: Record<string, { color: string; bg: string }> = {
@@ -87,11 +89,11 @@ export function OrganizationsPage() {
         <div
           className="grid px-5 py-2.5"
           style={{
-            gridTemplateColumns: '2fr 1fr 1fr 64px 64px 64px 64px 100px 72px',
+            gridTemplateColumns: '2fr 1fr 1fr 80px 64px 64px 64px 64px 100px 72px',
             borderBottom: '1px solid rgba(0,0,0,0.05)',
           }}
         >
-          {['Name', 'Industry', 'Plan', 'Users', 'Items', 'Recip.', 'Issues', 'Created', ''].map((h, i) => (
+          {['Name', 'Industry', 'Plan', 'Setup', 'Users', 'Items', 'Recip.', 'Issues', 'Created', ''].map((h, i) => (
             <span
               key={i}
               className="text-[11px] font-semibold uppercase tracking-wider"
@@ -110,7 +112,7 @@ export function OrganizationsPage() {
               key={org.id}
               className="grid items-center px-5 py-3.5 cursor-pointer transition-colors"
               style={{
-                gridTemplateColumns: '2fr 1fr 1fr 64px 64px 64px 64px 100px 72px',
+                gridTemplateColumns: '2fr 1fr 1fr 80px 64px 64px 64px 64px 100px 72px',
                 borderBottom: '1px solid rgba(0,0,0,0.04)',
               }}
               onMouseEnter={e => (e.currentTarget.style.background = '#f8faf7')}
@@ -130,6 +132,12 @@ export function OrganizationsPage() {
                   {org.plan}
                 </span>
               </span>
+              <div className="flex items-center gap-1.5">
+                <div className="h-1.5 flex-1 bg-gray-200 rounded-full overflow-hidden" style={{ maxWidth: 40 }}>
+                  <div className="h-full rounded-full" style={{ width: `${org.onboarding?.percent ?? 0}%`, background: (org.onboarding?.percent ?? 0) === 100 ? '#10b981' : '#f59e0b' }} />
+                </div>
+                <span className="text-[11px] font-mono font-semibold" style={{ color: (org.onboarding?.percent ?? 0) === 100 ? '#059669' : '#a16207' }}>{org.onboarding?.percent ?? 0}%</span>
+              </div>
               {[org.user_count, org.item_count, org.recipient_count, org.assignment_count].map((v, i) => (
                 <span
                   key={i}

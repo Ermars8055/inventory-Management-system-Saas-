@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { LayoutDashboard, Building2, Users, ScrollText, LogOut, ShieldCheck, Ticket, Receipt } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, ScrollText, LogOut, ShieldCheck, Ticket, Receipt, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV = [
@@ -9,6 +9,7 @@ const NAV = [
   { label: 'Admin Users',   path: '/admin-users',  icon: Users },
   { label: 'Coupons',       path: '/coupons',      icon: Ticket },
   { label: 'Billing',       path: '/billing',      icon: Receipt },
+  { label: 'Support',       path: '/support',      icon: MessageCircle },
   { label: 'Audit Log',     path: '/audit',        icon: ScrollText },
 ];
 

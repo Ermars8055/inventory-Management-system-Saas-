@@ -9,6 +9,7 @@ import { AdminUsersPage } from '@/pages/AdminUsers';
 import { AuditLogPage } from '@/pages/AuditLog';
 import { CouponsPage } from '@/pages/Coupons';
 import { BillingPage } from '@/pages/Billing';
+import { SupportPage } from '@/pages/Support';
 
 function ProtectedRoutes() {
   const { user, loading } = useAuth();
@@ -37,6 +38,7 @@ export default function App() {
               <Route path="/admin-users" element={<AdminUsersPage />} />
               <Route path="/coupons" element={<CouponsPage />} />
               <Route path="/billing" element={<BillingPage />} />
+              <Route path="/support" element={<SupportPage />} />
               <Route path="/audit" element={<AuditLogPage />} />
             </Route>
           </Route>

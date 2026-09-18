@@ -41,6 +41,7 @@ import { BulkIssuePage } from '@/pages/BulkIssue';
 import { ClassIssueReportPage } from '@/pages/ClassIssueReport';
 import { QuotationsPage } from '@/pages/Quotations';
 import { QuotationDetailPage } from '@/pages/QuotationDetail';
+import { SupportPage } from '@/pages/Support';
 
 // Loads orgs after auth is ready
 function AppInitializer({ children }: { children: React.ReactNode }) {
@@ -128,6 +129,7 @@ export default function App() {
                   <Route path="class-report" element={<ClassIssueReportPage />} />
                   <Route path="quotations" element={<QuotationsPage />} />
                   <Route path="quotations/:id" element={<QuotationDetailPage />} />
+                  <Route path="support" element={<SupportPage />} />
                 </Route>
               </Route>
 

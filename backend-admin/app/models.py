@@ -60,6 +60,33 @@ class Invoice(AdminBase):
     created_at = Column(String)
 
 
+class SupportTicket(AdminBase):
+    __tablename__ = "support_tickets"
+    id = Column(String, primary_key=True)
+    org_id = Column(String, nullable=False)
+    org_name = Column(String)
+    subject = Column(String, nullable=False)
+    description = Column(Text)
+    status = Column(String, default="open")           # open | in_progress | resolved | closed
+    priority = Column(String, default="medium")       # low | medium | high | critical
+    submitted_by = Column(String)                     # user name
+    submitted_by_email = Column(String)
+    assigned_to = Column(String)                      # admin email
+    created_at = Column(String)
+    resolved_at = Column(String)
+
+
+class TicketMessage(AdminBase):
+    __tablename__ = "ticket_messages"
+    id = Column(String, primary_key=True)
+    ticket_id = Column(String, nullable=False)
+    sender_type = Column(String, nullable=False)      # "tenant" | "admin"
+    sender_name = Column(String)
+    sender_email = Column(String)
+    message = Column(Text, nullable=False)
+    created_at = Column(String)
+
+
 class AuditLog(AdminBase):
     __tablename__ = "audit_log"
     id = Column(String, primary_key=True)

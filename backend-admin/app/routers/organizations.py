@@ -22,6 +22,20 @@ def _parse_org(row: dict) -> dict:
 router = APIRouter(prefix="/organizations", tags=["admin-orgs"])
 
 
+def _onboarding(row: dict) -> dict:
+    """Compute onboarding checklist from org data."""
+    steps = [
+        {"key": "users", "label": "Added users", "done": (row.get("user_count") or 0) > 1},
+        {"key": "modules", "label": "Configured modules", "done": bool(row.get("enabled_modules"))},
+        {"key": "items", "label": "Added inventory items", "done": (row.get("item_count") or 0) > 0},
+        {"key": "vendors", "label": "Added vendors", "done": (row.get("vendor_count") or 0) > 0},
+        {"key": "recipients", "label": "Added recipients", "done": (row.get("recipient_count") or 0) > 0},
+        {"key": "assignments", "label": "Made first assignment", "done": (row.get("assignment_count") or 0) > 0},
+    ]
+    done_count = sum(1 for s in steps if s["done"])
+    return {"steps": steps, "completed": done_count, "total": len(steps), "percent": round(done_count / len(steps) * 100)}
+
+
 def _log(db: Session, admin: AdminUser, action: str, target_type: str, target_id: str, detail: str = ""):
     db.add(AuditLog(
         id=str(uuid.uuid4()),
@@ -54,7 +68,12 @@ def list_orgs(
         ORDER BY o.created_at DESC
     """)).fetchall()
 
-    return [_parse_org(dict(r._mapping)) for r in rows]
+    result = []
+    for r in rows:
+        org = _parse_org(dict(r._mapping))
+        org["onboarding"] = _onboarding(org)
+        result.append(org)
+    return result
 
 
 @router.get("/{org_id}")
@@ -74,7 +93,9 @@ def get_org(
     """), {"org_id": org_id}).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Organization not found")
-    return _parse_org(dict(row._mapping))
+    org = _parse_org(dict(row._mapping))
+    org["onboarding"] = _onboarding(org)
+    return org
 
 
 class PlanUpdate(BaseModel):

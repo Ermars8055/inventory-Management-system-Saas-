@@ -25,6 +25,7 @@ import {
   FileChartColumn,
   FileSearch,
   Store,
+  MessageCircle,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -99,6 +100,7 @@ export function getNavSections(config?: OrgConfig): NavSection[] {
         { label: 'Users & Roles', path: '/users', icon: Users },
         { label: 'Modules', path: '/modules', icon: Boxes },
         { label: 'Organization', path: '/settings/organization', icon: Building2 },
+        { label: 'Support', path: '/support', icon: MessageCircle },
         { label: 'Settings', path: '/settings', icon: Settings },
       ],
     },

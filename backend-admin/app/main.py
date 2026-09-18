@@ -13,6 +13,7 @@ from .routers.stats import router as stats_router
 from .routers.audit import router as audit_router
 from .routers.coupons import router as coupons_router
 from .routers.billing import router as billing_router
+from .routers.support import router as support_router
 
 AdminBase.metadata.create_all(bind=admin_engine)
 
@@ -34,6 +35,7 @@ app.include_router(stats_router)
 app.include_router(audit_router)
 app.include_router(coupons_router)
 app.include_router(billing_router)
+app.include_router(support_router)
 
 
 @app.get("/health")

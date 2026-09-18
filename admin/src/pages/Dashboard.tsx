@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/lib/api';
-import { Building2, Package, Users, Activity, ArrowUpRight } from 'lucide-react';
+import { Building2, Package, Users, Activity, ArrowUpRight, IndianRupee } from 'lucide-react';
 
 interface Stats {
   totalOrgs: number; totalItems: number; totalRecipients: number;
-  totalAssignments: number; activeAssignments: number;
+  totalAssignments: number; activeAssignments: number; totalVendors: number;
   planBreakdown: { plan: string; count: number }[];
   industryBreakdown: { industry: string; count: number }[];
+  mrr: number; paidRevenue: number; pendingRevenue: number; overdueRevenue: number;
 }
 
 // ── Pill progress bar ─────────────────────────────────────────────────────────
@@ -251,6 +252,24 @@ export function DashboardPage() {
               <p className="text-[12px] mt-1" style={{ color: '#a0a89a' }}>across {stats.totalOrgs} tenants</p>
               <PillBar value={Math.min(totalItems, 8)} max={8} dark />
             </div>
+          </div>
+
+          {/* Revenue row */}
+          <div className="grid grid-cols-4 gap-4">
+            {[
+              { label: 'MRR', value: stats.mrr, color: '#6366f1', bg: '#ede9fe' },
+              { label: 'Paid', value: stats.paidRevenue, color: '#059669', bg: '#d1fae5' },
+              { label: 'Pending', value: stats.pendingRevenue, color: '#a16207', bg: '#fef9c3' },
+              { label: 'Overdue', value: stats.overdueRevenue, color: '#dc2626', bg: '#fee2e2' },
+            ].map(r => (
+              <div key={r.label} className="rounded-2xl p-4 card-shadow" style={{ background: '#ffffff' }}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <IndianRupee className="h-3.5 w-3.5" style={{ color: r.color }} />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#8a9080' }}>{r.label}</span>
+                </div>
+                <p className="text-[22px] font-bold font-mono" style={{ color: '#141414' }}>₹{r.value.toLocaleString('en-IN')}</p>
+              </div>
+            ))}
           </div>
 
           {/* Chart card */}
