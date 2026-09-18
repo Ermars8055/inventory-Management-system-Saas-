@@ -30,9 +30,11 @@ export function OrganizationSettingsPage() {
   const [savingCfg, setSavingCfg] = useState(false);
 
   useEffect(() => {
-    if (currentOrg) {
+    if (currentOrg && !savingCfg) {
       setForm({ name: currentOrg.name, email: currentOrg.email ?? '', phone: currentOrg.phone ?? '', address: currentOrg.address ?? '' });
-      setCfg(config);
+      // Merge defaults with what's actually stored — preserves new fields
+      const stored = currentOrg.config || {};
+      setCfg({ ...config, ...stored } as OrgConfig);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentOrg]);
@@ -50,9 +52,13 @@ export function OrganizationSettingsPage() {
     if (!currentOrg) return;
     setSavingCfg(true);
     await updateConfig(cfg);
+    // Don't let useEffect reset cfg — keep the user's values
     setSavingCfg(false);
     toast({ title: 'Configuration saved', description: 'Labels and features updated across the app.' });
   };
+
+  // Sync cfg when org changes (but not during save)
+  const isSaving = saving || savingCfg;
 
   if (!currentOrg) return null;
 
