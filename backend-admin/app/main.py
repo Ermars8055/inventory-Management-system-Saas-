@@ -16,10 +16,11 @@ AdminBase.metadata.create_all(bind=admin_engine)
 
 app = FastAPI(title="StockPilot Admin API", version="1.0.0")
 
+admin_origins = [o.strip() for o in os.getenv("ADMIN_CORS_ORIGINS", "http://localhost:8061,http://localhost:5174").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=admin_origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

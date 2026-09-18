@@ -27,7 +27,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'inventory:read', 'inventory:create', 'inventory:update',
     'assignments:read', 'assignments:create', 'assignments:update',
     'recipients:read', 'recipients:create', 'recipients:update',
-    'suppliers:read', 'suppliers:create', 'suppliers:update',
+    'vendors:read', 'vendors:create', 'vendors:update',
     'reports:read', 'transactions:read',
     'settings:read',
     'users:read',
@@ -42,7 +42,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'inventory:read',
     'assignments:read',
     'recipients:read',
-    'suppliers:read',
+    'vendors:read',
     'reports:read',
     'transactions:read',
   ],
@@ -61,8 +61,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Hydrate from stored token
+  // Hydrate from stored token or admin impersonation token
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const adminToken = params.get('admin_token');
+
+    if (adminToken) {
+      // Admin panel impersonation — store token and clean URL
+      localStorage.setItem('token', adminToken);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
     const token = localStorage.getItem('token');
     if (!token) {
       setLoading(false);

@@ -3,7 +3,11 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 import os
 
-ADMIN_SECRET = os.getenv("ADMIN_JWT_SECRET", "admin-super-secret-change-in-production")
+ADMIN_SECRET = os.getenv("ADMIN_JWT_SECRET")
+if not ADMIN_SECRET:
+    import warnings
+    warnings.warn("ADMIN_JWT_SECRET not set — using insecure default. Set ADMIN_JWT_SECRET in production!", stacklevel=2)
+    ADMIN_SECRET = "admin-dev-secret-DO-NOT-USE-IN-PRODUCTION"
 ALGORITHM = "HS256"
 EXPIRE_MINUTES = 60 * 8
 

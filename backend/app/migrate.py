@@ -53,15 +53,18 @@ def run():
         """))
         conn.commit()
 
-        # Migrate old suppliers to vendors
-        conn.execute(__import__('sqlalchemy').text("""
-            INSERT INTO vendors (id, organization_id, name, contact_person, phone, email, address, vendor_type, status, purchase_history, outstanding_orders, attributes)
-            SELECT id, organization_id, name, contact_person, phone, email, address, items_supplied, status, 
-                   COALESCE(purchase_history, '[]'), COALESCE(outstanding_orders, '[]'), attributes
-            FROM suppliers
-            WHERE NOT EXISTS (SELECT 1 FROM vendors WHERE vendors.id = suppliers.id)
-        """))
-        conn.commit()
+        # Migrate old suppliers to vendors (skip if suppliers table doesn't exist)
+        try:
+            conn.execute(__import__('sqlalchemy').text("""
+                INSERT INTO vendors (id, organization_id, name, contact_person, phone, email, address, vendor_type, status, purchase_history, outstanding_orders, attributes)
+                SELECT id, organization_id, name, contact_person, phone, email, address, items_supplied, status,
+                       COALESCE(purchase_history, '[]'), COALESCE(outstanding_orders, '[]'), attributes
+                FROM suppliers
+                WHERE NOT EXISTS (SELECT 1 FROM vendors WHERE vendors.id = suppliers.id)
+            """))
+            conn.commit()
+        except Exception:
+            pass  # Fresh DB — no suppliers table to migrate from
 
         # Create po_line_items table if it doesn't exist
         conn.execute(__import__('sqlalchemy').text("""

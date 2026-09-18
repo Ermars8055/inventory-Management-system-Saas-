@@ -48,7 +48,8 @@ def list_orgs(
             (SELECT COUNT(*) FROM users u WHERE u.organization_id = o.id) as user_count,
             (SELECT COUNT(*) FROM items i WHERE i.organization_id = o.id) as item_count,
             (SELECT COUNT(*) FROM recipients r WHERE r.organization_id = o.id) as recipient_count,
-            (SELECT COUNT(*) FROM assignments a WHERE a.organization_id = o.id) as assignment_count
+            (SELECT COUNT(*) FROM assignments a WHERE a.organization_id = o.id) as assignment_count,
+            (SELECT COUNT(*) FROM vendors v WHERE v.organization_id = o.id) as vendor_count
         FROM organizations o
         ORDER BY o.created_at DESC
     """)).fetchall()
@@ -67,7 +68,8 @@ def get_org(
             (SELECT COUNT(*) FROM users u WHERE u.organization_id = o.id) as user_count,
             (SELECT COUNT(*) FROM items i WHERE i.organization_id = o.id) as item_count,
             (SELECT COUNT(*) FROM recipients r WHERE r.organization_id = o.id) as recipient_count,
-            (SELECT COUNT(*) FROM assignments a WHERE a.organization_id = o.id) as assignment_count
+            (SELECT COUNT(*) FROM assignments a WHERE a.organization_id = o.id) as assignment_count,
+            (SELECT COUNT(*) FROM vendors v WHERE v.organization_id = o.id) as vendor_count
         FROM organizations o WHERE o.id = :org_id
     """), {"org_id": org_id}).fetchone()
     if not row:
@@ -135,7 +137,9 @@ def impersonate(
     if not org_admin:
         raise HTTPException(status_code=404, detail="No active org_admin found for this org")
 
-    tenant_secret = os.getenv("JWT_SECRET", "dev-secret-change-in-production")
+    tenant_secret = os.getenv("JWT_SECRET")
+    if not tenant_secret:
+        tenant_secret = "dev-secret-DO-NOT-USE-IN-PRODUCTION"
     token = jose_jwt.encode(
         {
             "sub": org_admin.id,

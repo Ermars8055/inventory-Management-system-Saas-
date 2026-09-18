@@ -33,7 +33,8 @@ export function OrganizationsPage() {
     e.stopPropagation();
     try {
       const res = await api.post<{ access_token: string }>(`/organizations/${orgId}/impersonate`, {});
-      window.open(`http://localhost:5173?impersonate=${res.access_token}`, '_blank');
+      const tenantUrl = import.meta.env.VITE_TENANT_URL || 'http://localhost:8060';
+      window.open(`${tenantUrl}/dashboard?admin_token=${res.access_token}`, '_blank');
       toast({ title: `Impersonating ${orgName}` });
     } catch (err: unknown) {
       toast({ title: 'Failed', description: err instanceof Error ? err.message : 'Error', variant: 'destructive' });
