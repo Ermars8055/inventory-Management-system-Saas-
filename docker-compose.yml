@@ -1,13 +1,31 @@
 services:
 
+  # ── PostgreSQL (optional — set USE_POSTGRES=true to enable) ─────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: stockpilot
+      POSTGRES_USER: stockpilot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stockpilot_secret}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stockpilot"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    profiles:
+      - postgres
+
   # ── Main FastAPI Backend ──────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
     restart: unless-stopped
     environment:
-      DATABASE_URL:  sqlite:////data/stockpilot.db
-      ADMIN_DB_URL:  sqlite:////data/admin.db
+      DATABASE_URL:  ${DATABASE_URL:-sqlite:////data/stockpilot.db}
+      ADMIN_DB_URL:  ${ADMIN_DB_URL:-sqlite:////data/admin.db}
       JWT_SECRET:    ${JWT_SECRET:-change-me-in-production}
       SEED_DB:       ${SEED_DB:-true}
       CORS_ORIGINS:  "http://localhost:8060,http://localhost:5173"
@@ -35,8 +53,8 @@ services:
       context: ./backend-admin
     restart: unless-stopped
     environment:
-      ADMIN_DB_URL:   sqlite:////data/admin.db
-      TENANT_DB_URL:  sqlite:////data/stockpilot.db
+      ADMIN_DB_URL:   ${ADMIN_DB_URL:-sqlite:////data/admin.db}
+      TENANT_DB_URL:  ${DATABASE_URL:-sqlite:////data/stockpilot.db}
       ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET:-change-me-in-production}
       JWT_SECRET:     ${JWT_SECRET:-change-me-in-production}
       SEED_DB:        ${SEED_DB:-true}
@@ -83,9 +101,11 @@ services:
       admin-backend:
         condition: service_healthy
 
-# ── Shared persistent volume for SQLite databases ────────────────────────────
+# ── Volumes ───────────────────────────────────────────────────────────────────
 volumes:
   db_data:
     driver: local
   uploads:
+    driver: local
+  pg_data:
     driver: local
