@@ -15,9 +15,57 @@ def run():
         # Purchase orders: link to supplier + quotation
         "ALTER TABLE purchase_orders ADD COLUMN supplier_id VARCHAR REFERENCES suppliers(id)",
         "ALTER TABLE purchase_orders ADD COLUMN quotation_id VARCHAR REFERENCES quotations(id)",
+        # Custom fields: required, sort_order, placeholder
+        "ALTER TABLE custom_fields ADD COLUMN required BOOLEAN DEFAULT 0",
+        "ALTER TABLE custom_fields ADD COLUMN sort_order INTEGER DEFAULT 0",
+        "ALTER TABLE custom_fields ADD COLUMN placeholder VARCHAR",
+        # Suppliers: attributes JSON for custom field values
+        "ALTER TABLE suppliers ADD COLUMN attributes JSON",
+        # Purchase orders: link to vendor
+        "ALTER TABLE purchase_orders ADD COLUMN vendor_id VARCHAR REFERENCES vendors(id)",
+        
+        # Vendor Migration: Rename columns in vendor_quotes
+        "ALTER TABLE vendor_quotes RENAME COLUMN supplier_id TO vendor_id",
+        "ALTER TABLE vendor_quotes RENAME COLUMN supplier_name TO vendor_name",
+        "ALTER TABLE vendor_quotes RENAME COLUMN supplier_email TO vendor_email",
+        
+        # Vendor Migration: Rename columns in purchase_orders
+        "ALTER TABLE purchase_orders RENAME COLUMN supplier TO vendor_name",
     ]
 
     with engine.connect() as conn:
+        # Create vendors table if it doesn't exist
+        conn.execute(__import__('sqlalchemy').text("""
+            CREATE TABLE IF NOT EXISTS vendors (
+                id VARCHAR PRIMARY KEY,
+                organization_id VARCHAR NOT NULL REFERENCES organizations(id),
+                name VARCHAR NOT NULL,
+                contact_person VARCHAR,
+                phone VARCHAR,
+                email VARCHAR,
+                address VARCHAR,
+                vendor_type VARCHAR,
+                status VARCHAR DEFAULT 'active',
+                purchase_history JSON,
+                outstanding_orders JSON,
+                attributes JSON
+            )
+        """))
+        conn.commit()
+
+        # Migrate old suppliers to vendors (skip if suppliers table doesn't exist)
+        try:
+            conn.execute(__import__('sqlalchemy').text("""
+                INSERT INTO vendors (id, organization_id, name, contact_person, phone, email, address, vendor_type, status, purchase_history, outstanding_orders, attributes)
+                SELECT id, organization_id, name, contact_person, phone, email, address, items_supplied, status,
+                       COALESCE(purchase_history, '[]'), COALESCE(outstanding_orders, '[]'), attributes
+                FROM suppliers
+                WHERE NOT EXISTS (SELECT 1 FROM vendors WHERE vendors.id = suppliers.id)
+            """))
+            conn.commit()
+        except Exception:
+            pass  # Fresh DB — no suppliers table to migrate from
+
         # Create po_line_items table if it doesn't exist
         conn.execute(__import__('sqlalchemy').text("""
             CREATE TABLE IF NOT EXISTS po_line_items (

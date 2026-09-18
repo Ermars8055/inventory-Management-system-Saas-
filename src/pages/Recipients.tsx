@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, UserCircle2, ChevronRight } from 'lucide-react';
+import { Search, Plus, UserCircle2, ChevronRight, Settings2 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
 import { recipientService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { CustomFieldsSheet } from '@/components/shared/CustomFieldsSheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +23,7 @@ export function RecipientsPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ name: '', identifier: '', group: '', contact: '' });
   const [saving, setSaving] = useState(false);
+  const [fieldsSheetOpen, setFieldsSheetOpen] = useState(false);
 
   useEffect(() => {
     if (!currentOrg) return;
@@ -78,10 +80,15 @@ export function RecipientsPage() {
         title={config.recipientPluralLabel}
         description={`${recipients.length} ${config.recipientPluralLabel.toLowerCase()} in ${currentOrg.name}`}
         actions={
-          <Button onClick={() => setShowAdd(true)}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add {config.recipientLabel}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setFieldsSheetOpen(true)}>
+              <Settings2 className="h-4 w-4 mr-1" />Custom Fields
+            </Button>
+            <Button onClick={() => setShowAdd(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add {config.recipientLabel}
+            </Button>
+          </div>
         }
       />
 
@@ -180,6 +187,13 @@ export function RecipientsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <CustomFieldsSheet
+        entity="recipient"
+        entityLabel={config.recipientPluralLabel}
+        open={fieldsSheetOpen}
+        onOpenChange={setFieldsSheetOpen}
+      />
     </div>
   );
 }

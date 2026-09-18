@@ -9,7 +9,7 @@ export type ModuleId =
   | 'uniforms'
   | 'books'
   | 'student_issue'
-  | 'suppliers'
+  | 'vendors'
   | 'barcode'
   | 'reports'
   | 'pharmacy'
@@ -170,9 +170,9 @@ export interface StockTransaction {
   notes?: string;
 }
 
-// --- Suppliers ---
+// --- Vendors ---
 
-export interface Supplier {
+export interface Vendor {
   id: string;
   organizationId: string;
   name: string;
@@ -180,10 +180,11 @@ export interface Supplier {
   phone: string;
   email: string;
   address: string;
-  itemsSupplied: string;
+  vendorType: string;
   status: 'active' | 'inactive';
   purchaseHistory: { date: string; item: string; quantity: number; amount: number }[];
   outstandingOrders: { item: string; quantity: number; expectedDate: string; status: string }[];
+  attributes?: Record<string, string | number | boolean>;
 }
 
 // --- Users & Roles ---
@@ -195,7 +196,7 @@ export type Permission =
   | 'delete_items'
   | 'stock_in'
   | 'stock_out'
-  | 'manage_suppliers'
+  | 'manage_vendors'
   | 'manage_modules'
   | 'manage_users'
   | 'view_reports';
@@ -310,13 +311,25 @@ export interface ReceiptTemplate {
 
 export type CustomFieldType = 'text' | 'number' | 'dropdown' | 'date' | 'boolean';
 
+export type CustomFieldEntity =
+  | 'item'
+  | 'supplier'
+  | 'transaction'
+  | 'vendor'
+  | 'recipient'
+  | 'asset'
+  | 'purchase_order';
+
 export interface CustomField {
   id: string;
   organizationId: string;
   name: string;
   type: CustomFieldType;
   options?: string[];
-  entity: 'item' | 'supplier' | 'transaction';
+  entity: CustomFieldEntity;
+  required: boolean;
+  sortOrder: number;
+  placeholder?: string;
 }
 
 // --- Procurement ---
@@ -337,8 +350,8 @@ export interface PurchaseOrder {
   id: string;
   organizationId: string;
   poNumber: string;
-  supplier: string;
-  supplierId?: string;
+  vendorName: string;
+  vendorId?: string;
   itemsDesc?: string;
   itemCount: number;
   orderedDate?: string;
@@ -452,9 +465,9 @@ export interface VendorQuoteItem {
 export interface VendorQuote {
   id: string;
   quotationId: string;
-  supplierId?: string;
-  supplierName: string;
-  supplierEmail?: string;
+  vendorId?: string;
+  vendorName: string;
+  vendorEmail?: string;
   status: 'invited' | 'quoted' | 'rejected';
   quotedAt?: string;
   notes?: string;

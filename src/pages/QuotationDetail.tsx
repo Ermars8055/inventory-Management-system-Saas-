@@ -15,7 +15,7 @@ import {
   XCircle, Package, ShoppingCart, Send, ExternalLink,
 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
-import { quotationService, supplierService, inventoryService, procurementService } from '@/services';
+import { quotationService, vendorService, inventoryService, procurementService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +27,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import type { Quotation, VendorQuote, Supplier, Item, PurchaseOrder } from '@/types';
+import type { Quotation, VendorQuote, Vendor, Item, PurchaseOrder } from '@/types';
 
 const STATUS_CONFIG = {
   draft:      { label: 'Draft',      color: 'bg-muted text-muted-foreground' },
@@ -48,9 +48,9 @@ function buildMailtoRFQ(orgName: string, rfqRef: string, vq: VendorQuote, items:
   const subject = encodeURIComponent(`Quote Request — ${rfqRef} | ${orgName}`);
   const lines = items.map((it, i) => `${i + 1}. ${it.itemName} — ${it.qtyNeeded} units`).join('\n');
   const body = encodeURIComponent(
-    `Dear ${vq.supplierName},\n\nWe request your best quotation for the following items:\n\n${lines}\n\nPlease reply with your unit prices and estimated lead time for each item.\n\nQuotation Reference: ${rfqRef}\nDate: ${new Date().toLocaleDateString('en-IN')}\n\nThank you,\n${orgName}`
+    `Dear ${vq.vendorName},\n\nWe request your best quotation for the following items:\n\n${lines}\n\nPlease reply with your unit prices and estimated lead time for each item.\n\nQuotation Reference: ${rfqRef}\nDate: ${new Date().toLocaleDateString('en-IN')}\n\nThank you,\n${orgName}`
   );
-  return `mailto:${vq.supplierEmail || ''}?subject=${subject}&body=${body}`;
+  return `mailto:${vq.vendorEmail || ''}?subject=${subject}&body=${body}`;
 }
 
 function buildMailtoPO(orgName: string, po: PurchaseOrder): string {
@@ -59,7 +59,7 @@ function buildMailtoPO(orgName: string, po: PurchaseOrder): string {
     .map((li, i) => `${i + 1}. ${li.itemName} × ${li.quantityOrdered} units @ ₹${li.unitPrice} = ₹${li.unitPrice * li.quantityOrdered}`)
     .join('\n');
   const body = encodeURIComponent(
-    `Dear ${po.supplier},\n\nPlease find our Purchase Order details below:\n\nPO Number: ${po.poNumber}\nDate: ${po.createdAt || new Date().toLocaleDateString('en-IN')}\n\nItems Ordered:\n${lines}\n\nTotal Amount: ₹${po.amount.toLocaleString('en-IN')}${po.expectedDate ? `\nExpected Delivery: ${po.expectedDate}` : ''}\n\nKindly confirm receipt and advise on delivery schedule.\n\nThank you,\n${orgName}`
+    `Dear ${po.vendorName},\n\nPlease find our Purchase Order details below:\n\nPO Number: ${po.poNumber}\nDate: ${po.createdAt || new Date().toLocaleDateString('en-IN')}\n\nItems Ordered:\n${lines}\n\nTotal Amount: ₹${po.amount.toLocaleString('en-IN')}${po.expectedDate ? `\nExpected Delivery: ${po.expectedDate}` : ''}\n\nKindly confirm receipt and advise on delivery schedule.\n\nThank you,\n${orgName}`
   );
   // Find vendor email from vendor quotes
   return `mailto:?subject=${subject}&body=${body}`;
@@ -72,7 +72,7 @@ export function QuotationDetailPage() {
   const { toast } = useToast();
 
   const [q, setQ] = useState<Quotation | null>(null);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [inventoryItems, setInventoryItems] = useState<Item[]>([]);
   const [generatedPOs, setGeneratedPOs] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +87,7 @@ export function QuotationDetailPage() {
 
   // Vendor invite form
   const [showInviteVendor, setShowInviteVendor] = useState(false);
-  const [selectedSupplierId, setSelectedSupplierId] = useState('');
+  const [selectedVendorId, setSelectedVendorId] = useState('');
 
   // Quote entry: which vendor is being entered
   const [enteringQuoteFor, setEnteringQuoteFor] = useState<string | null>(null);
@@ -104,13 +104,13 @@ export function QuotationDetailPage() {
 
   const load = useCallback(async () => {
     if (!id || !currentOrg) return;
-    const [quotation, sups, items] = await Promise.all([
+    const [quotation, vens, items] = await Promise.all([
       quotationService.getById(id),
-      supplierService.getByOrganization(currentOrg.id),
+      vendorService.getByOrganization(currentOrg.id),
       inventoryService.getByOrganization(currentOrg.id),
     ]);
     setQ(quotation);
-    setSuppliers(sups);
+    setVendors(vens);
     setInventoryItems(items);
     // If already converted, load POs
     if (quotation.status === 'converted') {
@@ -168,42 +168,48 @@ export function QuotationDetailPage() {
   }
 
   async function handleRemoveItem(itemId: string) {
+    if (!q) return;
     const updated = await quotationService.removeItem(q.id, itemId);
     setQ(updated);
   }
 
   async function handleInviteVendor() {
-    if (!selectedSupplierId) return;
-    const sup = suppliers.find(s => s.id === selectedSupplierId);
-    if (!sup) return;
+    if (!q) return;
+    if (!selectedVendorId) return;
+    const ven = vendors.find(s => s.id === selectedVendorId);
+    if (!ven) return;
     const updated = await quotationService.inviteVendor(q.id, {
-      supplierId: sup.id,
-      supplierName: sup.name,
-      supplierEmail: sup.email || undefined,
+      vendorId: ven.id,
+      vendorName: ven.name,
+      vendorEmail: ven.email || undefined,
     });
     setQ(updated);
     setShowInviteVendor(false);
-    setSelectedSupplierId('');
+    setSelectedVendorId('');
   }
 
   async function handleRemoveVendor(vqId: string) {
+    if (!q) return;
     const updated = await quotationService.removeVendor(q.id, vqId);
     setQ(updated);
   }
 
   async function handleMarkSent() {
+    if (!q) return;
     const updated = await quotationService.update(q.id, { status: 'sent' });
     setQ(updated);
     toast({ title: 'Marked as Sent', description: 'Vendors have been notified (via email).' });
   }
 
   async function handleStartComparing() {
+    if (!q) return;
     const updated = await quotationService.update(q.id, { status: 'comparing' });
     setQ(updated);
     setActiveTab('compare');
   }
 
   function openQuoteEntry(vqId: string) {
+    if (!q) return;
     const vq = q.vendorQuotes.find(v => v.id === vqId);
     if (!vq) return;
     const initial: Record<string, { price: string; leadDays: string }> = {};
@@ -219,6 +225,7 @@ export function QuotationDetailPage() {
   }
 
   async function handleSubmitQuote() {
+    if (!q) return;
     if (!enteringQuoteFor) return;
     const items = Object.entries(quoteEntryPrices)
       .filter(([, v]) => v.price !== '')
@@ -234,11 +241,13 @@ export function QuotationDetailPage() {
   }
 
   async function handleRejectVendor(vqId: string) {
+    if (!q) return;
     const updated = await quotationService.rejectVendor(q.id, vqId);
     setQ(updated);
   }
 
   async function handleGeneratePOs() {
+    if (!q) return;
     setGenerating(true);
     try {
       const pos = await quotationService.generatePOs(q.id, {
@@ -261,7 +270,7 @@ export function QuotationDetailPage() {
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
-  const invitedVendorIds = new Set(q.vendorQuotes.map(v => v.supplierId).filter(Boolean));
+  const invitedVendorIds = new Set(q.vendorQuotes.map(v => v.vendorId).filter(Boolean));
   const filteredInventoryItems = inventoryItems.filter(i =>
     !addItemSearch || i.name.toLowerCase().includes(addItemSearch.toLowerCase())
   );
@@ -396,11 +405,11 @@ export function QuotationDetailPage() {
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <div className="flex items-center gap-2">
-                            <p className="font-semibold text-sm">{vq.supplierName}</p>
+                            <p className="font-semibold text-sm">{vq.vendorName}</p>
                             <Badge variant="outline" className={`text-xs ${vqCfg.color}`}>{vqCfg.label}</Badge>
                           </div>
-                          {vq.supplierEmail && (
-                            <p className="text-xs text-muted-foreground mt-0.5">{vq.supplierEmail}</p>
+                          {vq.vendorEmail && (
+                            <p className="text-xs text-muted-foreground mt-0.5">{vq.vendorEmail}</p>
                           )}
                         </div>
                         <div className="flex items-center gap-1">
@@ -489,7 +498,7 @@ export function QuotationDetailPage() {
                       <th className="text-center px-3 py-2 text-xs font-semibold border-b">Qty</th>
                       {quotedVendors.map(vq => (
                         <th key={vq.id} className="text-center px-3 py-2 text-xs font-semibold border-b min-w-28">
-                          {vq.supplierName}
+                          {vq.vendorName}
                         </th>
                       ))}
                       <th className="text-center px-3 py-2 text-xs font-semibold border-b">Selected</th>
@@ -538,7 +547,7 @@ export function QuotationDetailPage() {
                                 <SelectItem value="__none__">— Skip —</SelectItem>
                                 {prices.filter(p => p.price !== null).map(({ vq, price }) => (
                                   <SelectItem key={vq.id} value={vq.id}>
-                                    {vq.supplierName} · ₹{price}
+                                    {vq.vendorName} · ₹{price}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -561,7 +570,7 @@ export function QuotationDetailPage() {
                     return (
                       <div key={itemId} className="flex justify-between text-xs py-0.5">
                         <span>{item.itemName} ×{item.qtyNeeded}</span>
-                        <span className="text-muted-foreground">{vq.supplierName}{price != null ? ` — ₹${(price * item.qtyNeeded).toLocaleString('en-IN')}` : ''}</span>
+                        <span className="text-muted-foreground">{vq.vendorName}{price != null ? ` — ₹${(price * item.qtyNeeded).toLocaleString('en-IN')}` : ''}</span>
                       </div>
                     );
                   })}
@@ -601,9 +610,9 @@ export function QuotationDetailPage() {
               {generatedPOs.map(po => {
                 const poCfg = PO_STATUS[po.status] ?? { label: po.status, color: 'bg-muted text-muted-foreground' };
                 // Find vendor email from vendor quotes
-                const vq = q.vendorQuotes.find(v => v.supplierName === po.supplier);
-                const mailtoHref = `mailto:${vq?.supplierEmail ?? ''}?subject=${encodeURIComponent(`Purchase Order ${po.poNumber} | ${currentOrg.name}`)}&body=${encodeURIComponent(
-                  `Dear ${po.supplier},\n\nPurchase Order: ${po.poNumber}\nDate: ${po.createdAt || ''}\n\nItems:\n${(po.lineItems ?? []).map((li, i) => `${i + 1}. ${li.itemName} × ${li.quantityOrdered} units @ ₹${li.unitPrice}`).join('\n')}\n\nTotal: ₹${po.amount.toLocaleString('en-IN')}${po.expectedDate ? `\nExpected Delivery: ${po.expectedDate}` : ''}\n\nPlease confirm receipt.\n\n${currentOrg.name}`
+                const vq = q.vendorQuotes.find(v => v.vendorName === po.vendorName);
+                const mailtoHref = `mailto:${vq?.vendorEmail ?? ''}?subject=${encodeURIComponent(`Purchase Order ${po.poNumber} | ${currentOrg.name}`)}&body=${encodeURIComponent(
+                  `Dear ${po.vendorName},\n\nPurchase Order: ${po.poNumber}\nDate: ${po.createdAt || ''}\n\nItems:\n${(po.lineItems ?? []).map((li, i) => `${i + 1}. ${li.itemName} × ${li.quantityOrdered} units @ ₹${li.unitPrice}`).join('\n')}\n\nTotal: ₹${po.amount.toLocaleString('en-IN')}${po.expectedDate ? `\nExpected Delivery: ${po.expectedDate}` : ''}\n\nPlease confirm receipt.\n\n${currentOrg.name}`
                 )}`;
 
                 return (
@@ -615,9 +624,9 @@ export function QuotationDetailPage() {
                             <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">{po.poNumber}</code>
                             <Badge variant="outline" className={`text-xs ${poCfg.color}`}>{poCfg.label}</Badge>
                           </div>
-                          <p className="font-semibold mt-1">{po.supplier}</p>
-                          {vq?.supplierEmail && (
-                            <p className="text-xs text-muted-foreground">{vq.supplierEmail}</p>
+                          <p className="font-semibold mt-1">{po.vendorName}</p>
+                          {vq?.vendorEmail && (
+                            <p className="text-xs text-muted-foreground">{vq.vendorEmail}</p>
                           )}
                         </div>
                         <div className="text-right">
@@ -639,7 +648,7 @@ export function QuotationDetailPage() {
                         href={mailtoHref}
                         className="inline-flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                       >
-                        <Mail className="h-3.5 w-3.5" /> Send PO Email to {po.supplier}
+                        <Mail className="h-3.5 w-3.5" /> Send PO Email to {po.vendorName}
                       </a>
                     </CardContent>
                   </Card>
@@ -714,11 +723,11 @@ export function QuotationDetailPage() {
           <DialogHeader><DialogTitle>Invite Vendor</DialogTitle></DialogHeader>
           <div className="space-y-3 py-1">
             <div className="space-y-1.5">
-              <Label className="text-xs">Select Supplier</Label>
-              <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId}>
-                <SelectTrigger><SelectValue placeholder="Choose a supplier…" /></SelectTrigger>
+              <Label className="text-xs">Select Vendor</Label>
+              <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
+                <SelectTrigger><SelectValue placeholder="Choose a vendor…" /></SelectTrigger>
                 <SelectContent>
-                  {suppliers.filter(s => s.status === 'active').map(s => (
+                  {vendors.filter(s => s.status === 'active').map(s => (
                     <SelectItem key={s.id} value={s.id} disabled={invitedVendorIds.has(s.id)}>
                       {s.name}{invitedVendorIds.has(s.id) ? ' (already invited)' : ''}
                     </SelectItem>
@@ -726,10 +735,10 @@ export function QuotationDetailPage() {
                 </SelectContent>
               </Select>
             </div>
-            {selectedSupplierId && (
+            {selectedVendorId && (
               <div className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
                 {(() => {
-                  const s = suppliers.find(x => x.id === selectedSupplierId);
+                  const s = vendors.find(x => x.id === selectedVendorId);
                   return s ? `${s.email || 'No email on file'} · ${s.phone || ''}` : '';
                 })()}
               </div>
@@ -737,7 +746,7 @@ export function QuotationDetailPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setShowInviteVendor(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleInviteVendor} disabled={!selectedSupplierId}>Invite</Button>
+            <Button size="sm" onClick={handleInviteVendor} disabled={!selectedVendorId}>Invite</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -747,7 +756,7 @@ export function QuotationDetailPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              Enter Prices — {q.vendorQuotes.find(v => v.id === enteringQuoteFor)?.supplierName}
+              Enter Prices — {q.vendorQuotes.find(v => v.id === enteringQuoteFor)?.vendorName}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-1">

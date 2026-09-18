@@ -1,28 +1,21 @@
 """
 Vendor Quotation System — Option B (prices collected per-quotation, not from catalogue).
-
-Flow:
-  1. Create Quotation with items needed
-  2. Invite vendors (VendorQuote rows, status=invited)
-  3. Send quote request emails via mailto: (frontend handles this)
-  4. Admin manually enters vendor-replied prices → VendorQuoteItem rows
-  5. Compare price grid → select cheapest per item
-  6. generate-pos → creates PurchaseOrder + POLineItem rows per vendor group
 """
 import time
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import (
     Quotation, QuotationItem, VendorQuote, VendorQuoteItem,
-    PurchaseOrder, POLineItem, Supplier,
+    PurchaseOrder, POLineItem, Vendor, User,
 )
 from ..schemas import (
     QuotationOut, QuotationCreate, QuotationUpdate,
     VendorQuoteOut, VendorQuoteCreate, VendorQuoteSubmit,
     GeneratePOsBody, PurchaseOrderOut,
 )
+from ..dependencies import require, same_org
 
 router = APIRouter(prefix="/quotations", tags=["quotations"])
 
@@ -30,21 +23,21 @@ router = APIRouter(prefix="/quotations", tags=["quotations"])
 # ─── Quotations CRUD ─────────────────────────────────────────────────────────
 
 @router.get("", response_model=list[QuotationOut])
-def list_quotations(org_id: str = Query(...), db: Session = Depends(get_db)):
+def list_quotations(user: User = Depends(require("inventory:read")), db: Session = Depends(get_db)):
     return (
         db.query(Quotation)
-        .filter(Quotation.organization_id == org_id)
+        .filter(Quotation.organization_id == user.organization_id)
         .order_by(Quotation.created_at.desc())
         .all()
     )
 
 
 @router.post("", response_model=QuotationOut, status_code=201)
-def create_quotation(body: QuotationCreate, db: Session = Depends(get_db)):
+def create_quotation(body: QuotationCreate, user: User = Depends(require("inventory:create")), db: Session = Depends(get_db)):
     ts = int(time.time() * 1000)
     q = Quotation(
         id=f"quot_{ts}",
-        organization_id=body.organization_id,
+        organization_id=user.organization_id,
         title=body.title,
         notes=body.notes,
         status="draft",
@@ -65,18 +58,20 @@ def create_quotation(body: QuotationCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/{qid}", response_model=QuotationOut)
-def get_quotation(qid: str, db: Session = Depends(get_db)):
+def get_quotation(qid: str, user: User = Depends(require("inventory:read")), db: Session = Depends(get_db)):
     q = db.query(Quotation).filter(Quotation.id == qid).first()
     if not q:
         raise HTTPException(404, "Quotation not found")
+    same_org(q.organization_id, user)
     return q
 
 
 @router.put("/{qid}", response_model=QuotationOut)
-def update_quotation(qid: str, body: QuotationUpdate, db: Session = Depends(get_db)):
+def update_quotation(qid: str, body: QuotationUpdate, user: User = Depends(require("inventory:update")), db: Session = Depends(get_db)):
     q = db.query(Quotation).filter(Quotation.id == qid).first()
     if not q:
         raise HTTPException(404, "Quotation not found")
+    same_org(q.organization_id, user)
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(q, field, value)
     db.commit()
@@ -85,10 +80,11 @@ def update_quotation(qid: str, body: QuotationUpdate, db: Session = Depends(get_
 
 
 @router.delete("/{qid}", status_code=204)
-def delete_quotation(qid: str, db: Session = Depends(get_db)):
+def delete_quotation(qid: str, user: User = Depends(require("inventory:delete")), db: Session = Depends(get_db)):
     q = db.query(Quotation).filter(Quotation.id == qid).first()
     if not q:
         raise HTTPException(404, "Quotation not found")
+    same_org(q.organization_id, user)
     db.delete(q)
     db.commit()
 
@@ -96,10 +92,11 @@ def delete_quotation(qid: str, db: Session = Depends(get_db)):
 # ─── Quotation Items ──────────────────────────────────────────────────────────
 
 @router.post("/{qid}/items", response_model=QuotationOut, status_code=201)
-def add_quotation_item(qid: str, body: dict, db: Session = Depends(get_db)):
+def add_quotation_item(qid: str, body: dict, user: User = Depends(require("inventory:create")), db: Session = Depends(get_db)):
     q = db.query(Quotation).filter(Quotation.id == qid).first()
     if not q:
         raise HTTPException(404, "Quotation not found")
+    same_org(q.organization_id, user)
     ts = int(time.time() * 1000)
     db.add(QuotationItem(
         id=f"qi_{ts}",
@@ -114,7 +111,11 @@ def add_quotation_item(qid: str, body: dict, db: Session = Depends(get_db)):
 
 
 @router.delete("/{qid}/items/{item_id}", response_model=QuotationOut)
-def remove_quotation_item(qid: str, item_id: str, db: Session = Depends(get_db)):
+def remove_quotation_item(qid: str, item_id: str, user: User = Depends(require("inventory:delete")), db: Session = Depends(get_db)):
+    q = db.query(Quotation).filter(Quotation.id == qid).first()
+    if not q:
+        raise HTTPException(404, "Quotation not found")
+    same_org(q.organization_id, user)
     qi = db.query(QuotationItem).filter(
         QuotationItem.id == item_id, QuotationItem.quotation_id == qid
     ).first()
@@ -122,7 +123,6 @@ def remove_quotation_item(qid: str, item_id: str, db: Session = Depends(get_db))
         raise HTTPException(404, "Item not found")
     db.delete(qi)
     db.commit()
-    q = db.query(Quotation).filter(Quotation.id == qid).first()
     db.refresh(q)
     return q
 
@@ -130,24 +130,24 @@ def remove_quotation_item(qid: str, item_id: str, db: Session = Depends(get_db))
 # ─── Vendor Quotes ────────────────────────────────────────────────────────────
 
 @router.post("/{qid}/vendors", response_model=QuotationOut, status_code=201)
-def invite_vendor(qid: str, body: VendorQuoteCreate, db: Session = Depends(get_db)):
+def invite_vendor(qid: str, body: VendorQuoteCreate, user: User = Depends(require("inventory:create")), db: Session = Depends(get_db)):
     q = db.query(Quotation).filter(Quotation.id == qid).first()
     if not q:
         raise HTTPException(404, "Quotation not found")
+    same_org(q.organization_id, user)
 
-    # Auto-fill email from supplier record if not provided
-    email = body.supplier_email
-    if not email and body.supplier_id:
-        sup = db.query(Supplier).filter(Supplier.id == body.supplier_id).first()
-        if sup:
-            email = sup.email
+    email = body.vendor_email
+    if not email and body.vendor_id:
+        ven = db.query(Vendor).filter(Vendor.id == body.vendor_id).first()
+        if ven:
+            email = ven.email
 
     vq = VendorQuote(
         id=f"vq_{int(time.time() * 1000)}",
         quotation_id=qid,
-        supplier_id=body.supplier_id,
-        supplier_name=body.supplier_name,
-        supplier_email=email,
+        vendor_id=body.vendor_id,
+        vendor_name=body.vendor_name,
+        vendor_email=email,
         status="invited",
     )
     db.add(vq)
@@ -157,7 +157,11 @@ def invite_vendor(qid: str, body: VendorQuoteCreate, db: Session = Depends(get_d
 
 
 @router.delete("/{qid}/vendors/{vq_id}", response_model=QuotationOut)
-def remove_vendor(qid: str, vq_id: str, db: Session = Depends(get_db)):
+def remove_vendor(qid: str, vq_id: str, user: User = Depends(require("inventory:delete")), db: Session = Depends(get_db)):
+    q = db.query(Quotation).filter(Quotation.id == qid).first()
+    if not q:
+        raise HTTPException(404, "Quotation not found")
+    same_org(q.organization_id, user)
     vq = db.query(VendorQuote).filter(
         VendorQuote.id == vq_id, VendorQuote.quotation_id == qid
     ).first()
@@ -165,23 +169,22 @@ def remove_vendor(qid: str, vq_id: str, db: Session = Depends(get_db)):
         raise HTTPException(404, "Vendor quote not found")
     db.delete(vq)
     db.commit()
-    q = db.query(Quotation).filter(Quotation.id == qid).first()
     db.refresh(q)
     return q
 
 
 @router.post("/{qid}/vendors/{vq_id}/submit", response_model=QuotationOut)
-def submit_vendor_quote(
-    qid: str, vq_id: str, body: VendorQuoteSubmit, db: Session = Depends(get_db)
-):
-    """Admin enters the prices that the vendor replied with."""
+def submit_vendor_quote(qid: str, vq_id: str, body: VendorQuoteSubmit, user: User = Depends(require("inventory:update")), db: Session = Depends(get_db)):
+    q = db.query(Quotation).filter(Quotation.id == qid).first()
+    if not q:
+        raise HTTPException(404, "Quotation not found")
+    same_org(q.organization_id, user)
     vq = db.query(VendorQuote).filter(
         VendorQuote.id == vq_id, VendorQuote.quotation_id == qid
     ).first()
     if not vq:
         raise HTTPException(404, "Vendor quote not found")
 
-    # Replace existing quote items
     for existing in vq.quote_items:
         db.delete(existing)
 
@@ -202,13 +205,16 @@ def submit_vendor_quote(
         vq.notes = body.notes
 
     db.commit()
-    q = db.query(Quotation).filter(Quotation.id == qid).first()
     db.refresh(q)
     return q
 
 
 @router.patch("/{qid}/vendors/{vq_id}/reject", response_model=QuotationOut)
-def reject_vendor(qid: str, vq_id: str, db: Session = Depends(get_db)):
+def reject_vendor(qid: str, vq_id: str, user: User = Depends(require("inventory:update")), db: Session = Depends(get_db)):
+    q = db.query(Quotation).filter(Quotation.id == qid).first()
+    if not q:
+        raise HTTPException(404, "Quotation not found")
+    same_org(q.organization_id, user)
     vq = db.query(VendorQuote).filter(
         VendorQuote.id == vq_id, VendorQuote.quotation_id == qid
     ).first()
@@ -216,7 +222,6 @@ def reject_vendor(qid: str, vq_id: str, db: Session = Depends(get_db)):
         raise HTTPException(404, "Vendor quote not found")
     vq.status = "rejected"
     db.commit()
-    q = db.query(Quotation).filter(Quotation.id == qid).first()
     db.refresh(q)
     return q
 
@@ -224,29 +229,23 @@ def reject_vendor(qid: str, vq_id: str, db: Session = Depends(get_db)):
 # ─── Generate POs ────────────────────────────────────────────────────────────
 
 @router.post("/{qid}/generate-pos", response_model=list[PurchaseOrderOut], status_code=201)
-def generate_pos(qid: str, body: GeneratePOsBody, db: Session = Depends(get_db)):
-    """
-    selections: { quotation_item_id: vendor_quote_id }
-    Groups selected items by vendor → creates one PO per vendor.
-    """
+def generate_pos(qid: str, body: GeneratePOsBody, user: User = Depends(require("inventory:create")), db: Session = Depends(get_db)):
     q = db.query(Quotation).filter(Quotation.id == qid).first()
     if not q:
         raise HTTPException(404, "Quotation not found")
+    same_org(q.organization_id, user)
     if not body.selections:
         raise HTTPException(400, "No selections provided")
 
-    # Build lookup maps
     items_by_id = {i.id: i for i in q.items}
-    vq_by_id    = {vq.id: vq for vq in q.vendor_quotes}
+    vq_by_id = {vq.id: vq for vq in q.vendor_quotes}
 
-    # Group: vendor_quote_id → list of (quotation_item, unit_price)
     groups: dict[str, list[tuple]] = {}
     for qi_id, vq_id in body.selections.items():
         qi = items_by_id.get(qi_id)
         vq = vq_by_id.get(vq_id)
         if not qi or not vq:
             continue
-        # Find the price for this item from this vendor
         price = next(
             (x.unit_price for x in vq.quote_items if x.quotation_item_id == qi_id),
             0,
@@ -260,14 +259,14 @@ def generate_pos(qid: str, body: GeneratePOsBody, db: Session = Depends(get_db))
     for vq_id, line_data in groups.items():
         vq = vq_by_id[vq_id]
         total = sum(int(price * item.qty_needed) for item, _, price in line_data)
-        items_desc = ", ".join(f"{item.item_name} ×{item.qty_needed}" for item, _, _ in line_data)
+        items_desc = ", ".join(f"{item.item_name} x{item.qty_needed}" for item, _, _ in line_data)
 
         po = PurchaseOrder(
             id=f"po_{ts}_{po_counter}",
-            organization_id=q.organization_id,
+            organization_id=user.organization_id,
             po_number=f"PO-{date.today().strftime('%Y%m%d')}-{ts % 10000}-{po_counter:02d}",
-            supplier=vq.supplier_name,
-            supplier_id=vq.supplier_id,
+            vendor_name=vq.vendor_name,
+            vendor_id=vq.vendor_id,
             items_desc=items_desc,
             item_count=len(line_data),
             expected_date=body.expected_date,
@@ -295,7 +294,6 @@ def generate_pos(qid: str, body: GeneratePOsBody, db: Session = Depends(get_db))
         po_counter += 1
         ts += 1
 
-    # Mark quotation as converted
     q.status = "converted"
     db.commit()
 

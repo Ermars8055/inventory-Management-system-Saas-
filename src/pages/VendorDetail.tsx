@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Truck, Phone, Mail, MapPin, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Store, Phone, Mail, MapPin, ShoppingCart } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
-import { supplierService, procurementService } from '@/services';
+import { vendorService, procurementService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { Supplier, PurchaseOrder, POStatus } from '@/types';
+import type { Vendor, PurchaseOrder, POStatus } from '@/types';
 
 const STATUS_CONFIG: Record<POStatus, { label: string; className: string }> = {
   draft:               { label: 'Draft',              className: 'bg-muted text-muted-foreground' },
@@ -22,29 +22,29 @@ const STATUS_CONFIG: Record<POStatus, { label: string; className: string }> = {
   cancelled:           { label: 'Cancelled',          className: 'bg-red-50 text-red-700 border-red-200' },
 };
 
-export function SupplierDetailPage() {
+export function VendorDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentOrg } = useOrganization();
-  const [supplier, setSupplier] = useState<Supplier | null>(null);
+  const [vendor, setVendor] = useState<Vendor | null>(null);
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
 
   useEffect(() => {
     if (!id) return;
-    supplierService.getById(id).then((s) => setSupplier(s || null));
+    vendorService.getById(id).then((v) => setVendor(v || null));
   }, [id]);
 
   useEffect(() => {
     if (!currentOrg || !id) return;
     procurementService.getByOrganization(currentOrg.id).then((all) =>
-      setOrders(all.filter((po) => po.supplierId === id)),
+      setOrders(all.filter((po) => po.vendorId === id)),
     );
   }, [currentOrg, id]);
 
-  if (supplier === null) {
-    return <div className="p-8 text-center text-muted-foreground">Supplier not found.</div>;
+  if (vendor === null) {
+    return <div className="p-8 text-center text-muted-foreground">Vendor not found.</div>;
   }
-  if (!supplier) {
+  if (!vendor) {
     return <div className="p-8 text-center text-muted-foreground">Loading…</div>;
   }
 
@@ -57,12 +57,12 @@ export function SupplierDetailPage() {
     <div>
       <div className="mb-6">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="-ml-2 mb-3">
-          <ArrowLeft className="h-4 w-4 mr-2" />Back to Suppliers
+          <ArrowLeft className="h-4 w-4 mr-2" />Back to Vendors
         </Button>
         <PageHeader
-          title={supplier.name}
-          description={`${supplier.itemsSupplied || 'General Supplier'} · ${supplier.contactPerson || ''}`}
-          actions={<StatusBadge status={supplier.status} />}
+          title={vendor.name}
+          description={`${vendor.vendorType || 'General Vendor'} · ${vendor.contactPerson || ''}`}
+          actions={<StatusBadge status={vendor.status} />}
         />
       </div>
 
@@ -70,43 +70,43 @@ export function SupplierDetailPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Truck className="h-4 w-4 text-muted-foreground" />Contact Information
+              <Store className="h-4 w-4 text-muted-foreground" />Contact Information
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            {supplier.contactPerson && (
+            {vendor.contactPerson && (
               <div className="flex items-start gap-2">
                 <span className="text-xs font-semibold text-muted-foreground mt-0.5 w-5 shrink-0">CP</span>
                 <div>
                   <p className="text-muted-foreground text-xs">Contact Person</p>
-                  <p className="font-medium">{supplier.contactPerson}</p>
+                  <p className="font-medium">{vendor.contactPerson}</p>
                 </div>
               </div>
             )}
-            {supplier.phone && (
+            {vendor.phone && (
               <div className="flex items-start gap-2">
                 <Phone className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                 <div>
                   <p className="text-muted-foreground text-xs">Phone</p>
-                  <p className="font-medium">{supplier.phone}</p>
+                  <p className="font-medium">{vendor.phone}</p>
                 </div>
               </div>
             )}
-            {supplier.email && (
+            {vendor.email && (
               <div className="flex items-start gap-2">
                 <Mail className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                 <div>
                   <p className="text-muted-foreground text-xs">Email</p>
-                  <p className="font-medium">{supplier.email}</p>
+                  <p className="font-medium">{vendor.email}</p>
                 </div>
               </div>
             )}
-            {supplier.address && (
+            {vendor.address && (
               <div className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                 <div>
                   <p className="text-muted-foreground text-xs">Address</p>
-                  <p className="font-medium leading-relaxed">{supplier.address}</p>
+                  <p className="font-medium leading-relaxed">{vendor.address}</p>
                 </div>
               </div>
             )}
@@ -132,6 +132,24 @@ export function SupplierDetailPage() {
         </Card>
       </div>
 
+      {vendor.attributes && Object.keys(vendor.attributes).length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-base">Custom Fields</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3">
+              {Object.entries(vendor.attributes).map(([key, val]) => (
+                <div key={key} className="flex justify-between items-center py-1.5 border-b last:border-0">
+                  <span className="text-sm text-muted-foreground">{key}</span>
+                  <span className="text-sm font-medium">{typeof val === 'boolean' ? (val ? 'Yes' : 'No') : String(val)}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs defaultValue="orders">
         <TabsList className="mb-4">
           <TabsTrigger value="orders">
@@ -146,7 +164,7 @@ export function SupplierDetailPage() {
             <CardContent className="p-0">
               {orders.length === 0 ? (
                 <div className="p-8 text-center text-sm text-muted-foreground">
-                  No purchase orders for this supplier yet.
+                  No purchase orders for this vendor yet.
                 </div>
               ) : (
                 <Table>

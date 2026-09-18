@@ -182,10 +182,10 @@ class TransactionCreate(CamelModel):
 
 
 # ---------------------------------------------------------------------------
-# Suppliers
+# Vendors
 # ---------------------------------------------------------------------------
 
-class SupplierOut(CamelModel):
+class VendorOut(CamelModel):
     id: str
     organization_id: str
     name: str
@@ -193,30 +193,33 @@ class SupplierOut(CamelModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     address: Optional[str] = None
-    items_supplied: Optional[str] = None
+    vendor_type: Optional[str] = None
     status: str = "active"
     purchase_history: list[dict[str, Any]] = []
     outstanding_orders: list[dict[str, Any]] = []
+    attributes: Optional[dict[str, Any]] = None
 
 
-class SupplierCreate(CamelModel):
+class VendorCreate(CamelModel):
     organization_id: str
     name: str
     contact_person: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
     address: Optional[str] = None
-    items_supplied: Optional[str] = None
+    vendor_type: Optional[str] = None
+    attributes: Optional[dict[str, Any]] = None
 
 
-class SupplierUpdate(CamelModel):
+class VendorUpdate(CamelModel):
     name: Optional[str] = None
     contact_person: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
     address: Optional[str] = None
-    items_supplied: Optional[str] = None
+    vendor_type: Optional[str] = None
     status: Optional[str] = None
+    attributes: Optional[dict[str, Any]] = None
 
 
 # ---------------------------------------------------------------------------
@@ -385,6 +388,9 @@ class CustomFieldOut(CamelModel):
     type: Optional[str] = None
     options: Optional[list[str]] = None
     entity: Optional[str] = None
+    required: bool = False
+    sort_order: int = 0
+    placeholder: Optional[str] = None
 
 
 class CustomFieldCreate(CamelModel):
@@ -393,6 +399,19 @@ class CustomFieldCreate(CamelModel):
     type: str
     entity: str
     options: Optional[list[str]] = None
+    required: bool = False
+    sort_order: int = 0
+    placeholder: Optional[str] = None
+
+
+class CustomFieldUpdate(CamelModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    entity: Optional[str] = None
+    options: Optional[list[str]] = None
+    required: Optional[bool] = None
+    sort_order: Optional[int] = None
+    placeholder: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -448,8 +467,8 @@ class PurchaseOrderOut(CamelModel):
     id: str
     organization_id: str
     po_number: str
-    supplier: str
-    supplier_id: Optional[str] = None
+    vendor_name: str
+    vendor_id: Optional[str] = None
     items_desc: Optional[str] = None
     item_count: int = 0
     ordered_date: Optional[str] = None
@@ -465,8 +484,8 @@ class PurchaseOrderOut(CamelModel):
 class PurchaseOrderCreate(CamelModel):
     organization_id: str
     po_number: Optional[str] = None
-    supplier: str
-    supplier_id: Optional[str] = None
+    vendor_name: str
+    vendor_id: Optional[str] = None
     items_desc: Optional[str] = None
     item_count: int = 0
     ordered_date: Optional[str] = None
@@ -479,8 +498,8 @@ class PurchaseOrderCreate(CamelModel):
 
 
 class PurchaseOrderUpdate(CamelModel):
-    supplier: Optional[str] = None
-    supplier_id: Optional[str] = None
+    vendor_name: Optional[str] = None
+    vendor_id: Optional[str] = None
     items_desc: Optional[str] = None
     item_count: Optional[int] = None
     ordered_date: Optional[str] = None
@@ -704,18 +723,18 @@ class VendorQuoteItemCreate(CamelModel):
 class VendorQuoteOut(CamelModel):
     id: str
     quotation_id: str
-    supplier_id: Optional[str] = None
-    supplier_name: str
-    supplier_email: Optional[str] = None
+    vendor_id: Optional[str] = None
+    vendor_name: str
+    vendor_email: Optional[str] = None
     status: str = "invited"
     quoted_at: Optional[str] = None
     notes: Optional[str] = None
     quote_items: list[VendorQuoteItemOut] = []
 
 class VendorQuoteCreate(CamelModel):
-    supplier_id: Optional[str] = None
-    supplier_name: str
-    supplier_email: Optional[str] = None
+    vendor_id: Optional[str] = None
+    vendor_name: str
+    vendor_email: Optional[str] = None
 
 class VendorQuoteSubmit(CamelModel):
     items: list[VendorQuoteItemCreate]

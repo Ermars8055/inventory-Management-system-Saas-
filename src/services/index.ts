@@ -1,11 +1,12 @@
 // ============================================================================
 // Service Layer — calls FastAPI backend
+// Backend reads org_id from JWT token, no need to pass it as query param.
 // ============================================================================
 
 import { api } from '@/lib/api';
 import type {
   Organization, ModuleId, OrgConfig, Item, Category, StockTransaction,
-  Supplier, User, Recipient, Assignment, Batch, ReceiptTemplate, CustomField, Subscription,
+  Vendor, User, Recipient, Assignment, Batch, ReceiptTemplate, CustomField, Subscription,
   PurchaseOrder, POLineItem, MaintenanceTicket, Asset, ClassTemplate, ClassTemplateItem,
   Quotation,
 } from '@/types';
@@ -30,8 +31,8 @@ export const organizationService = {
 };
 
 export const inventoryService = {
-  async getByOrganization(orgId: string): Promise<Item[]> {
-    return api.get(`/inventory?org_id=${orgId}`);
+  async getByOrganization(_orgId?: string): Promise<Item[]> {
+    return api.get('/inventory');
   },
   async getById(id: string): Promise<Item | undefined> {
     return api.get<Item>(`/inventory/${id}`).catch(() => undefined);
@@ -51,14 +52,14 @@ export const inventoryService = {
 };
 
 export const categoryService = {
-  async getByOrganization(orgId: string): Promise<Category[]> {
-    return api.get(`/categories?org_id=${orgId}`);
+  async getByOrganization(_orgId?: string): Promise<Category[]> {
+    return api.get('/categories');
   },
 };
 
 export const transactionService = {
-  async getByOrganization(orgId: string): Promise<StockTransaction[]> {
-    return api.get(`/transactions?org_id=${orgId}`);
+  async getByOrganization(_orgId?: string): Promise<StockTransaction[]> {
+    return api.get('/transactions');
   },
   async getByItem(itemId: string): Promise<StockTransaction[]> {
     return api.get(`/transactions?item_id=${itemId}`);
@@ -68,32 +69,34 @@ export const transactionService = {
   },
 };
 
-export const supplierService = {
-  async getByOrganization(orgId: string): Promise<Supplier[]> {
-    return api.get(`/suppliers?org_id=${orgId}`);
+// ─── Vendor service ──────────────────────────────────────────────────────────
+
+export const vendorService = {
+  async getByOrganization(_orgId?: string): Promise<Vendor[]> {
+    return api.get('/vendors');
   },
-  async getById(id: string): Promise<Supplier | undefined> {
-    return api.get<Supplier>(`/suppliers/${id}`).catch(() => undefined);
+  async getById(id: string): Promise<Vendor | undefined> {
+    return api.get<Vendor>(`/vendors/${id}`).catch(() => undefined);
   },
-  async create(data: Omit<Supplier, 'id' | 'purchaseHistory' | 'outstandingOrders'>): Promise<Supplier> {
-    return api.post('/suppliers', data);
+  async create(data: Omit<Vendor, 'id' | 'purchaseHistory' | 'outstandingOrders'>): Promise<Vendor> {
+    return api.post('/vendors', data);
   },
-  async update(id: string, data: Partial<Supplier>): Promise<Supplier> {
-    return api.put(`/suppliers/${id}`, data);
+  async update(id: string, data: Partial<Vendor>): Promise<Vendor> {
+    return api.put(`/vendors/${id}`, data);
   },
   async delete(id: string): Promise<void> {
-    return api.delete(`/suppliers/${id}`);
+    return api.delete(`/vendors/${id}`);
   },
 };
 
 export const userService = {
-  async getByOrganization(orgId: string): Promise<User[]> {
-    return api.get(`/users?org_id=${orgId}`);
+  async getByOrganization(_orgId?: string): Promise<User[]> {
+    return api.get('/users');
   },
   async getRoles(): Promise<{ id: string; name: string }[]> {
     return api.get('/roles');
   },
-  async create(data: { organizationId: string; name: string; email: string; role: string }): Promise<User> {
+  async create(data: { organizationId: string; name: string; email: string; role: string; password?: string }): Promise<User> {
     return api.post('/users', data);
   },
   async update(id: string, data: { name?: string; email?: string; role?: string }): Promise<User> {
@@ -111,11 +114,10 @@ export const userService = {
 };
 
 // ─── Recipient service ───────────────────────────────────────────────────────
-// Generic: Student / Patient / Employee / Member / Customer
 
 export const recipientService = {
-  async getByOrganization(orgId: string): Promise<Recipient[]> {
-    return api.get(`/recipients?org_id=${orgId}`);
+  async getByOrganization(_orgId?: string): Promise<Recipient[]> {
+    return api.get('/recipients');
   },
   async getById(id: string): Promise<Recipient | undefined> {
     return api.get<Recipient>(`/recipients/${id}`).catch(() => undefined);
@@ -129,17 +131,16 @@ export const recipientService = {
   async delete(id: string): Promise<void> {
     return api.delete(`/recipients/${id}`);
   },
-  async getAssignments(orgId: string, recipientId: string): Promise<Assignment[]> {
-    return api.get(`/recipients/${recipientId}/assignments?org_id=${orgId}`);
+  async getAssignments(_orgId: string, recipientId: string): Promise<Assignment[]> {
+    return api.get(`/recipients/${recipientId}/assignments`);
   },
 };
 
 // ─── Assignment service ──────────────────────────────────────────────────────
-// Generic: Issue / Loan / Checkout — with condition + damage + fine tracking
 
 export const assignmentService = {
-  async getByOrganization(orgId: string): Promise<Assignment[]> {
-    return api.get(`/assignments?org_id=${orgId}`);
+  async getByOrganization(_orgId?: string): Promise<Assignment[]> {
+    return api.get('/assignments');
   },
   async create(data: {
     organizationId: string;
@@ -182,7 +183,7 @@ export const assignmentService = {
   },
 };
 
-// Keep legacy alias so pages that haven't been updated yet don't break
+// Keep legacy alias
 export const studentService = {
   getByOrganization: (orgId: string) => recipientService.getByOrganization(orgId),
   getIssuedItems: (orgId: string, studentId?: string) =>
@@ -196,14 +197,14 @@ export const studentService = {
 };
 
 export const batchService = {
-  async getByOrganization(orgId: string): Promise<Batch[]> {
-    return api.get(`/batches?org_id=${orgId}`);
+  async getByOrganization(_orgId?: string): Promise<Batch[]> {
+    return api.get('/batches');
   },
 };
 
 export const templateService = {
-  async getByOrganization(orgId: string): Promise<ReceiptTemplate[]> {
-    return api.get(`/templates?org_id=${orgId}`);
+  async getByOrganization(_orgId?: string): Promise<ReceiptTemplate[]> {
+    return api.get('/templates');
   },
   async update(id: string, data: Partial<ReceiptTemplate>): Promise<ReceiptTemplate> {
     return api.put(`/templates/${id}`, data);
@@ -211,11 +212,14 @@ export const templateService = {
 };
 
 export const customFieldService = {
-  async getByOrganization(orgId: string): Promise<CustomField[]> {
-    return api.get(`/custom-fields?org_id=${orgId}`);
+  async getByOrganization(_orgId?: string): Promise<CustomField[]> {
+    return api.get('/custom-fields');
   },
   async create(field: Omit<CustomField, 'id'>): Promise<CustomField> {
     return api.post('/custom-fields', field);
+  },
+  async update(id: string, data: Partial<CustomField>): Promise<CustomField> {
+    return api.put(`/custom-fields/${id}`, data);
   },
   async delete(id: string): Promise<void> {
     return api.delete(`/custom-fields/${id}`);
@@ -226,17 +230,20 @@ export const subscriptionService = {
   async getPlans(): Promise<Subscription[]> {
     return api.get('/subscriptions/plans');
   },
-  async getCurrent(orgId: string): Promise<Subscription | undefined> {
-    return api.get<Subscription>(`/subscriptions/current?org_id=${orgId}`).catch(() => undefined);
+  async getCurrent(_orgId?: string): Promise<Subscription | undefined> {
+    return api.get<Subscription>('/subscriptions/current').catch(() => undefined);
   },
-  async updatePlan(orgId: string, tier: string): Promise<Subscription> {
-    return api.patch(`/subscriptions/current?org_id=${orgId}`, { tier });
+  async updatePlan(_orgId: string, tier: string): Promise<Subscription> {
+    return api.patch('/subscriptions/current', { tier });
+  },
+  async getUsage(): Promise<{ limits: { max_users: number; max_items: number; max_modules: number }; usage: { users: number; items: number; modules: number } }> {
+    return api.get('/subscriptions/usage');
   },
 };
 
 export const procurementService = {
-  async getByOrganization(orgId: string): Promise<PurchaseOrder[]> {
-    return api.get(`/procurement?org_id=${orgId}`);
+  async getByOrganization(_orgId?: string): Promise<PurchaseOrder[]> {
+    return api.get('/procurement');
   },
   async create(data: Omit<PurchaseOrder, 'id' | 'createdAt' | 'lineItems'> & {
     lineItems?: { itemId?: string; itemName: string; quantityOrdered: number; unitPrice: number }[];
@@ -255,8 +262,8 @@ export const procurementService = {
 };
 
 export const maintenanceService = {
-  async getByOrganization(orgId: string): Promise<MaintenanceTicket[]> {
-    return api.get(`/maintenance?org_id=${orgId}`);
+  async getByOrganization(_orgId?: string): Promise<MaintenanceTicket[]> {
+    return api.get('/maintenance');
   },
   async create(data: Omit<MaintenanceTicket, 'id' | 'ticketId' | 'createdAt'>): Promise<MaintenanceTicket> {
     return api.post('/maintenance', data);
@@ -270,8 +277,8 @@ export const maintenanceService = {
 };
 
 export const classTemplateService = {
-  async getByOrganization(orgId: string): Promise<ClassTemplate[]> {
-    return api.get(`/class-templates?org_id=${orgId}`);
+  async getByOrganization(_orgId?: string): Promise<ClassTemplate[]> {
+    return api.get('/class-templates');
   },
   async getById(id: string): Promise<ClassTemplate> {
     return api.get(`/class-templates/${id}`);
@@ -313,8 +320,8 @@ export const classTemplateService = {
 };
 
 export const assetService = {
-  async getByOrganization(orgId: string): Promise<Asset[]> {
-    return api.get(`/assets?org_id=${orgId}`);
+  async getByOrganization(_orgId?: string): Promise<Asset[]> {
+    return api.get('/assets');
   },
   async create(data: Omit<Asset, 'id' | 'assetCode' | 'createdAt'>): Promise<Asset> {
     return api.post('/assets', data);
@@ -328,8 +335,8 @@ export const assetService = {
 };
 
 export const quotationService = {
-  async getByOrganization(orgId: string): Promise<Quotation[]> {
-    return api.get(`/quotations?org_id=${orgId}`);
+  async getByOrganization(_orgId?: string): Promise<Quotation[]> {
+    return api.get('/quotations');
   },
   async getById(id: string): Promise<Quotation> {
     return api.get(`/quotations/${id}`);
@@ -349,7 +356,7 @@ export const quotationService = {
   async removeItem(id: string, itemId: string): Promise<Quotation> {
     return api.delete(`/quotations/${id}/items/${itemId}`);
   },
-  async inviteVendor(id: string, data: { supplierId?: string; supplierName: string; supplierEmail?: string }): Promise<Quotation> {
+  async inviteVendor(id: string, data: { vendorId?: string; vendorName: string; vendorEmail?: string }): Promise<Quotation> {
     return api.post(`/quotations/${id}/vendors`, data);
   },
   async removeVendor(id: string, vqId: string): Promise<Quotation> {

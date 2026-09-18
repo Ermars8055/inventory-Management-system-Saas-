@@ -18,6 +18,7 @@ def global_stats(
     recipients = tenant_db.execute(text("SELECT COUNT(*) FROM recipients")).scalar()
     assignments = tenant_db.execute(text("SELECT COUNT(*) FROM assignments")).scalar()
     active_assignments = tenant_db.execute(text("SELECT COUNT(*) FROM assignments WHERE status = 'issued'")).scalar()
+    vendors   = tenant_db.execute(text("SELECT COUNT(*) FROM vendors")).scalar()
 
     plan_breakdown = tenant_db.execute(text(
         "SELECT plan, COUNT(*) as count FROM organizations GROUP BY plan"
@@ -33,6 +34,7 @@ def global_stats(
         "totalRecipients": recipients,
         "totalAssignments": assignments,
         "activeAssignments": active_assignments,
+        "totalVendors": vendors,
         "planBreakdown": [dict(r._mapping) for r in plan_breakdown],
         "industryBreakdown": [dict(r._mapping) for r in industry_breakdown],
     }

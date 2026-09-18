@@ -9,7 +9,6 @@ from .routers import (
     inventory,
     categories,
     transactions,
-    suppliers,
     users,
     issuance,
     batches,
@@ -23,6 +22,7 @@ from .routers.asset_router import router as asset_router
 from .routers.auth_router import router as auth_router
 from .routers.class_templates import router as class_templates_router
 from .routers.quotations import router as quotations_router
+from .routers.vendors import router as vendors_router
 
 load_dotenv()
 
@@ -31,11 +31,11 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="StockPilot API", version="1.0.0")
 
-# CORS — allow the Vite dev server and any VPS-hosted frontend
-origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+# CORS — allow the Vite dev server and configured origins
+origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:8060").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # tighten in production
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -46,7 +46,6 @@ app.include_router(organizations.router)
 app.include_router(inventory.router)
 app.include_router(categories.router)
 app.include_router(transactions.router)
-app.include_router(suppliers.router)
 app.include_router(users.router)
 app.include_router(issuance.router)
 app.include_router(batches.router)
@@ -58,6 +57,7 @@ app.include_router(maintenance.router)
 app.include_router(asset_router)
 app.include_router(class_templates_router)
 app.include_router(quotations_router)
+app.include_router(vendors_router)
 
 
 @app.get("/health")
