@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, Check, Plus, Building2 } from 'lucide-react';
+import { ChevronDown, Check, Building2 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { INDUSTRY_LABELS } from '@/data/modules';
 import { cn } from '@/lib/utils';
@@ -68,15 +68,6 @@ export function OrgSwitcher() {
                 {org.id === currentOrg.id && <Check className="h-4 w-4 text-primary" />}
               </button>
             ))}
-          </div>
-          <div className="border-t">
-            <button
-              onClick={() => { setOpen(false); navigate('/organizations/new'); }}
-              className="flex w-full items-center gap-2 p-3 text-sm font-medium text-primary hover:bg-accent transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              Create Organization
-            </button>
           </div>
         </div>
       )}

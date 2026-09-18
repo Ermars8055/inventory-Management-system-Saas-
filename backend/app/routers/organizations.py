@@ -14,27 +14,6 @@ def list_organizations(user: User = Depends(get_current_user), db: Session = Dep
     return db.query(Organization).filter(Organization.id == user.organization_id).all()
 
 
-@router.post("", response_model=OrganizationOut, status_code=201)
-def create_organization(body: OrganizationCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    org = Organization(
-        id=f"org_{int(time.time() * 1000)}",
-        name=body.name,
-        industry=body.industry,
-        enabled_modules=body.enabled_modules,
-        plan="starter",
-        logo_text=body.name[:3].upper(),
-        created_at=__import__("datetime").date.today().isoformat(),
-    )
-    db.add(org)
-    db.flush()
-    # Move the creating user to the new org as org_admin
-    user.organization_id = org.id
-    user.role = "org_admin"
-    db.commit()
-    db.refresh(org)
-    return org
-
-
 @router.get("/{org_id}", response_model=OrganizationOut)
 def get_organization(org_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     same_org(org_id, user)

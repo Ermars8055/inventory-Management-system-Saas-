@@ -30,7 +30,6 @@ import { BarcodePage } from '@/pages/Barcode';
 import { AssetsPage } from '@/pages/Assets';
 import { ProcurementPage } from '@/pages/Procurement';
 import { MaintenancePage } from '@/pages/Maintenance';
-import { CreateOrganizationPage } from '@/pages/CreateOrganization';
 import { SettingsPage } from '@/pages/settings/SettingsIndex';
 import { OrganizationSettingsPage } from '@/pages/settings/Organization';
 import { CustomFieldsPage } from '@/pages/settings/CustomFields';
@@ -118,7 +117,6 @@ export default function App() {
                   <Route path="assets" element={<AssetsPage />} />
                   <Route path="procurement" element={<ProcurementPage />} />
                   <Route path="maintenance" element={<MaintenancePage />} />
-                  <Route path="organizations/new" element={<CreateOrganizationPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                   <Route path="settings/organization" element={<OrganizationSettingsPage />} />
                   <Route path="settings/custom-fields" element={<CustomFieldsPage />} />
