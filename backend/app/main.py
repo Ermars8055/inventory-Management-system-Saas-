@@ -43,9 +43,9 @@ SUBDOMAIN_BASE = os.getenv("SUBDOMAIN_BASE", "stockpilot")
 TENANT_DOMAIN = os.getenv("TENANT_DOMAIN", "ermarscastar.in")
 SUBDOMAIN_SUFFIX = f".{SUBDOMAIN_BASE}.{TENANT_DOMAIN}"
 
-# Public paths that don't need subdomain validation
-PUBLIC_PATHS = {"/health", "/auth/login", "/auth/me", "/signup", "/signup/check-subdomain",
-                "/subscriptions", "/subscriptions/plans"}
+# Paths completely exempt from subdomain middleware (no org lookup at all)
+SKIP_SUBDOMAIN_PATHS = {"/health", "/signup", "/signup/check-subdomain",
+                        "/subscriptions", "/subscriptions/plans"}
 
 
 # ─── Subdomain enforcement middleware ────────────────────────────────────────
@@ -64,8 +64,8 @@ class SubdomainMiddleware(BaseHTTPMiddleware):
         host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(":")[0].lower()
         path = request.url.path
 
-        # Skip for public/non-API paths
-        if path in PUBLIC_PATHS or path.startswith("/docs") or path.startswith("/openapi"):
+        # Skip for paths that don't need any subdomain logic
+        if path in SKIP_SUBDOMAIN_PATHS or path.startswith("/docs") or path.startswith("/openapi"):
             return await call_next(request)
 
         # Extract subdomain
