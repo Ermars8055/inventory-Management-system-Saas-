@@ -170,23 +170,6 @@ export interface StockTransaction {
   notes?: string;
 }
 
-// --- Suppliers ---
-
-export interface Supplier {
-  id: string;
-  organizationId: string;
-  name: string;
-  contactPerson: string;
-  phone: string;
-  email: string;
-  address: string;
-  itemsSupplied: string;
-  status: 'active' | 'inactive';
-  purchaseHistory: { date: string; item: string; quantity: number; amount: number }[];
-  outstandingOrders: { item: string; quantity: number; expectedDate: string; status: string }[];
-  attributes?: Record<string, string | number | boolean>;
-}
-
 // --- Vendors ---
 
 export interface Vendor {

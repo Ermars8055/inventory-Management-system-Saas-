@@ -182,47 +182,6 @@ class TransactionCreate(CamelModel):
 
 
 # ---------------------------------------------------------------------------
-# Suppliers
-# ---------------------------------------------------------------------------
-
-class SupplierOut(CamelModel):
-    id: str
-    organization_id: str
-    name: str
-    contact_person: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    address: Optional[str] = None
-    items_supplied: Optional[str] = None
-    status: str = "active"
-    purchase_history: list[dict[str, Any]] = []
-    outstanding_orders: list[dict[str, Any]] = []
-    attributes: Optional[dict[str, Any]] = None
-
-
-class SupplierCreate(CamelModel):
-    organization_id: str
-    name: str
-    contact_person: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    address: Optional[str] = None
-    items_supplied: Optional[str] = None
-    attributes: Optional[dict[str, Any]] = None
-
-
-class SupplierUpdate(CamelModel):
-    name: Optional[str] = None
-    contact_person: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-    address: Optional[str] = None
-    items_supplied: Optional[str] = None
-    status: Optional[str] = None
-    attributes: Optional[dict[str, Any]] = None
-
-
-# ---------------------------------------------------------------------------
 # Vendors
 # ---------------------------------------------------------------------------
 
