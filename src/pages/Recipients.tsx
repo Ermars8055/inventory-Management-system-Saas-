@@ -7,6 +7,7 @@ import { recipientService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { CustomFieldsSheet } from '@/components/shared/CustomFieldsSheet';
+import { CsvActions } from '@/components/shared/CsvActions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -81,6 +82,13 @@ export function RecipientsPage() {
         description={`${recipients.length} ${config.recipientPluralLabel.toLowerCase()} in ${currentOrg.name}`}
         actions={
           <div className="flex items-center gap-2">
+            <CsvActions
+              exportUrl="/data/export/recipients"
+              importUrl="/data/import/recipients"
+              entityName={config.recipientPluralLabel}
+              sampleHeaders="name,identifier,group,contact"
+              onImportComplete={() => currentOrg && recipientService.getByOrganization(currentOrg.id).then(setRecipients)}
+            />
             <Button variant="outline" size="sm" onClick={() => setFieldsSheetOpen(true)}>
               <Settings2 className="h-4 w-4 mr-1" />Custom Fields
             </Button>

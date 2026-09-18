@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { CustomFieldsSheet } from '@/components/shared/CustomFieldsSheet';
+import { CsvActions } from '@/components/shared/CsvActions';
 import { CustomFieldsRenderer } from '@/components/shared/CustomFieldsRenderer';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -111,6 +112,13 @@ export function VendorsPage() {
         description={`${vendors.length} vendor${vendors.length !== 1 ? 's' : ''}`}
         actions={
           <div className="flex items-center gap-2">
+            <CsvActions
+              exportUrl="/data/export/vendors"
+              importUrl="/data/import/vendors"
+              entityName="Vendors"
+              sampleHeaders="name,contact_person,phone,email,address,vendor_type"
+              onImportComplete={() => currentOrg && vendorService.getByOrganization(currentOrg.id).then(setVendors)}
+            />
             <Button variant="outline" size="sm" onClick={() => setFieldsSheetOpen(true)}>
               <Settings2 className="h-4 w-4 mr-1" />Custom Fields
             </Button>

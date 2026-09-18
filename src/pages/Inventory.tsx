@@ -12,6 +12,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { CustomFieldsSheet } from '@/components/shared/CustomFieldsSheet';
 import { CustomFieldsRenderer } from '@/components/shared/CustomFieldsRenderer';
+import { CsvActions } from '@/components/shared/CsvActions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -373,6 +374,13 @@ export function InventoryPage() {
         description={`${items.length} items · ${currentOrg.name}`}
         actions={
           <div className="flex items-center gap-2">
+            <CsvActions
+              exportUrl="/data/export/inventory"
+              importUrl="/data/import/inventory"
+              entityName="Inventory"
+              sampleHeaders="name,sku,category,quantity,location,min_quantity,reorder_qty"
+              onImportComplete={() => currentOrg && inventoryService.getByOrganization(currentOrg.id).then(setItems)}
+            />
             <Button variant="outline" size="sm" onClick={() => setFieldsSheetOpen(true)}>
               <Settings2 className="h-4 w-4 mr-1" />Custom Fields
             </Button>

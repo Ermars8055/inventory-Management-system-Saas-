@@ -3,6 +3,7 @@ import { ArrowDownCircle, ArrowUpCircle, AlertCircle, RotateCcw, Wrench, ArrowLe
 import { useOrganization } from '@/context/OrganizationContext';
 import { transactionService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { CsvActions } from '@/components/shared/CsvActions';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -42,7 +43,11 @@ export function TransactionsPage() {
 
   return (
     <div>
-      <PageHeader title="Stock Transactions" description={`${transactions.length} transactions recorded`} />
+      <PageHeader
+        title="Stock Transactions"
+        description={`${transactions.length} transactions recorded`}
+        actions={<CsvActions exportUrl="/data/export/transactions" entityName="Transactions" />}
+      />
 
       <Card className="mb-4">
         <CardContent className="p-4">
