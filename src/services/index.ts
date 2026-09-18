@@ -55,6 +55,12 @@ export const categoryService = {
   async getByOrganization(_orgId?: string): Promise<Category[]> {
     return api.get('/categories');
   },
+  async create(data: { name: string; color?: string }): Promise<Category> {
+    return api.post('/categories', data);
+  },
+  async delete(id: string): Promise<void> {
+    return api.delete(`/categories/${id}`);
+  },
 };
 
 export const transactionService = {

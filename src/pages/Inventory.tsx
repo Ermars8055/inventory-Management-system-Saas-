@@ -725,10 +725,23 @@ export function InventoryPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="item-category">Category *</Label>
-              <Select required value={form.categoryId} onValueChange={val => setForm({ ...form, categoryId: val })}>
+              <Select required value={form.categoryId} onValueChange={val => {
+                if (val === '__new__') {
+                  const name = prompt('Enter new category name:');
+                  if (name && name.trim()) {
+                    categoryService.create({ name: name.trim() }).then(cat => {
+                      setCategories(prev => [...prev, cat]);
+                      setForm(f => ({ ...f, categoryId: cat.id, categoryName: cat.name }));
+                    });
+                  }
+                } else {
+                  setForm({ ...form, categoryId: val });
+                }
+              }}>
                 <SelectTrigger id="item-category"><SelectValue placeholder="Select category" /></SelectTrigger>
                 <SelectContent>
                   {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  <SelectItem value="__new__" className="text-primary font-medium">+ Create New Category</SelectItem>
                 </SelectContent>
               </Select>
             </div>

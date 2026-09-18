@@ -85,6 +85,11 @@ class CategoryOut(CamelModel):
     color: Optional[str] = None
 
 
+class CategoryCreate(CamelModel):
+    name: str
+    color: Optional[str] = None
+
+
 # ---------------------------------------------------------------------------
 # Item
 # ---------------------------------------------------------------------------
