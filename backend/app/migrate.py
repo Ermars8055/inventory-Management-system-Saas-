@@ -16,7 +16,7 @@ def run():
         "ALTER TABLE purchase_orders ADD COLUMN supplier_id VARCHAR REFERENCES suppliers(id)",
         "ALTER TABLE purchase_orders ADD COLUMN quotation_id VARCHAR REFERENCES quotations(id)",
         # Organizations: subdomain
-        "ALTER TABLE organizations ADD COLUMN subdomain VARCHAR UNIQUE",
+        "ALTER TABLE organizations ADD COLUMN subdomain VARCHAR",
         # Custom fields: required, sort_order, placeholder
         "ALTER TABLE custom_fields ADD COLUMN required BOOLEAN DEFAULT 0",
         "ALTER TABLE custom_fields ADD COLUMN sort_order INTEGER DEFAULT 0",
