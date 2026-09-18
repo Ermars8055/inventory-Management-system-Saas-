@@ -392,7 +392,7 @@ export function InventoryPage() {
       />
 
       {/* Stats row */}
-      <div className="grid grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         {statsRow.map(s => (
           <div key={s.label} className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3">
             <div className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 text-[15px] font-bold" style={{ background: s.bg, color: s.color }}>

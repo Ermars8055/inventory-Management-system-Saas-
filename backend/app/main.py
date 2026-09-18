@@ -33,6 +33,8 @@ from .routers.support import router as support_router
 from .routers.signup import router as signup_router
 from .routers.data_io import router as data_io_router
 from .routers.search import router as search_router
+from .routers.audit_log import router as audit_log_router
+from .routers.notifications import router as notifications_router
 
 load_dotenv()
 
@@ -149,6 +151,8 @@ app.include_router(support_router)
 app.include_router(signup_router)
 app.include_router(data_io_router)
 app.include_router(search_router)
+app.include_router(audit_log_router)
+app.include_router(notifications_router)
 
 
 @app.get("/health")

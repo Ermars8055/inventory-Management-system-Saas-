@@ -6,6 +6,8 @@ from ..database import get_db
 from ..models import Item, User
 from ..schemas import ItemOut, ItemCreate, ItemUpdate, StockAdjust
 from ..dependencies import require, same_org, check_limit
+from ..audit import log_action
+from .notifications import create_notification
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
@@ -51,6 +53,7 @@ def create_item(body: ItemCreate, user: User = Depends(require("inventory:create
         attributes=body.attributes,
     )
     db.add(item)
+    log_action(db, user, "create", "item", item.id, f"Created item: {item.name}")
     db.commit()
     db.refresh(item)
     return item
@@ -79,6 +82,7 @@ def update_item(item_id: str, body: ItemUpdate, user: User = Depends(require("in
     if "min_quantity" in data and "quantity" not in data:
         item.status = _compute_status(item.quantity, item.min_quantity or 10)
     item.last_updated = date.today().isoformat()
+    log_action(db, user, "update", "item", item.id, f"Updated item: {item.name}")
     db.commit()
     db.refresh(item)
     return item
@@ -94,6 +98,11 @@ def adjust_stock(item_id: str, body: StockAdjust, user: User = Depends(require("
     item.available = max(0, item.quantity - item.reserved)
     item.status = _compute_status(item.quantity, item.min_quantity or 10)
     item.last_updated = date.today().isoformat()
+    # Low stock notification
+    if item.status in ("low_stock", "out_of_stock"):
+        create_notification(db, user.organization_id, "low_stock",
+            f"Low stock: {item.name}",
+            f"{item.name} has {item.quantity} units left (min: {item.min_quantity or 10})")
     db.commit()
     db.refresh(item)
     return item
@@ -105,5 +114,6 @@ def delete_item(item_id: str, user: User = Depends(require("inventory:delete")),
     if not item:
         raise HTTPException(404, "Item not found")
     same_org(item.organization_id, user)
+    log_action(db, user, "delete", "item", item.id, f"Deleted item: {item.name}")
     db.delete(item)
     db.commit()

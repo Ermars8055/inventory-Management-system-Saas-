@@ -95,6 +95,31 @@ class User(Base):
     last_active = Column(String)
 
 
+class OrgAuditLog(Base):
+    __tablename__ = "org_audit_log"
+    id = Column(String, primary_key=True)
+    organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
+    user_id = Column(String)
+    user_name = Column(String)
+    action = Column(String, nullable=False)       # create | update | delete
+    entity_type = Column(String, nullable=False)   # item | vendor | recipient | etc
+    entity_id = Column(String)
+    detail = Column(Text)
+    created_at = Column(String)
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    id = Column(String, primary_key=True)
+    organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
+    user_id = Column(String)                       # null = all users in org
+    type = Column(String, nullable=False)          # low_stock | ticket_reply | invoice_due | general
+    title = Column(String, nullable=False)
+    message = Column(String)
+    read = Column(Boolean, default=False)
+    created_at = Column(String)
+
+
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
     id = Column(String, primary_key=True)

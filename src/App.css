@@ -3,3 +3,47 @@
   display: flex;
   flex-direction: column;
 }
+
+/* ── Mobile responsiveness fixes ─────────────────────────────────────── */
+
+/* Tables scroll horizontally on small screens */
+@media (max-width: 768px) {
+  [role="table"],
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Dialogs go full-width on mobile */
+  [role="dialog"] > div {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 8px !important;
+    border-radius: 12px !important;
+  }
+
+  /* Page header stacks on mobile */
+  .page-header-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Stats cards — 2 columns on mobile */
+  .grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Command palette full width */
+  .command-palette {
+    max-width: 100% !important;
+    margin: 0 8px;
+  }
+}
+
+/* Small phone */
+@media (max-width: 375px) {
+  main {
+    padding: 12px !important;
+  }
+}
