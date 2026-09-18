@@ -1,12 +1,13 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { LayoutDashboard, Building2, Users, ScrollText, LogOut, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Building2, Users, ScrollText, LogOut, ShieldCheck, Ticket } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV = [
   { label: 'Dashboard',     path: '/',             icon: LayoutDashboard, exact: true },
   { label: 'Organizations', path: '/organizations', icon: Building2 },
   { label: 'Admin Users',   path: '/admin-users',  icon: Users },
+  { label: 'Coupons',       path: '/coupons',      icon: Ticket },
   { label: 'Audit Log',     path: '/audit',        icon: ScrollText },
 ];
 

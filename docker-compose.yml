@@ -28,6 +28,9 @@ services:
       ADMIN_DB_URL:   sqlite:////data/admin.db
       TENANT_DB_URL:  sqlite:////data/stockpilot.db
       ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET:-change-me-in-production}
+      JWT_SECRET:     ${JWT_SECRET:-change-me-in-production}
+      SEED_DB:        ${SEED_DB:-true}
+      ADMIN_CORS_ORIGINS: "http://localhost:8061"
     volumes:
       - db_data:/data
     depends_on:

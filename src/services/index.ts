@@ -236,6 +236,9 @@ export const subscriptionService = {
   async updatePlan(_orgId: string, tier: string): Promise<Subscription> {
     return api.patch('/subscriptions/current', { tier });
   },
+  async getUsage(): Promise<{ limits: { max_users: number; max_items: number; max_modules: number }; usage: { users: number; items: number; modules: number } }> {
+    return api.get('/subscriptions/usage');
+  },
 };
 
 export const procurementService = {

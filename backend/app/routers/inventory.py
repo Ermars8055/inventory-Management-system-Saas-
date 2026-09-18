@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Item, User
 from ..schemas import ItemOut, ItemCreate, ItemUpdate, StockAdjust
-from ..dependencies import require, same_org
+from ..dependencies import require, same_org, check_limit
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
@@ -25,6 +25,7 @@ def list_items(user: User = Depends(require("inventory:read")), db: Session = De
 
 @router.post("", response_model=ItemOut, status_code=201)
 def create_item(body: ItemCreate, user: User = Depends(require("inventory:create")), db: Session = Depends(get_db)):
+    check_limit("items", user, db)
     avail = body.available if body.available is not None else body.quantity
     min_qty = body.min_quantity if body.min_quantity is not None else 10
     reorder_qty = body.reorder_qty if body.reorder_qty is not None else 50

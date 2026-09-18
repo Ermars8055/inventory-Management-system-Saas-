@@ -30,7 +30,7 @@ class CreateAdmin(BaseModel):
 @router.post("")
 def create_admin(
     body: CreateAdmin,
-    admin: AdminUser = Depends(require("admin_users:read")),
+    admin: AdminUser = Depends(require("admin_users:manage")),
     db: Session = Depends(get_admin_db),
 ):
     if db.query(AdminUser).filter(AdminUser.email == body.email).first():
@@ -62,7 +62,7 @@ def create_admin(
 @router.patch("/{user_id}/deactivate")
 def deactivate(
     user_id: str,
-    admin: AdminUser = Depends(require("admin_users:read")),
+    admin: AdminUser = Depends(require("admin_users:manage")),
     db: Session = Depends(get_admin_db),
 ):
     user = db.query(AdminUser).filter(AdminUser.id == user_id).first()

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import User, Role
 from ..schemas import UserOut, RoleOut, UserCreate, UserUpdate
-from ..dependencies import require, same_org, get_current_user
+from ..dependencies import require, same_org, get_current_user, check_limit
 from ..auth import hash_password
 
 router = APIRouter(tags=["users"])
@@ -18,6 +18,7 @@ def list_users(user: User = Depends(require("users:read")), db: Session = Depend
 @router.post("/users", response_model=UserOut, status_code=201)
 def create_user(body: UserCreate, user: User = Depends(require("users:manage")), db: Session = Depends(get_db)):
     same_org(body.organization_id, user)
+    check_limit("users", user, db)
     existing = db.query(User).filter(
         User.organization_id == user.organization_id,
         User.email == body.email,
