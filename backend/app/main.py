@@ -45,7 +45,8 @@ SUBDOMAIN_SUFFIX = f".{SUBDOMAIN_BASE}.{TENANT_DOMAIN}"
 
 # Paths completely exempt from subdomain middleware (no org lookup at all)
 SKIP_SUBDOMAIN_PATHS = {"/health", "/signup", "/signup/check-subdomain",
-                        "/subscriptions", "/subscriptions/plans"}
+                        "/subscriptions", "/subscriptions/plans",
+                        "/auth/forgot-password", "/auth/reset-password"}
 
 
 # ─── Subdomain enforcement middleware ────────────────────────────────────────

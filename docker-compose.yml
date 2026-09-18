@@ -16,6 +16,9 @@ services:
       TENANT_DOMAIN:      ${TENANT_DOMAIN:-ermarscastar.in}
       SUBDOMAIN_BASE:     ${SUBDOMAIN_BASE:-stockpilot}
       VPS_IP:             ${VPS_IP:-187.127.217.155}
+      SMTP_USER:          ${SMTP_USER:-ermarscaster11@gmail.com}
+      SMTP_PASS:          ${SMTP_PASS:-ghpv wjdj anvi cxak}
+      APP_URL:            ${APP_URL:-https://stockpilot.ermarscastar.in}
     volumes:
       - db_data:/data
     healthcheck:
@@ -37,6 +40,8 @@ services:
       JWT_SECRET:     ${JWT_SECRET:-change-me-in-production}
       SEED_DB:        ${SEED_DB:-true}
       ADMIN_CORS_ORIGINS: "http://localhost:8061"
+      SMTP_USER:      ${SMTP_USER:-ermarscaster11@gmail.com}
+      SMTP_PASS:      ${SMTP_PASS:-ghpv wjdj anvi cxak}
     volumes:
       - db_data:/data
     depends_on:

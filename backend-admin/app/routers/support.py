@@ -8,6 +8,7 @@ from typing import Optional
 from ..database import get_admin_db
 from ..models import SupportTicket, TicketMessage, AdminUser
 from ..dependencies import require
+from ..email_service import send_email
 
 router = APIRouter(prefix="/support", tags=["admin-support"])
 
@@ -93,4 +94,11 @@ def admin_reply(ticket_id: str, body: ReplyBody, admin: AdminUser = Depends(requ
     if t.status == "open":
         t.status = "in_progress"
     db.commit()
+    # Notify the ticket creator
+    if t.submitted_by_email:
+        send_email(
+            t.submitted_by_email,
+            f"Reply on: {t.subject}",
+            f"<p>Hi {t.submitted_by},</p><p><strong>{admin.name}</strong> replied:</p><blockquote style='border-left:3px solid #4f46e5;padding-left:12px;color:#334155'>{body.message}</blockquote><p><a href='https://stockpilot.ermarscastar.in/support'>View ticket</a></p>",
+        )
     return {"ok": True}

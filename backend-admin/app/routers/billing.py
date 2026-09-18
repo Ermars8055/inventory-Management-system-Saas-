@@ -8,6 +8,7 @@ from pydantic.alias_generators import to_camel
 from typing import Optional
 from ..database import get_admin_db, get_tenant_db
 from ..models import Invoice, OrgCoupon, AuditLog, AdminUser
+from ..email_service import send_email
 from ..dependencies import require, get_current_admin
 
 router = APIRouter(prefix="/billing", tags=["admin-billing"])
@@ -172,3 +173,29 @@ def mark_overdue(
     inv.status = "overdue"
     admin_db.commit()
     return {"ok": True}
+
+
+# ─── Send invoice reminder email ─────────────────────────────────────────────
+
+@router.post("/{invoice_id}/remind")
+def send_reminder(
+    invoice_id: str,
+    admin: AdminUser = Depends(require("orgs:billing")),
+    admin_db: Session = Depends(get_admin_db),
+    tenant_db: Session = Depends(get_tenant_db),
+):
+    inv = admin_db.query(Invoice).filter(Invoice.id == invoice_id).first()
+    if not inv:
+        raise HTTPException(404, "Invoice not found")
+    # Find org admin email
+    org_admin = tenant_db.execute(text(
+        "SELECT name, email FROM users WHERE organization_id = :oid AND role = 'org_admin' AND status = 'active' LIMIT 1"
+    ), {"oid": inv.org_id}).fetchone()
+    if not org_admin:
+        raise HTTPException(404, "No active admin found for this org")
+    send_email(
+        org_admin.email,
+        f"Invoice Reminder — ₹{inv.final_amount:,.0f} due for {inv.billing_period}",
+        f"<p>Hi {org_admin.name},</p><p>Your invoice of <strong>₹{inv.final_amount:,.0f}</strong> for <strong>{inv.org_name}</strong> ({inv.billing_period}) is due on <strong>{inv.due_date}</strong>.</p><p><a href='https://stockpilot.ermarscastar.in/settings/subscription' style='background:#4f46e5;color:white;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600'>Pay Now</a></p>",
+    )
+    return {"ok": True, "sentTo": org_admin.email}

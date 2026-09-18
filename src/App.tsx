@@ -9,6 +9,8 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { LandingPage } from '@/pages/Landing';
 import { SignupPage } from '@/pages/Signup';
 import { LoginPage } from '@/pages/Login';
+import { ForgotPasswordPage } from '@/pages/ForgotPassword';
+import { ResetPasswordPage } from '@/pages/ResetPassword';
 import { DashboardPage } from '@/pages/Dashboard';
 import { InventoryPage } from '@/pages/Inventory';
 import { ItemDetailPage } from '@/pages/ItemDetail';
@@ -100,6 +102,8 @@ export default function App() {
               <Route path="/" element={<RootRoute />} />
               <Route path="/signup" element={isSubdomain() ? <Navigate to="/login" replace /> : <SignupPage />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
 
               <Route element={<ProtectedRoutes />}>
                 <Route element={<AppLayout />}>

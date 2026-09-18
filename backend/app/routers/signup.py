@@ -14,6 +14,7 @@ from pydantic.alias_generators import to_camel
 from ..database import get_db
 from ..models import Organization, User
 from ..auth import hash_password, create_access_token
+from ..email_service import send_welcome
 
 router = APIRouter(prefix="/signup", tags=["signup"])
 
@@ -114,8 +115,9 @@ def signup(body: SignupBody, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
 
-    # Create DNS record
+    # Create DNS record + send welcome email
     _create_dns_record(subdomain)
+    send_welcome(body.email, body.name, body.org_name, subdomain)
 
     # Generate JWT token
     token = create_access_token({

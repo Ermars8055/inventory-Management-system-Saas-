@@ -95,6 +95,16 @@ class User(Base):
     last_active = Column(String)
 
 
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+    id = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    token = Column(String, nullable=False, unique=True)
+    expires_at = Column(String, nullable=False)
+    used = Column(Boolean, default=False)
+    created_at = Column(String)
+
+
 class Role(Base):
     __tablename__ = "roles"
     id = Column(String, primary_key=True)
