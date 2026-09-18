@@ -11,6 +11,8 @@ import { SignupPage } from '@/pages/Signup';
 import { LoginPage } from '@/pages/Login';
 import { ForgotPasswordPage } from '@/pages/ForgotPassword';
 import { ResetPasswordPage } from '@/pages/ResetPassword';
+import { NotFoundPage } from '@/pages/NotFound';
+import { AccessDeniedPage } from '@/pages/AccessDenied';
 import { DashboardPage } from '@/pages/Dashboard';
 import { InventoryPage } from '@/pages/Inventory';
 import { ItemDetailPage } from '@/pages/ItemDetail';
@@ -143,7 +145,8 @@ export default function App() {
                 </Route>
               </Route>
 
-              <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="/access-denied" element={<AccessDeniedPage />} />
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
             <Toaster />
           </AppInitializer>

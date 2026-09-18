@@ -79,6 +79,11 @@ export function LoginPage() {
               <CardDescription>Enter your credentials to access your workspace</CardDescription>
             </CardHeader>
             <CardContent>
+              {new URLSearchParams(window.location.search).get('expired') && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 text-sm text-amber-700">
+                  Your session has expired. Please sign in again.
+                </div>
+              )}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>

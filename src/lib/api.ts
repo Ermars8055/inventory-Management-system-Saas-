@@ -6,19 +6,44 @@ function getToken(): string {
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const token = getToken();
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options?.headers,
-    },
-    ...options,
-  });
+  let res: Response;
+
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options?.headers,
+      },
+      ...options,
+    });
+  } catch {
+    throw new Error('Network error — check your connection and try again');
+  }
 
   if (res.status === 401) {
     localStorage.removeItem('token');
-    window.location.href = '/login';
-    throw new Error('Unauthorized');
+    const current = window.location.pathname;
+    if (current !== '/login') {
+      window.location.href = `/login?expired=true&redirect=${encodeURIComponent(current)}`;
+    }
+    throw new Error('Session expired');
+  }
+
+  if (res.status === 403) {
+    const text = await res.text().catch(() => '');
+    let message = 'Access denied';
+    try {
+      const json = JSON.parse(text);
+      message = json.detail ?? message;
+    } catch { /* ignore */ }
+    // If it's an org mismatch, redirect to access denied page
+    if (message.includes('does not belong to this organization')) {
+      localStorage.removeItem('token');
+      window.location.href = '/access-denied';
+      throw new Error(message);
+    }
+    throw new Error(message);
   }
 
   if (!res.ok) {
