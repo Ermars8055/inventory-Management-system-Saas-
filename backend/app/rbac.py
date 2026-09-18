@@ -19,12 +19,6 @@ class P:
     RECIPIENTS_UPDATE = "recipients:update"
     RECIPIENTS_DELETE = "recipients:delete"
 
-    # Suppliers
-    SUPPLIERS_READ   = "suppliers:read"
-    SUPPLIERS_CREATE = "suppliers:create"
-    SUPPLIERS_UPDATE = "suppliers:update"
-    SUPPLIERS_DELETE = "suppliers:delete"
-
     # Vendors
     VENDORS_READ   = "vendors:read"
     VENDORS_CREATE = "vendors:create"
@@ -52,7 +46,6 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         P.INVENTORY_READ, P.INVENTORY_CREATE, P.INVENTORY_UPDATE,
         P.ASSIGNMENTS_READ, P.ASSIGNMENTS_CREATE, P.ASSIGNMENTS_UPDATE,
         P.RECIPIENTS_READ, P.RECIPIENTS_CREATE, P.RECIPIENTS_UPDATE,
-        P.SUPPLIERS_READ, P.SUPPLIERS_CREATE, P.SUPPLIERS_UPDATE,
         P.VENDORS_READ, P.VENDORS_CREATE, P.VENDORS_UPDATE,
         P.REPORTS_READ, P.TRANSACTIONS_READ,
         P.SETTINGS_READ,
@@ -68,7 +61,6 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         P.INVENTORY_READ,
         P.ASSIGNMENTS_READ,
         P.RECIPIENTS_READ,
-        P.SUPPLIERS_READ,
         P.VENDORS_READ,
         P.REPORTS_READ,
         P.TRANSACTIONS_READ,

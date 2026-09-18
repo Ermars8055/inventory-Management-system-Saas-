@@ -823,7 +823,7 @@ export function InventoryPage() {
             <div className="space-y-1.5">
               <Label>Notes</Label>
               <Input
-                placeholder="e.g. Received from supplier…"
+                placeholder="e.g. Received from vendor…"
                 value={restockForm.notes}
                 onChange={e => setRestockForm({ ...restockForm, notes: e.target.value })}
               />

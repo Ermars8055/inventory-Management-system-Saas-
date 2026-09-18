@@ -9,7 +9,6 @@ from .routers import (
     inventory,
     categories,
     transactions,
-    suppliers,
     users,
     issuance,
     batches,
@@ -47,7 +46,6 @@ app.include_router(organizations.router)
 app.include_router(inventory.router)
 app.include_router(categories.router)
 app.include_router(transactions.router)
-app.include_router(suppliers.router)
 app.include_router(users.router)
 app.include_router(issuance.router)
 app.include_router(batches.router)

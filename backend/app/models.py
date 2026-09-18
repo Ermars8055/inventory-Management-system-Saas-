@@ -66,22 +66,6 @@ class StockTransaction(Base):
     notes = Column(String)
 
 
-class Supplier(Base):
-    __tablename__ = "suppliers"
-    id = Column(String, primary_key=True)
-    organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
-    name = Column(String, nullable=False)
-    contact_person = Column(String)
-    phone = Column(String)
-    email = Column(String)
-    address = Column(String)
-    items_supplied = Column(String)
-    status = Column(String, default="active")
-    purchase_history = Column(JSON, default=list)
-    outstanding_orders = Column(JSON, default=list)
-    attributes = Column(JSON)
-
-
 class Vendor(Base):
     __tablename__ = "vendors"
     id = Column(String, primary_key=True)
