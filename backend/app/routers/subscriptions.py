@@ -145,3 +145,43 @@ def redeem_coupon(body: RedeemCouponBody, user: User = Depends(get_current_user)
         "discountType": c_dict["discount_type"],
         "discountValue": c_dict["discount_value"],
     }
+
+
+# ─── Tenant invoice views (reads admin DB) ───────────────────────────────────
+
+@router.get("/invoices")
+def my_invoices(user: User = Depends(get_current_user)):
+    engine = _get_admin_engine()
+    with engine.connect() as conn:
+        rows = conn.execute(text(
+            "SELECT * FROM invoices WHERE org_id = :oid ORDER BY created_at DESC"
+        ), {"oid": user.organization_id}).fetchall()
+    return [
+        {
+            "id": r.id, "plan": r.plan, "baseAmount": r.base_amount,
+            "discountCode": r.discount_code, "discountAmount": r.discount_amount,
+            "finalAmount": r.final_amount, "status": r.status,
+            "billingPeriod": r.billing_period, "dueDate": r.due_date,
+            "paidDate": r.paid_date,
+        }
+        for r in rows
+    ]
+
+
+@router.post("/invoices/{invoice_id}/pay")
+def pay_invoice(invoice_id: str, user: User = Depends(get_current_user)):
+    """Demo payment — marks invoice as paid without real payment gateway."""
+    engine = _get_admin_engine()
+    with engine.connect() as conn:
+        inv = conn.execute(text(
+            "SELECT * FROM invoices WHERE id = :id AND org_id = :oid"
+        ), {"id": invoice_id, "oid": user.organization_id}).fetchone()
+        if not inv:
+            raise HTTPException(404, "Invoice not found")
+        if inv.status == "paid":
+            raise HTTPException(400, "Invoice already paid")
+        conn.execute(text(
+            "UPDATE invoices SET status = 'paid', paid_date = :now WHERE id = :id"
+        ), {"now": datetime.utcnow().isoformat(), "id": invoice_id})
+        conn.commit()
+    return {"paid": True, "invoiceId": invoice_id}

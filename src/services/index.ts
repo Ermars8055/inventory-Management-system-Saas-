@@ -239,6 +239,12 @@ export const subscriptionService = {
   async getUsage(): Promise<{ limits: { max_users: number; max_items: number; max_modules: number }; usage: { users: number; items: number; modules: number } }> {
     return api.get('/subscriptions/usage');
   },
+  async getInvoices(): Promise<{ id: string; plan: string; baseAmount: number; discountCode?: string; discountAmount: number; finalAmount: number; status: string; billingPeriod: string; dueDate: string; paidDate?: string }[]> {
+    return api.get('/subscriptions/invoices');
+  },
+  async payInvoice(invoiceId: string): Promise<{ paid: boolean }> {
+    return api.post(`/subscriptions/invoices/${invoiceId}/pay`, {});
+  },
 };
 
 export const procurementService = {

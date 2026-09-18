@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, CreditCard, Check, Zap, Users, Package, Boxes, Tag } from 'lucide-react';
+import { ArrowLeft, CreditCard, Check, Zap, Users, Package, Boxes, Tag, Receipt, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useOrganization } from '@/context/OrganizationContext';
 import { subscriptionService } from '@/services';
@@ -59,12 +59,15 @@ export function SubscriptionPage() {
   const [usage, setUsage] = useState<UsageData | null>(null);
   const [couponCode, setCouponCode] = useState('');
   const [redeeming, setRedeeming] = useState(false);
+  const [invoices, setInvoices] = useState<{ id: string; plan: string; baseAmount: number; discountCode?: string; discountAmount: number; finalAmount: number; status: string; billingPeriod: string; dueDate: string; paidDate?: string }[]>([]);
+  const [paying, setPaying] = useState('');
 
   useEffect(() => {
     subscriptionService.getPlans().then(setPlans);
     if (currentOrg) {
       subscriptionService.getCurrent(currentOrg.id).then((p) => setCurrentPlan(p ?? null));
       subscriptionService.getUsage().then(setUsage);
+      subscriptionService.getInvoices().then(setInvoices);
     }
   }, [currentOrg]);
 
@@ -82,6 +85,17 @@ export function SubscriptionPage() {
     } catch (err: unknown) {
       toast({ title: 'Invalid coupon', description: err instanceof Error ? err.message : 'Failed', variant: 'destructive' });
     } finally { setRedeeming(false); }
+  };
+
+  const handlePayInvoice = async (invoiceId: string) => {
+    setPaying(invoiceId);
+    try {
+      await subscriptionService.payInvoice(invoiceId);
+      setInvoices(prev => prev.map(i => i.id === invoiceId ? { ...i, status: 'paid', paidDate: new Date().toISOString() } : i));
+      toast({ title: 'Payment successful', description: 'Invoice marked as paid' });
+    } catch (err: unknown) {
+      toast({ title: 'Payment failed', description: err instanceof Error ? err.message : 'Error', variant: 'destructive' });
+    } finally { setPaying(''); }
   };
 
   if (!currentOrg) return null;
@@ -209,6 +223,58 @@ export function SubscriptionPage() {
           );
         })}
       </div>
+
+      {/* Invoices */}
+      {invoices.length > 0 && (
+        <Card className="mt-6">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Receipt className="h-4 w-4" /> Billing History
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {invoices.map((inv) => (
+                <div key={inv.id} className="flex items-center justify-between px-4 py-3 gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {inv.status === 'paid' ? (
+                      <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
+                    ) : inv.status === 'overdue' ? (
+                      <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+                    ) : (
+                      <Clock className="h-5 w-5 text-amber-500 shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{inv.billingPeriod} — <span className="capitalize">{inv.plan}</span></p>
+                      <p className="text-xs text-muted-foreground">
+                        ₹{inv.baseAmount.toLocaleString('en-IN')}
+                        {inv.discountAmount > 0 && (
+                          <span className="text-emerald-600"> − ₹{inv.discountAmount.toLocaleString('en-IN')} ({inv.discountCode})</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="text-right">
+                      <p className="text-sm font-bold">₹{inv.finalAmount.toLocaleString('en-IN')}</p>
+                      <p className="text-xs text-muted-foreground">Due {inv.dueDate?.slice(0, 10)}</p>
+                    </div>
+                    {inv.status === 'paid' ? (
+                      <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Paid</Badge>
+                    ) : inv.status === 'overdue' ? (
+                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Overdue</Badge>
+                    ) : (
+                      <Button size="sm" onClick={() => handlePayInvoice(inv.id)} disabled={paying === inv.id}>
+                        {paying === inv.id ? 'Paying…' : 'Pay Now'}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <p className="mt-6 text-xs text-muted-foreground text-center">
         All plans include a 14-day free trial. No credit card required to start.

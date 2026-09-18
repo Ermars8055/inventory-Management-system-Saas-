@@ -41,6 +41,25 @@ class OrgCoupon(AdminBase):
     applied_at = Column(String)
 
 
+class Invoice(AdminBase):
+    __tablename__ = "invoices"
+    id = Column(String, primary_key=True)
+    org_id = Column(String, nullable=False)
+    org_name = Column(String, nullable=False)
+    plan = Column(String, nullable=False)
+    base_amount = Column(Float, nullable=False)      # plan price
+    discount_code = Column(String)                    # coupon code if applied
+    discount_type = Column(String)                    # percent | flat
+    discount_value = Column(Float, default=0)
+    discount_amount = Column(Float, default=0)        # calculated discount in ₹
+    final_amount = Column(Float, nullable=False)      # base - discount
+    status = Column(String, default="pending")        # pending | paid | overdue
+    billing_period = Column(String)                   # e.g. "2026-09"
+    due_date = Column(String)
+    paid_date = Column(String)
+    created_at = Column(String)
+
+
 class AuditLog(AdminBase):
     __tablename__ = "audit_log"
     id = Column(String, primary_key=True)

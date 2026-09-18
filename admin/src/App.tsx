@@ -8,6 +8,7 @@ import { OrgDetailPage } from '@/pages/OrgDetail';
 import { AdminUsersPage } from '@/pages/AdminUsers';
 import { AuditLogPage } from '@/pages/AuditLog';
 import { CouponsPage } from '@/pages/Coupons';
+import { BillingPage } from '@/pages/Billing';
 
 function ProtectedRoutes() {
   const { user, loading } = useAuth();
@@ -35,6 +36,7 @@ export default function App() {
               <Route path="/organizations/:id" element={<OrgDetailPage />} />
               <Route path="/admin-users" element={<AdminUsersPage />} />
               <Route path="/coupons" element={<CouponsPage />} />
+              <Route path="/billing" element={<BillingPage />} />
               <Route path="/audit" element={<AuditLogPage />} />
             </Route>
           </Route>
