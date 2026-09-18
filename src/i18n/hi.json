@@ -1,0 +1,70 @@
+{
+  "common": {
+    "save": "सहेजें",
+    "cancel": "रद्द करें",
+    "delete": "हटाएं",
+    "edit": "संपादित करें",
+    "add": "जोड़ें",
+    "search": "खोजें",
+    "loading": "लोड हो रहा है...",
+    "noData": "कोई डेटा नहीं मिला",
+    "export": "निर्यात",
+    "import": "आयात",
+    "back": "वापस",
+    "next": "अगला",
+    "submit": "जमा करें",
+    "close": "बंद करें",
+    "yes": "हां",
+    "no": "नहीं",
+    "actions": "कार्रवाई",
+    "status": "स्थिति",
+    "active": "सक्रिय",
+    "inactive": "निष्क्रिय"
+  },
+  "nav": {
+    "dashboard": "डैशबोर्ड",
+    "inventory": "इन्वेंटरी",
+    "transactions": "स्टॉक लेनदेन",
+    "vendors": "विक्रेता",
+    "recipients": "प्राप्तकर्ता",
+    "assignments": "आवंटन",
+    "reports": "रिपोर्ट",
+    "users": "उपयोगकर्ता और भूमिकाएं",
+    "modules": "मॉड्यूल",
+    "settings": "सेटिंग्स",
+    "support": "सहायता",
+    "activityLog": "गतिविधि लॉग"
+  },
+  "auth": {
+    "signIn": "साइन इन करें",
+    "signOut": "साइन आउट",
+    "email": "ईमेल",
+    "password": "पासवर्ड",
+    "forgotPassword": "पासवर्ड भूल गए?",
+    "resetPassword": "पासवर्ड रीसेट करें",
+    "sessionExpired": "आपका सत्र समाप्त हो गया है। कृपया फिर से साइन इन करें।"
+  },
+  "inventory": {
+    "addItem": "आइटम जोड़ें",
+    "itemName": "आइटम का नाम",
+    "sku": "SKU",
+    "category": "श्रेणी",
+    "quantity": "मात्रा",
+    "location": "स्थान",
+    "inStock": "स्टॉक में",
+    "lowStock": "कम स्टॉक",
+    "outOfStock": "स्टॉक खत्म"
+  },
+  "vendors": {
+    "addVendor": "विक्रेता जोड़ें",
+    "vendorName": "विक्रेता का नाम",
+    "contactPerson": "संपर्क व्यक्ति",
+    "vendorType": "विक्रेता प्रकार"
+  },
+  "notifications": {
+    "title": "सूचनाएं",
+    "markAllRead": "सभी पढ़ा हुआ चिह्नित करें",
+    "noNotifications": "कोई सूचना नहीं",
+    "lowStock": "कम स्टॉक चेतावनी"
+  }
+}

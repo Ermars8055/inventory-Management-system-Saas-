@@ -35,6 +35,8 @@ from .routers.data_io import router as data_io_router
 from .routers.search import router as search_router
 from .routers.audit_log import router as audit_log_router
 from .routers.notifications import router as notifications_router
+from .routers.files import router as files_router
+from .routers.api_keys import router as api_keys_router
 
 load_dotenv()
 
@@ -51,6 +53,53 @@ SUBDOMAIN_SUFFIX = f".{SUBDOMAIN_BASE}.{TENANT_DOMAIN}"
 SKIP_SUBDOMAIN_PATHS = {"/health", "/signup", "/signup/check-subdomain",
                         "/subscriptions", "/subscriptions/plans",
                         "/auth/forgot-password", "/auth/reset-password"}
+
+
+# ─── Rate limiting per org ────────────────────────────────────────────────────
+
+import time as _time
+
+_rate_store: dict[str, dict] = {}  # org_id → {count, window_start}
+_RATE_LIMITS = {"starter": 60, "professional": 300, "enterprise": 1000}
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        if path in SKIP_SUBDOMAIN_PATHS or path.startswith("/docs") or path == "/health":
+            return await call_next(request)
+
+        # Extract org from token if available
+        auth = request.headers.get("authorization", "")
+        org_id = None
+        if auth.startswith("Bearer "):
+            payload = decode_token(auth[7:])
+            org_id = payload.get("org_id")
+
+        if org_id:
+            now = _time.time()
+            entry = _rate_store.get(org_id)
+            if not entry or now - entry["start"] > 60:
+                _rate_store[org_id] = {"count": 1, "start": now}
+            else:
+                entry["count"] += 1
+                # Get plan limit
+                db_session = SessionLocal()
+                try:
+                    org_obj = db_session.query(Organization).filter(Organization.id == org_id).first()
+                    plan = org_obj.plan if org_obj else "starter"
+                finally:
+                    db_session.close()
+                limit = _RATE_LIMITS.get(plan, 60)
+                if entry["count"] > limit:
+                    retry_after = int(60 - (now - entry["start"]))
+                    return JSONResponse(
+                        status_code=429,
+                        content={"detail": f"Rate limit exceeded ({limit}/min). Try again in {retry_after}s."},
+                        headers={"Retry-After": str(max(1, retry_after))},
+                    )
+
+        return await call_next(request)
 
 
 # ─── Subdomain enforcement middleware ────────────────────────────────────────
@@ -120,6 +169,7 @@ class SubdomainMiddleware(BaseHTTPMiddleware):
 
 static_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:8060").split(",") if o.strip()]
 
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(SubdomainMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -153,6 +203,8 @@ app.include_router(data_io_router)
 app.include_router(search_router)
 app.include_router(audit_log_router)
 app.include_router(notifications_router)
+app.include_router(files_router)
+app.include_router(api_keys_router)
 
 
 @app.get("/health")

@@ -95,6 +95,42 @@ class User(Base):
     last_active = Column(String)
 
 
+class FileAttachment(Base):
+    __tablename__ = "file_attachments"
+    id = Column(String, primary_key=True)
+    organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
+    entity_type = Column(String)      # vendor | purchase_order | ticket | item
+    entity_id = Column(String)
+    filename = Column(String, nullable=False)
+    original_name = Column(String, nullable=False)
+    size = Column(Integer, default=0)
+    mime_type = Column(String)
+    uploaded_by = Column(String)
+    created_at = Column(String)
+
+
+class ApiKey(Base):
+    __tablename__ = "api_keys"
+    id = Column(String, primary_key=True)
+    organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
+    key_hash = Column(String, nullable=False)
+    name = Column(String)
+    last_used = Column(String)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(String)
+
+
+class Webhook(Base):
+    __tablename__ = "webhooks"
+    id = Column(String, primary_key=True)
+    organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
+    event = Column(String, nullable=False)
+    url = Column(String, nullable=False)
+    secret = Column(String)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(String)
+
+
 class OrgAuditLog(Base):
     __tablename__ = "org_audit_log"
     id = Column(String, primary_key=True)

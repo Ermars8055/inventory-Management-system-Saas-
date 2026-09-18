@@ -43,7 +43,10 @@ export interface OrgConfig {
   groupLabel: string;
   assignmentLabel: string;
   itemUnit: string;
+  currencyCode: string;
   currencySymbol: string;
+  timezone: string;
+  language: string;
   enableFines: boolean;
   enableConditionTracking: boolean;
   fineLabel: string;
@@ -56,7 +59,10 @@ export const DEFAULT_ORG_CONFIG: OrgConfig = {
   groupLabel: 'Group',
   assignmentLabel: 'Assignment',
   itemUnit: 'units',
+  currencyCode: 'INR',
   currencySymbol: '₹',
+  timezone: 'Asia/Kolkata',
+  language: 'en',
   enableFines: false,
   enableConditionTracking: true,
   fineLabel: 'Fine',

@@ -27,7 +27,10 @@ class OrgConfig(CamelModel):
     group_label: str = "Group"
     assignment_label: str = "Assignment"
     item_unit: str = "units"
+    currency_code: str = "INR"
     currency_symbol: str = "₹"
+    timezone: str = "Asia/Kolkata"
+    language: str = "en"
     enable_fines: bool = False
     enable_condition_tracking: bool = True
     fine_label: str = "Fine"

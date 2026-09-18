@@ -1,0 +1,70 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "loading": "Loading...",
+    "noData": "No data found",
+    "export": "Export",
+    "import": "Import",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No",
+    "actions": "Actions",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "inventory": "Inventory",
+    "transactions": "Stock Transactions",
+    "vendors": "Vendors",
+    "recipients": "Recipients",
+    "assignments": "Assignments",
+    "reports": "Reports",
+    "users": "Users & Roles",
+    "modules": "Modules",
+    "settings": "Settings",
+    "support": "Support",
+    "activityLog": "Activity Log"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "resetPassword": "Reset Password",
+    "sessionExpired": "Your session has expired. Please sign in again."
+  },
+  "inventory": {
+    "addItem": "Add Item",
+    "itemName": "Item Name",
+    "sku": "SKU",
+    "category": "Category",
+    "quantity": "Quantity",
+    "location": "Location",
+    "inStock": "In Stock",
+    "lowStock": "Low Stock",
+    "outOfStock": "Out of Stock"
+  },
+  "vendors": {
+    "addVendor": "Add Vendor",
+    "vendorName": "Vendor Name",
+    "contactPerson": "Contact Person",
+    "vendorType": "Vendor Type"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "noNotifications": "No notifications",
+    "lowStock": "Low Stock Alert"
+  }
+}

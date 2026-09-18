@@ -21,6 +21,7 @@ services:
       APP_URL:            ${APP_URL:-https://stockpilot.ermarscastar.in}
     volumes:
       - db_data:/data
+      - uploads:/data/uploads
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -85,4 +86,6 @@ services:
 # ── Shared persistent volume for SQLite databases ────────────────────────────
 volumes:
   db_data:
+    driver: local
+  uploads:
     driver: local
