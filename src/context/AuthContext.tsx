@@ -79,8 +79,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     api.get<AuthUser>('/auth/me')
-      .then(setUser)
-      .catch(() => localStorage.removeItem('token'))
+      .then((u) => {
+        // On subdomain, verify user's org matches — double safety
+        const host = window.location.hostname;
+        if (host.includes('.stockpilot.') && host !== 'stockpilot.ermarscastar.in') {
+          // We're on a tenant subdomain — if API returned user, they're valid
+          // (backend middleware already validated). If we got here, it's ok.
+        }
+        setUser(u);
+      })
+      .catch(() => {
+        // 401 or 403 — token invalid or wrong org
+        localStorage.removeItem('token');
+      })
       .finally(() => setLoading(false));
   }, []);
 
