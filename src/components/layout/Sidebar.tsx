@@ -2,9 +2,20 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useAuth } from '@/context/AuthContext';
 import { getNavSections } from '@/config/navigation';
+import { useTranslation } from '@/hooks/useTranslation';
 import { OrgSwitcher } from './OrgSwitcher';
 import { cn } from '@/lib/utils';
 import { X, LogOut } from 'lucide-react';
+
+// Map nav paths to translation keys
+const NAV_KEYS: Record<string, string> = {
+  '/dashboard': 'nav.dashboard', '/inventory': 'nav.inventory',
+  '/transactions': 'nav.transactions', '/vendors': 'nav.vendors',
+  '/recipients': 'nav.recipients', '/assignments': 'nav.assignments',
+  '/reports': 'nav.reports', '/users': 'nav.users',
+  '/modules': 'nav.modules', '/settings': 'nav.settings',
+  '/support': 'nav.support', '/activity-log': 'nav.activityLog',
+};
 
 interface SidebarProps {
   mobileOpen: boolean;
@@ -14,6 +25,7 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   const { isModuleEnabled, currentOrg } = useOrganization();
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -102,7 +114,7 @@ export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
                       }
                     >
                       <Icon className="h-4 w-4 shrink-0" />
-                      <span className="truncate">{item.label}</span>
+                      <span className="truncate">{NAV_KEYS[item.path] ? t(NAV_KEYS[item.path]) : item.label}</span>
                     </NavLink>
                   );
                 })}
@@ -124,7 +136,7 @@ export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
             className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             <LogOut className="h-3.5 w-3.5" />
-            Sign out
+            {t('auth.signOut')}
           </button>
         </div>
       </aside>

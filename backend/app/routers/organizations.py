@@ -57,9 +57,9 @@ def update_config(org_id: str, body: ConfigUpdate, user: User = Depends(require(
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
         raise HTTPException(404, "Organization not found")
-    current = org.config or {}
+    current = dict(org.config or {})
     current.update(body.config)
-    org.config = current
+    org.config = current  # Assign new dict so SQLAlchemy detects the change
     db.commit()
     db.refresh(org)
     return org
