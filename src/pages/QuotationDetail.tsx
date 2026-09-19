@@ -285,7 +285,7 @@ export function QuotationDetailPage() {
 
       <PageHeader
         title={q.title}
-        description={`${rfqRef} · ${q.items.length} item${q.items.length !== 1 ? 's' : ''} · ${q.vendorQuotes.length} vendor${q.vendorQuotes.length !== 1 ? 's' : ''}`}
+        description={`${rfqRef} · ${q.items.length} ${q.items.length !== 1 ? t('items') : t('item')} · ${q.vendorQuotes.length} ${q.vendorQuotes.length !== 1 ? t('vendors') : t('vendor')}`}
         actions={
           <div className="flex items-center gap-2">
             <Badge variant="outline" className={`text-xs ${cfg.color}`}>{t(cfg.label)}</Badge>
@@ -713,8 +713,8 @@ export function QuotationDetailPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setShowAddItem(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleAddItem}>Add</Button>
+            <Button variant="outline" size="sm" onClick={() => setShowAddItem(false)}>{t("Cancel")}</Button>
+            <Button size="sm" onClick={handleAddItem}>{t("Add")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -722,16 +722,16 @@ export function QuotationDetailPage() {
       {/* Invite Vendor Dialog */}
       <Dialog open={showInviteVendor} onOpenChange={setShowInviteVendor}>
         <DialogContent className="sm:max-w-sm">
-          <DialogHeader><DialogTitle>Invite Vendor</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("Invite Vendor")}</DialogTitle></DialogHeader>
           <div className="space-y-3 py-1">
             <div className="space-y-1.5">
-              <Label className="text-xs">Select Vendor</Label>
+              <Label className="text-xs">{t("Select Vendor")}</Label>
               <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
-                <SelectTrigger><SelectValue placeholder="Choose a vendor…" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("Choose a vendor…")} /></SelectTrigger>
                 <SelectContent>
                   {vendors.filter(s => s.status === 'active').map(s => (
                     <SelectItem key={s.id} value={s.id} disabled={invitedVendorIds.has(s.id)}>
-                      {s.name}{invitedVendorIds.has(s.id) ? ' (already invited)' : ''}
+                      {s.name}{invitedVendorIds.has(s.id) ? ` (${t('already invited')})` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -741,14 +741,14 @@ export function QuotationDetailPage() {
               <div className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
                 {(() => {
                   const s = vendors.find(x => x.id === selectedVendorId);
-                  return s ? `${s.email || 'No email on file'} · ${s.phone || ''}` : '';
+                  return s ? `${s.email || t('No email on file')} · ${s.phone || ''}` : '';
                 })()}
               </div>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setShowInviteVendor(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleInviteVendor} disabled={!selectedVendorId}>Invite</Button>
+            <Button variant="outline" size="sm" onClick={() => setShowInviteVendor(false)}>{t("Cancel")}</Button>
+            <Button size="sm" onClick={handleInviteVendor} disabled={!selectedVendorId}>{t("Invite")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -758,12 +758,12 @@ export function QuotationDetailPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              Enter Prices — {q.vendorQuotes.find(v => v.id === enteringQuoteFor)?.vendorName}
+              {t("Enter Prices")} — {q.vendorQuotes.find(v => v.id === enteringQuoteFor)?.vendorName}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-1">
             <div className="grid grid-cols-[1fr_100px_80px] gap-2 text-xs font-semibold text-muted-foreground px-1">
-              <span>Item</span><span>Unit Price (₹)</span><span>Lead (days)</span>
+              <span>{t("Item")}</span><span>{t("Unit Price (₹)")}</span><span>{t("Lead (days)")}</span>
             </div>
             {q.items.map(item => (
               <div key={item.id} className="grid grid-cols-[1fr_100px_80px] gap-2 items-center">
@@ -793,11 +793,11 @@ export function QuotationDetailPage() {
                 />
               </div>
             ))}
-            <p className="text-xs text-muted-foreground">Leave price blank if vendor didn't quote that item.</p>
+            <p className="text-xs text-muted-foreground">{t("Leave price blank if vendor didn't quote that item.")}</p>
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setEnteringQuoteFor(null)}>Cancel</Button>
-            <Button size="sm" onClick={handleSubmitQuote}><CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Save Quote</Button>
+            <Button variant="outline" size="sm" onClick={() => setEnteringQuoteFor(null)}>{t("Cancel")}</Button>
+            <Button size="sm" onClick={handleSubmitQuote}><CheckCircle2 className="h-3.5 w-3.5 mr-1" /> {t("Save Quote")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -805,24 +805,24 @@ export function QuotationDetailPage() {
       {/* Generate POs Dialog */}
       <Dialog open={showGenerateForm} onOpenChange={setShowGenerateForm}>
         <DialogContent className="sm:max-w-sm">
-          <DialogHeader><DialogTitle>Generate Purchase Orders</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("Generate Purchase Orders")}</DialogTitle></DialogHeader>
           <div className="space-y-3 py-1">
             <p className="text-xs text-muted-foreground">
-              This will create {new Set(Object.values(selections).filter(Boolean)).size} PO(s) — one per selected vendor.
+              {t("This will create")} {new Set(Object.values(selections).filter(Boolean)).size} {t("PO(s) — one per selected vendor.")}
             </p>
             <div className="space-y-1.5">
-              <Label className="text-xs">Expected Delivery Date</Label>
+              <Label className="text-xs">{t("Expected Delivery Date")}</Label>
               <Input type="date" value={genExpectedDate} onChange={e => setGenExpectedDate(e.target.value)} className="text-sm" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Notes</Label>
-              <Textarea value={genNotes} onChange={e => setGenNotes(e.target.value)} rows={2} className="text-sm" placeholder="Any delivery instructions…" />
+              <Label className="text-xs">{t("Notes")}</Label>
+              <Textarea value={genNotes} onChange={e => setGenNotes(e.target.value)} rows={2} className="text-sm" placeholder={t("Any delivery instructions…")} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setShowGenerateForm(false)}>Cancel</Button>
+            <Button variant="outline" size="sm" onClick={() => setShowGenerateForm(false)}>{t("Cancel")}</Button>
             <Button size="sm" onClick={handleGeneratePOs} disabled={generating}>
-              {generating ? 'Generating…' : 'Generate POs'}
+              {generating ? t('Generating…') : t('Generate POs')}
             </Button>
           </DialogFooter>
         </DialogContent>

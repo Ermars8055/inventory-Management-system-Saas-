@@ -105,7 +105,7 @@ export function CustomFieldsPage() {
         required: form.required,
         placeholder: form.placeholder || undefined,
       });
-      toast({ title: t('Field "{{name}}" updated', { name: form.name }) });
+      toast({ title: t('Field') + ' "' + form.name + '" ' + t('updated') });
     } else {
       await customFieldService.create({
         organizationId: currentOrg.id,
@@ -117,7 +117,7 @@ export function CustomFieldsPage() {
         sortOrder: tabFields.length,
         placeholder: form.placeholder || undefined,
       });
-      toast({ title: t('Field "{{name}}" added', { name: form.name }) });
+      toast({ title: t('Field') + ' "' + form.name + '" ' + t('added') });
     }
     await loadFields();
     setDialogOpen(false);
@@ -191,8 +191,8 @@ export function CustomFieldsPage() {
                 {tabFields.length === 0 ? (
                   <EmptyState
                     icon={Sliders}
-                    title={t('No custom fields for {{entity}}', { entity: tab.label })}
-                    description={t('Add custom fields to capture additional data for {{entity}}.', { entity: tab.label.toLowerCase() })}
+                    title={t('No custom fields for') + ' ' + t(tab.label)}
+                    description={t('Add custom fields to capture additional data for') + ' ' + t(tab.label).toLowerCase() + '.'}
                   />
                 ) : (
                   <div className="divide-y">

@@ -45,7 +45,7 @@ function UsageBar({ label, icon: Icon, used, max, t }: { label: string; icon: ty
         <p className="text-xs text-destructive font-medium">{t('Limit reached — upgrade to add more')}</p>
       )}
       {isNearLimit && !isAtLimit && (
-        <p className="text-xs text-amber-600 font-medium">{t('Approaching limit ({{pct}}% used)', { pct })}</p>
+        <p className="text-xs text-amber-600 font-medium">{t('Approaching limit') + ' (' + pct + '% ' + t('used') + ')'}</p>
       )}
     </div>
   );
@@ -74,7 +74,7 @@ export function SubscriptionPage() {
   }, [currentOrg]);
 
   const handleUpgrade = (tier: string) => {
-    toast({ title: t('Contact sales to upgrade to {{tier}}', { tier }) });
+    toast({ title: t('Contact sales to upgrade to') + ' ' + tier });
   };
 
   const handleRedeemCoupon = async () => {
@@ -129,7 +129,7 @@ export function SubscriptionPage() {
               </div>
               <div className="text-right">
                 <p className="text-2xl font-bold">{'\u20B9'}{currentPlan.price.toLocaleString('en-IN')}</p>
-                <p className="text-xs text-muted-foreground">{t('per {{period}}', { period: currentPlan.pricePeriod })}</p>
+                <p className="text-xs text-muted-foreground">{t('per') + ' ' + currentPlan.pricePeriod}</p>
               </div>
             </div>
           </CardContent>
@@ -217,7 +217,7 @@ export function SubscriptionPage() {
                     onClick={() => handleUpgrade(plan.name)}
                   >
                     <Zap className="h-3.5 w-3.5 mr-1.5" />
-                    {t('Upgrade to {{plan}}', { plan: plan.name })}
+                    {t('Upgrade to') + ' ' + plan.name}
                   </Button>
                 )}
               </CardContent>

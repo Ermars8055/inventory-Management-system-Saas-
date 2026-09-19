@@ -98,7 +98,7 @@ export function QuotationsPage() {
 
   async function handleDelete(q: Quotation, e: React.MouseEvent) {
     e.stopPropagation();
-    if (!confirm(`Delete quotation "${q.title}"?`)) return;
+    if (!confirm(`${t('Delete quotation')} "${q.title}"?`)) return;
     try {
       await quotationService.delete(q.id);
       setQuotations(prev => prev.filter(x => x.id !== q.id));
@@ -165,8 +165,8 @@ export function QuotationsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold truncate">{q.title}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {q.items.length} item{q.items.length !== 1 ? 's' : ''} · {vendorCount} vendor{vendorCount !== 1 ? 's' : ''}
-                      {vendorCount > 0 && ` (${quotedCount} quoted)`}
+                      {q.items.length} {q.items.length !== 1 ? t('items') : t('item')} · {vendorCount} {vendorCount !== 1 ? t('vendors') : t('vendor')}
+                      {vendorCount > 0 && ` (${quotedCount} ${t('quoted')})`}
                       {q.createdAt && ` · ${q.createdAt}`}
                     </p>
                   </div>
@@ -237,7 +237,7 @@ export function QuotationsPage() {
                           />
                         )}
                         <span className="text-xs text-muted-foreground w-16 text-right">
-                          {item.available} avail
+                          {item.available} {t("avail")}
                         </span>
                       </label>
                     );

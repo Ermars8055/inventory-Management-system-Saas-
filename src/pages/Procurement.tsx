@@ -285,7 +285,7 @@ export function ProcurementPage() {
                     <TableCell className="text-sm text-muted-foreground">
                       {po.lineItems && po.lineItems.length > 0 ? (
                         <span className="text-xs">
-                          {po.lineItems.length} item{po.lineItems.length !== 1 ? 's' : ''}
+                          {po.lineItems.length} {po.lineItems.length !== 1 ? t('items') : t('item')}
                           {po.lineItems.some((l) => l.quantityReceived > 0) && (
                             <span className="ml-1 text-emerald-600">
                               · {po.lineItems.reduce((s, l) => s + l.quantityReceived, 0)} {t("received")}
@@ -541,7 +541,7 @@ function LineItemRow({
                 }}
               >
                 <span className="font-medium">{item.name}</span>
-                <span className="text-muted-foreground ml-2 text-xs">{item.sku} · {item.available} avail</span>
+                <span className="text-muted-foreground ml-2 text-xs">{item.sku} · {item.available} {t("avail")}</span>
               </button>
             ))}
           </div>
@@ -550,7 +550,7 @@ function LineItemRow({
 
       {/* Quantity */}
       <Input
-        type="number" min={1} placeholder="Qty"
+        type="number" min={1} placeholder={t("Qty")}
         value={line.quantityOrdered}
         onChange={(e) => onUpdate({ quantityOrdered: Number(e.target.value) })}
         className="h-8 w-16 text-sm text-center"
@@ -560,7 +560,7 @@ function LineItemRow({
       <div className="relative w-24">
         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₹</span>
         <Input
-          type="number" min={0} placeholder="Price"
+          type="number" min={0} placeholder={t("Price")}
           value={line.unitPrice}
           onChange={(e) => onUpdate({ unitPrice: Number(e.target.value) })}
           className="h-8 text-sm pl-5"

@@ -94,7 +94,7 @@ export function ClassTemplatesPage() {
   }
 
   async function deleteTemplate(tmpl: ClassTemplate) {
-    if (!confirm(t('Delete template "{{name}}"? This cannot be undone.', { name: tmpl.name }))) return;
+    if (!confirm(t('Delete template') + ' "' + tmpl.name + '"? ' + t('This cannot be undone.'))) return;
     await classTemplateService.delete(tmpl.id);
     setTemplates(ts => ts.filter(x => x.id !== tmpl.id));
     if (selected?.id === tmpl.id) setSelected(null);
