@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Building2, SlidersHorizontal, Globe } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useOrganization } from '@/context/OrganizationContext';
@@ -28,14 +28,18 @@ export function OrganizationSettingsPage() {
 
   const [cfg, setCfg] = useState<OrgConfig>(config);
   const [savingCfg, setSavingCfg] = useState(false);
+  const justSaved = useRef(false);
 
   useEffect(() => {
-    if (currentOrg && !savingCfg) {
-      setForm({ name: currentOrg.name, email: currentOrg.email ?? '', phone: currentOrg.phone ?? '', address: currentOrg.address ?? '' });
-      // Merge defaults with what's actually stored — preserves new fields
-      const stored = currentOrg.config || {};
-      setCfg({ ...config, ...stored } as OrgConfig);
+    if (!currentOrg) return;
+    // Skip resetting after we just saved — the cfg state already has the right values
+    if (justSaved.current) {
+      justSaved.current = false;
+      return;
     }
+    setForm({ name: currentOrg.name, email: currentOrg.email ?? '', phone: currentOrg.phone ?? '', address: currentOrg.address ?? '' });
+    const stored = currentOrg.config || {};
+    setCfg({ ...config, ...stored } as OrgConfig);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentOrg]);
 
@@ -51,14 +55,11 @@ export function OrganizationSettingsPage() {
   const handleSaveConfig = async () => {
     if (!currentOrg) return;
     setSavingCfg(true);
+    justSaved.current = true;
     await updateConfig(cfg);
-    // Don't let useEffect reset cfg — keep the user's values
     setSavingCfg(false);
     toast({ title: 'Configuration saved', description: 'Labels and features updated across the app.' });
   };
-
-  // Sync cfg when org changes (but not during save)
-  const isSaving = saving || savingCfg;
 
   if (!currentOrg) return null;
 
