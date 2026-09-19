@@ -1,11 +1,19 @@
 from __future__ import annotations
+import re
+import html
 from typing import Any, Optional
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 from pydantic.alias_generators import to_camel
 
 
 def _camel(s: str) -> str:
     return to_camel(s)
+
+
+def _sanitize(v: str) -> str:
+    """Strip HTML tags and escape special chars."""
+    v = re.sub(r'<[^>]+>', '', v)
+    return html.escape(v).strip()
 
 
 class CamelModel(BaseModel):
@@ -14,6 +22,15 @@ class CamelModel(BaseModel):
         populate_by_name=True,
         from_attributes=True,
     )
+
+    @model_validator(mode='before')
+    @classmethod
+    def sanitize_strings(cls, values):
+        if isinstance(values, dict):
+            for k, v in values.items():
+                if isinstance(v, str) and k not in ('password', 'password_hash', 'token', 'key_hash'):
+                    values[k] = _sanitize(v)
+        return values
 
 
 # ---------------------------------------------------------------------------

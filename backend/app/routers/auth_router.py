@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from ..database import SessionLocal
 from ..models import User, Organization, PasswordResetToken
-from ..auth import verify_password, create_access_token, hash_password
+from ..auth import verify_password, create_access_token, hash_password, blacklist_token
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from ..dependencies import get_db, get_current_user
 from ..email_service import send_password_reset
 
@@ -158,3 +159,14 @@ def change_password(body: ChangePasswordRequest, user: User = Depends(get_curren
     user.password_hash = hash_password(body.new_password)
     db.commit()
     return {"message": "Password changed successfully"}
+
+
+_bearer = HTTPBearer(auto_error=False)
+
+
+@router.post("/logout")
+def logout(credentials: HTTPAuthorizationCredentials | None = Depends(_bearer)):
+    """Blacklist the current token so it can't be reused."""
+    if credentials:
+        blacklist_token(credentials.credentials)
+    return {"message": "Logged out"}

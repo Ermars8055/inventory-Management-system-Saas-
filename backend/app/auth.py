@@ -13,6 +13,9 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8  # 8 hours
 
 pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 
+# In-memory token blacklist (cleared on restart — acceptable for MVP)
+_blacklisted_tokens: set[str] = set()
+
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
@@ -29,7 +32,13 @@ def create_access_token(data: dict) -> str:
 
 
 def decode_token(token: str) -> dict:
+    if token in _blacklisted_tokens:
+        return {}
     try:
         return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except JWTError:
         return {}
+
+
+def blacklist_token(token: str):
+    _blacklisted_tokens.add(token)

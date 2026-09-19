@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import FileAttachment, User
 from ..dependencies import get_current_user, same_org
+from ..pagination import detect_mime
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -30,6 +31,11 @@ async def upload(
     content = await file.read()
     if len(content) > MAX_SIZE:
         raise HTTPException(400, "File too large (max 10MB)")
+
+    # Validate MIME type from actual file bytes, not just the header
+    detected = detect_mime(content)
+    if file.content_type not in ALLOWED and (not detected or detected not in ALLOWED):
+        raise HTTPException(400, "File type not allowed")
 
     fid = str(uuid.uuid4())
     ext = os.path.splitext(file.filename or "")[1] or ""

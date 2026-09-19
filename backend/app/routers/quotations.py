@@ -11,11 +11,12 @@ from ..models import (
     PurchaseOrder, POLineItem, Vendor, User,
 )
 from ..schemas import (
-    QuotationOut, QuotationCreate, QuotationUpdate,
+    QuotationOut, QuotationCreate, QuotationUpdate, QuotationItemCreate,
     VendorQuoteOut, VendorQuoteCreate, VendorQuoteSubmit,
     GeneratePOsBody, PurchaseOrderOut,
 )
 from ..dependencies import require, same_org
+from ..pagination import sanitize
 
 router = APIRouter(prefix="/quotations", tags=["quotations"])
 
@@ -92,7 +93,7 @@ def delete_quotation(qid: str, user: User = Depends(require("inventory:delete"))
 # ─── Quotation Items ──────────────────────────────────────────────────────────
 
 @router.post("/{qid}/items", response_model=QuotationOut, status_code=201)
-def add_quotation_item(qid: str, body: dict, user: User = Depends(require("inventory:create")), db: Session = Depends(get_db)):
+def add_quotation_item(qid: str, body: QuotationItemCreate, user: User = Depends(require("inventory:create")), db: Session = Depends(get_db)):
     q = db.query(Quotation).filter(Quotation.id == qid).first()
     if not q:
         raise HTTPException(404, "Quotation not found")
@@ -101,9 +102,9 @@ def add_quotation_item(qid: str, body: dict, user: User = Depends(require("inven
     db.add(QuotationItem(
         id=f"qi_{ts}",
         quotation_id=qid,
-        item_id=body.get("itemId"),
-        item_name=body["itemName"],
-        qty_needed=body.get("qtyNeeded", 1),
+        item_id=body.item_id,
+        item_name=body.item_name,
+        qty_needed=body.qty_needed,
     ))
     db.commit()
     db.refresh(q)
