@@ -1,8 +1,11 @@
-import { Menu, Search, HelpCircle } from 'lucide-react';
+import { Menu, Search, HelpCircle, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { CommandPalette } from '@/components/shared/CommandPalette';
 import { NotificationBell } from '@/components/shared/NotificationBell';
+import { ShortcutsHelp } from '@/components/shared/ShortcutsHelp';
+import { useDarkMode } from '@/hooks/useDarkMode';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -10,6 +13,9 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuClick, onStartTutorial }: HeaderProps) {
+  const { isDark, setTheme } = useDarkMode();
+  const { showShortcuts, setShowShortcuts } = useKeyboardShortcuts();
+
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/95 backdrop-blur px-4 lg:px-6">
       <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenuClick}>
@@ -30,6 +36,14 @@ export function Header({ onMenuClick, onStartTutorial }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2 ml-auto">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setTheme(isDark ? 'light' : 'dark')}
+          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        </Button>
         <Button variant="ghost" size="icon" onClick={onStartTutorial} title="Take the tour">
           <HelpCircle className="h-5 w-5" />
         </Button>
@@ -42,6 +56,7 @@ export function Header({ onMenuClick, onStartTutorial }: HeaderProps) {
       </div>
 
       <CommandPalette />
+      <ShortcutsHelp open={showShortcuts} onOpenChange={setShowShortcuts} />
     </header>
   );
 }

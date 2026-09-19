@@ -46,6 +46,10 @@ import { QuotationsPage } from '@/pages/Quotations';
 import { QuotationDetailPage } from '@/pages/QuotationDetail';
 import { SupportPage } from '@/pages/Support';
 import { ActivityLogPage } from '@/pages/ActivityLog';
+import { ProfilePage } from '@/pages/Profile';
+import { TermsPage } from '@/pages/TermsOfService';
+import { PrivacyPage } from '@/pages/PrivacyPolicy';
+import { CookieConsent } from '@/components/shared/CookieConsent';
 
 // Loads orgs after auth is ready
 function AppInitializer({ children }: { children: React.ReactNode }) {
@@ -107,6 +111,8 @@ export default function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
 
               <Route element={<ProtectedRoutes />}>
                 <Route element={<AppLayout />}>
@@ -144,12 +150,14 @@ export default function App() {
                   <Route path="quotations/:id" element={<QuotationDetailPage />} />
                   <Route path="support" element={<SupportPage />} />
                   <Route path="activity-log" element={<ActivityLogPage />} />
+                  <Route path="profile" element={<ProfilePage />} />
                 </Route>
               </Route>
 
               <Route path="/access-denied" element={<AccessDeniedPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
+            <CookieConsent />
             <Toaster />
           </AppInitializer>
         </OrganizationProvider>

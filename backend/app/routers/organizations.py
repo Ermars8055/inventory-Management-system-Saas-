@@ -63,3 +63,16 @@ def update_config(org_id: str, body: ConfigUpdate, user: User = Depends(require(
     db.commit()
     db.refresh(org)
     return org
+
+
+@router.delete("/account", status_code=204)
+def delete_account(user: User = Depends(require("settings:update")), db: Session = Depends(get_db)):
+    """Delete the entire org and all its data. Irreversible."""
+    org_id = user.organization_id
+    # Delete in order to respect foreign keys
+    from ..models import Item, StockTransaction, Vendor, Recipient, Assignment, Batch, CustomField, ReceiptTemplate, ClassTemplate, ClassTemplateItem, PurchaseOrder, POLineItem, Quotation, QuotationItem, VendorQuote, VendorQuoteItem, MaintenanceTicket, Asset, OrgAuditLog, Notification, FileAttachment, Category
+    for model in [VendorQuoteItem, VendorQuote, QuotationItem, Quotation, POLineItem, PurchaseOrder, ClassTemplateItem, ClassTemplate, FileAttachment, Notification, OrgAuditLog, Assignment, Recipient, MaintenanceTicket, Asset, Batch, CustomField, ReceiptTemplate, StockTransaction, Item, Vendor, Category]:
+        db.query(model).filter(model.organization_id == org_id).delete()
+    db.query(User).filter(User.organization_id == org_id).delete()
+    db.query(Organization).filter(Organization.id == org_id).delete()
+    db.commit()
