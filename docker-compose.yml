@@ -18,6 +18,20 @@ services:
     profiles:
       - postgres
 
+  # ── LibreTranslate (self-hosted machine translation) ─────────────────────
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    restart: unless-stopped
+    environment:
+      LT_LOAD_ONLY: "en,hi,bn"
+      LT_DISABLE_WEB_UI: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/languages"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   # ── Main FastAPI Backend ──────────────────────────────────────────────────
   backend:
     build:

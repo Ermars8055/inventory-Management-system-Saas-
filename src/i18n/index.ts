@@ -1,38 +1,14 @@
 /**
- * i18n setup — supports English + Indian local languages.
- * Language is read from org config. Defaults to English.
- * To add a new language: create {code}.json, add to LANGUAGES, import below.
+ * i18n constants — Languages, Currencies, Timezones.
+ * Translation is handled by LibreTranslate via useTranslation() hook.
+ * No static translation files needed anymore.
  */
-
-import en from './en.json';
-import hi from './hi.json';
-import ta from './ta.json';
 
 export const LANGUAGES = [
   { code: 'en', name: 'English', nativeName: 'English' },
   { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
-  { code: 'ta', name: 'Tamil', nativeName: 'தமிழ்' },
-  { code: 'te', name: 'Telugu', nativeName: 'తెలుగు' },
   { code: 'bn', name: 'Bengali', nativeName: 'বাংলা' },
-  { code: 'mr', name: 'Marathi', nativeName: 'मराठी' },
-  { code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી' },
-  { code: 'kn', name: 'Kannada', nativeName: 'ಕನ್ನಡ' },
-  { code: 'ml', name: 'Malayalam', nativeName: 'മലയാളം' },
-  { code: 'pa', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ' },
 ];
-
-const translations: Record<string, Record<string, Record<string, string>>> = { en, hi, ta };
-
-/**
- * Simple translation function. Usage: t('nav.dashboard', 'en')
- * Falls back to English if key not found in target language.
- */
-export function t(key: string, lang: string = 'en'): string {
-  const [section, field] = key.split('.');
-  if (!section || !field) return key;
-  const dict = translations[lang] || translations.en;
-  return dict?.[section]?.[field] || translations.en?.[section]?.[field] || key;
-}
 
 export const CURRENCIES = [
   { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
