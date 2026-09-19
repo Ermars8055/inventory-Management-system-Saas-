@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   Plus, Search, Package, MoreHorizontal, Eye, ArrowRightLeft,
   ShieldAlert, LayoutGrid, List, MapPin, PackagePlus, Pencil, Trash2, Settings2,
@@ -144,6 +145,7 @@ export function InventoryPage() {
   const config = useOrgConfig();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [items, setItems] = useState<Item[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -197,11 +199,11 @@ export function InventoryPage() {
   }, [recipients, recipientSearch]);
 
   const statsRow = useMemo(() => [
-    { label: 'Total Items',  value: items.length,                                           color: '#6366f1', bg: '#ede9fe' },
-    { label: 'In Stock',     value: items.filter(i => i.status === 'in_stock').length,      color: '#059669', bg: '#d1fae5' },
-    { label: 'Low Stock',    value: items.filter(i => i.status === 'low_stock').length,     color: '#d97706', bg: '#fef3c7' },
-    { label: 'Out of Stock', value: items.filter(i => i.status === 'out_of_stock').length,  color: '#dc2626', bg: '#fee2e2' },
-  ], [items]);
+    { label: t('Total Items'),  value: items.length,                                           color: '#6366f1', bg: '#ede9fe' },
+    { label: t('In Stock'),     value: items.filter(i => i.status === 'in_stock').length,      color: '#059669', bg: '#d1fae5' },
+    { label: t('Low Stock'),    value: items.filter(i => i.status === 'low_stock').length,     color: '#d97706', bg: '#fef3c7' },
+    { label: t('Out of Stock'), value: items.filter(i => i.status === 'out_of_stock').length,  color: '#dc2626', bg: '#fee2e2' },
+  ], [items, t]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
   function openEdit(item: Item, e: React.MouseEvent) {
@@ -222,13 +224,13 @@ export function InventoryPage() {
 
   async function handleDeleteItem(item: Item, e: React.MouseEvent) {
     e.stopPropagation();
-    if (!confirm(`Delete "${item.name}"? This cannot be undone.`)) return;
+    if (!confirm(`${t('Delete')} "${item.name}"? ${t('This cannot be undone.')}`)) return;
     try {
       await inventoryService.delete(item.id);
       setItems(prev => prev.filter(i => i.id !== item.id));
-      toast({ title: `${item.name} deleted` });
+      toast({ title: `${item.name} ${t('deleted')}` });
     } catch {
-      toast({ title: 'Error', description: 'Failed to delete item', variant: 'destructive' });
+      toast({ title: t('Error'), description: t('Failed to delete item'), variant: 'destructive' });
     }
   }
 
@@ -370,8 +372,8 @@ export function InventoryPage() {
   return (
     <div>
       <PageHeader
-        title="Inventory"
-        description={`${items.length} items · ${currentOrg.name}`}
+        title={t('Inventory')}
+        description={`${items.length} ${t('items')} · ${currentOrg.name}`}
         actions={
           <div className="flex items-center gap-2">
             <CsvActions
@@ -382,10 +384,10 @@ export function InventoryPage() {
               onImportComplete={() => currentOrg && inventoryService.getByOrganization(currentOrg.id).then(setItems)}
             />
             <Button variant="outline" size="sm" onClick={() => setFieldsSheetOpen(true)}>
-              <Settings2 className="h-4 w-4 mr-1" />Custom Fields
+              <Settings2 className="h-4 w-4 mr-1" />{t('Custom Fields')}
             </Button>
             <Button onClick={() => setShowAddDialog(true)}>
-              <Plus className="h-4 w-4 mr-1" /> Add Item
+              <Plus className="h-4 w-4 mr-1" /> {t('Add Item')}
             </Button>
           </div>
         }
@@ -408,7 +410,7 @@ export function InventoryPage() {
         <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           <Input
-            placeholder="Search by name or SKU…"
+            placeholder={t('Search by name or SKU…')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-9 bg-gray-50 border-0 focus-visible:ring-1 focus-visible:ring-gray-300"
@@ -417,44 +419,44 @@ export function InventoryPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="w-[140px] border-gray-200 bg-white text-[13px]">
-              <SelectValue placeholder="Category" />
+              <SelectValue placeholder={t('Category')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="all">{t('All Categories')}</SelectItem>
               {categories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[130px] border-gray-200 bg-white text-[13px]">
-              <SelectValue placeholder="Status" />
+              <SelectValue placeholder={t('Status')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="in_stock">In Stock</SelectItem>
-              <SelectItem value="low_stock">Low Stock</SelectItem>
-              <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+              <SelectItem value="all">{t('All Status')}</SelectItem>
+              <SelectItem value="in_stock">{t('In Stock')}</SelectItem>
+              <SelectItem value="low_stock">{t('Low Stock')}</SelectItem>
+              <SelectItem value="out_of_stock">{t('Out of Stock')}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={locationFilter} onValueChange={setLocationFilter}>
             <SelectTrigger className="w-[130px] border-gray-200 bg-white text-[13px]">
-              <SelectValue placeholder="Location" />
+              <SelectValue placeholder={t('Location')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Locations</SelectItem>
+              <SelectItem value="all">{t('All Locations')}</SelectItem>
               {locations.map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}
             </SelectContent>
           </Select>
           <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-1 ml-1">
             <button
               onClick={() => setView('grid')}
-              title="Card view"
+              title={t('Card view')}
               className={`h-7 w-7 flex items-center justify-center rounded-md transition-all ${view === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
             </button>
             <button
               onClick={() => setView('table')}
-              title="Table view"
+              title={t('Table view')}
               className={`h-7 w-7 flex items-center justify-center rounded-md transition-all ${view === 'table' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
             >
               <List className="h-3.5 w-3.5" />
@@ -465,8 +467,8 @@ export function InventoryPage() {
 
       {filtered.length > 0 && (
         <p className="text-[12px] text-gray-400 mb-3 px-1">
-          Showing <span className="font-semibold text-gray-600">{filtered.length}</span> item{filtered.length !== 1 ? 's' : ''}
-          {(search || categoryFilter !== 'all' || statusFilter !== 'all' || locationFilter !== 'all') ? ' (filtered)' : ''}
+          {t('Showing')} <span className="font-semibold text-gray-600">{filtered.length}</span> {filtered.length !== 1 ? t('items') : t('item')}
+          {(search || categoryFilter !== 'all' || statusFilter !== 'all' || locationFilter !== 'all') ? ` (${t('filtered')})` : ''}
         </p>
       )}
 
@@ -475,9 +477,9 @@ export function InventoryPage() {
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
           <EmptyState
             icon={Package}
-            title="No items found"
-            description="Try adjusting your filters or add a new item."
-            action={<Button onClick={() => setShowAddDialog(true)}><Plus className="h-4 w-4 mr-1" />Add Item</Button>}
+            title={t('No items found')}
+            description={t('Try adjusting your filters or add a new item.')}
+            action={<Button onClick={() => setShowAddDialog(true)}><Plus className="h-4 w-4 mr-1" />{t('Add Item')}</Button>}
           />
         </div>
 
@@ -531,7 +533,7 @@ export function InventoryPage() {
                   {/* Stock bar */}
                   <div className="mt-auto">
                     <div className="flex justify-between text-[11px] mb-1.5">
-                      <span className="text-gray-400">Available</span>
+                      <span className="text-gray-400">{t('Available')}</span>
                       <span className="font-semibold text-gray-700">
                         {item.available}
                         <span className="text-gray-300 font-normal">/{item.quantity}</span>
@@ -543,7 +545,7 @@ export function InventoryPage() {
                         style={{ width: `${pct}%`, background: barColor }}
                       />
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-1 text-right">{pct}% in stock</p>
+                    <p className="text-[10px] text-gray-400 mt-1 text-right">{pct}% {t('in stock')}</p>
                   </div>
 
                   {/* Actions */}
@@ -564,7 +566,7 @@ export function InventoryPage() {
                       </button>
                     ) : (
                       <span className="flex-1 text-[11px] text-gray-300 text-center py-1.5 select-none">
-                        No stock
+                        {t('No stock')}
                       </span>
                     )}
                     <DropdownMenu>
@@ -575,25 +577,25 @@ export function InventoryPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => navigate(`/inventory/${item.id}`)}>
-                          <Eye className="h-4 w-4 mr-2" /> View Details
+                          <Eye className="h-4 w-4 mr-2" /> {t('View Details')}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={e => openEdit(item, e)}>
-                          <Pencil className="h-4 w-4 mr-2" /> Edit Item
+                          <Pencil className="h-4 w-4 mr-2" /> {t('Edit Item')}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={e => openRestock(item, e)}>
-                          <PackagePlus className="h-4 w-4 mr-2" /> Add Stock
+                          <PackagePlus className="h-4 w-4 mr-2" /> {t('Add Stock')}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
                           onClick={e => openDamage(item, e)}
                         >
-                          <ShieldAlert className="h-4 w-4 mr-2" /> Report Damage
+                          <ShieldAlert className="h-4 w-4 mr-2" /> {t('Report Damage')}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
                           onClick={e => handleDeleteItem(item, e)}
                         >
-                          <Trash2 className="h-4 w-4 mr-2" /> Delete Item
+                          <Trash2 className="h-4 w-4 mr-2" /> {t('Delete Item')}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -614,14 +616,14 @@ export function InventoryPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50/60">
-                  <TableHead className="pl-4">Item</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="w-[120px]">Stock</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Updated</TableHead>
+                  <TableHead className="pl-4">{t('Item')}</TableHead>
+                  <TableHead>{t('Category')}</TableHead>
+                  <TableHead>{t('SKU')}</TableHead>
+                  <TableHead className="text-right">{t('Total')}</TableHead>
+                  <TableHead className="w-[120px]">{t('Stock')}</TableHead>
+                  <TableHead>{t('Location')}</TableHead>
+                  <TableHead>{t('Status')}</TableHead>
+                  <TableHead>{t('Updated')}</TableHead>
                   <TableHead className="w-[160px]" />
                 </TableRow>
               </TableHeader>
@@ -652,7 +654,7 @@ export function InventoryPage() {
                       <TableCell>
                         <div>
                           <div className="flex justify-between text-[10px] mb-1 text-gray-400">
-                            <span>{item.available} avail</span>
+                            <span>{item.available} {t('avail')}</span>
                             <span>{pct}%</span>
                           </div>
                           <div className="h-1.5 bg-gray-100 rounded-full w-20 overflow-hidden">
@@ -679,25 +681,25 @@ export function InventoryPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => navigate(`/inventory/${item.id}`)}>
-                                <Eye className="h-4 w-4 mr-2" /> View Details
+                                <Eye className="h-4 w-4 mr-2" /> {t('View Details')}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={e => openEdit(item, e)}>
-                                <Pencil className="h-4 w-4 mr-2" /> Edit Item
+                                <Pencil className="h-4 w-4 mr-2" /> {t('Edit Item')}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={e => openRestock(item, e)}>
-                                <PackagePlus className="h-4 w-4 mr-2" /> Add Stock
+                                <PackagePlus className="h-4 w-4 mr-2" /> {t('Add Stock')}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
                                 onClick={e => openDamage(item, e)}
                               >
-                                <ShieldAlert className="h-4 w-4 mr-2" /> Report Damage
+                                <ShieldAlert className="h-4 w-4 mr-2" /> {t('Report Damage')}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
                                 onClick={e => handleDeleteItem(item, e)}
                               >
-                                <Trash2 className="h-4 w-4 mr-2" /> Delete Item
+                                <Trash2 className="h-4 w-4 mr-2" /> {t('Delete Item')}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -719,23 +721,23 @@ export function InventoryPage() {
       {/* Add / Edit Item */}
       <Dialog open={showAddDialog} onOpenChange={(open) => { setShowAddDialog(open); if (!open) { setEditItem(null); setForm(EMPTY_FORM); } }}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>{editItem ? 'Edit Item' : 'Add New Item'}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editItem ? t('Edit Item') : t('Add New Item')}</DialogTitle></DialogHeader>
           <form onSubmit={handleAddItem} className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label htmlFor="item-name">Item Name *</Label>
-              <Input id="item-name" placeholder="e.g. School Shirt" required
+              <Label htmlFor="item-name">{t('Item Name')} *</Label>
+              <Input id="item-name" placeholder={t('e.g. School Shirt')} required
                 value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="item-sku">SKU *</Label>
-              <Input id="item-sku" placeholder="e.g. UNI-SH-002" required
+              <Label htmlFor="item-sku">{t('SKU')} *</Label>
+              <Input id="item-sku" placeholder={t('e.g. UNI-SH-002')} required
                 value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="item-category">Category *</Label>
+              <Label htmlFor="item-category">{t('Category')} *</Label>
               <Select required value={form.categoryId} onValueChange={val => {
                 if (val === '__new__') {
-                  const name = prompt('Enter new category name:');
+                  const name = prompt(t('Enter new category name:'));
                   if (name && name.trim()) {
                     categoryService.create({ name: name.trim() }).then(cat => {
                       setCategories(prev => [...prev, cat]);
@@ -746,37 +748,37 @@ export function InventoryPage() {
                   setForm({ ...form, categoryId: val });
                 }
               }}>
-                <SelectTrigger id="item-category"><SelectValue placeholder="Select category" /></SelectTrigger>
+                <SelectTrigger id="item-category"><SelectValue placeholder={t('Select category')} /></SelectTrigger>
                 <SelectContent>
                   {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                  <SelectItem value="__new__" className="text-primary font-medium">+ Create New Category</SelectItem>
+                  <SelectItem value="__new__" className="text-primary font-medium">+ {t('Create New Category')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             {!editItem && (
               <div className="space-y-1.5">
-                <Label htmlFor="item-qty">Initial Quantity *</Label>
+                <Label htmlFor="item-qty">{t('Initial Quantity')} *</Label>
                 <Input id="item-qty" type="number" min="0" placeholder="0" required
                   value={form.quantity} onChange={e => setForm({ ...form, quantity: e.target.value })} />
               </div>
             )}
             <div className="space-y-1.5">
-              <Label htmlFor="item-loc">Location *</Label>
-              <Input id="item-loc" placeholder="e.g. Main Store" required
+              <Label htmlFor="item-loc">{t('Location')} *</Label>
+              <Input id="item-loc" placeholder={t('e.g. Main Store')} required
                 value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="item-min">Low Stock Threshold</Label>
+                <Label htmlFor="item-min">{t('Low Stock Threshold')}</Label>
                 <Input id="item-min" type="number" min="0" placeholder="10"
                   value={form.minQuantity} onChange={e => setForm({ ...form, minQuantity: e.target.value })} />
-                <p className="text-xs text-muted-foreground">Alert when stock ≤ this</p>
+                <p className="text-xs text-muted-foreground">{t('Alert when stock ≤ this')}</p>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="item-reorder">Reorder Quantity</Label>
+                <Label htmlFor="item-reorder">{t('Reorder Quantity')}</Label>
                 <Input id="item-reorder" type="number" min="0" placeholder="50"
                   value={form.reorderQty} onChange={e => setForm({ ...form, reorderQty: e.target.value })} />
-                <p className="text-xs text-muted-foreground">Suggested PO qty</p>
+                <p className="text-xs text-muted-foreground">{t('Suggested PO qty')}</p>
               </div>
             </div>
             <CustomFieldsRenderer
@@ -785,8 +787,8 @@ export function InventoryPage() {
               onChange={(attrs) => setForm({ ...form, attributes: attrs })}
             />
             <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => { setShowAddDialog(false); setEditItem(null); setForm(EMPTY_FORM); }}>Cancel</Button>
-              <Button type="submit" disabled={saving}>{saving ? 'Saving…' : editItem ? 'Save Changes' : 'Add Item'}</Button>
+              <Button type="button" variant="outline" onClick={() => { setShowAddDialog(false); setEditItem(null); setForm(EMPTY_FORM); }}>{t('Cancel')}</Button>
+              <Button type="submit" disabled={saving}>{saving ? t('Saving…') : editItem ? t('Save Changes') : t('Add Item')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -798,64 +800,64 @@ export function InventoryPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <PackagePlus className="h-5 w-5 text-emerald-600" />
-              Add Stock — {restockItem?.name}
+              {t('Add Stock')} — {restockItem?.name}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleRestock} className="space-y-4 py-2">
             {restockItem && (
               <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-100">
                 <div className="text-center">
-                  <p className="text-[11px] text-gray-400 mb-0.5">Current Stock</p>
+                  <p className="text-[11px] text-gray-400 mb-0.5">{t('Current Stock')}</p>
                   <p className="text-[22px] font-bold text-gray-900 leading-none">{restockItem.quantity}</p>
                 </div>
                 <div className="h-8 w-px bg-gray-200" />
                 <div className="text-center">
-                  <p className="text-[11px] text-gray-400 mb-0.5">Available</p>
+                  <p className="text-[11px] text-gray-400 mb-0.5">{t('Available')}</p>
                   <p className="text-[22px] font-bold text-emerald-600 leading-none">{restockItem.available}</p>
                 </div>
                 <div className="h-8 w-px bg-gray-200" />
                 <div className="text-center">
-                  <p className="text-[11px] text-gray-400 mb-0.5">Reserved</p>
+                  <p className="text-[11px] text-gray-400 mb-0.5">{t('Reserved')}</p>
                   <p className="text-[22px] font-bold text-gray-500 leading-none">{restockItem.reserved}</p>
                 </div>
               </div>
             )}
             <div className="space-y-1.5">
-              <Label>Units to Add *</Label>
+              <Label>{t('Units to Add')} *</Label>
               <Input
-                type="number" min={1} placeholder="e.g. 50" required
+                type="number" min={1} placeholder={t('e.g. 50')} required
                 value={restockForm.quantity}
                 onChange={e => setRestockForm({ ...restockForm, quantity: e.target.value })}
               />
               {restockForm.quantity && parseInt(restockForm.quantity) > 0 && restockItem && (
                 <p className="text-xs text-emerald-600 font-medium">
-                  New total will be {restockItem.quantity + parseInt(restockForm.quantity)} units
+                  {t('New total will be')} {restockItem.quantity + parseInt(restockForm.quantity)} {t('units')}
                 </p>
               )}
             </div>
             <div className="space-y-1.5">
-              <Label>Reference / PO Number</Label>
+              <Label>{t('Reference / PO Number')}</Label>
               <Input
-                placeholder="e.g. PO-2024-001"
+                placeholder={t('e.g. PO-2024-001')}
                 value={restockForm.reference}
                 onChange={e => setRestockForm({ ...restockForm, reference: e.target.value })}
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Notes</Label>
+              <Label>{t('Notes')}</Label>
               <Input
-                placeholder="e.g. Received from vendor…"
+                placeholder={t('e.g. Received from vendor…')}
                 value={restockForm.notes}
                 onChange={e => setRestockForm({ ...restockForm, notes: e.target.value })}
               />
             </div>
             <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setRestockItem(null)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setRestockItem(null)}>{t('Cancel')}</Button>
               <Button
                 type="submit" disabled={restockSaving || !restockForm.quantity}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white"
               >
-                {restockSaving ? 'Saving…' : `Add ${restockForm.quantity || ''} Units`}
+                {restockSaving ? t('Saving…') : `${t('Add')} ${restockForm.quantity || ''} ${t('Units')}`}
               </Button>
             </DialogFooter>
           </form>
@@ -865,32 +867,32 @@ export function InventoryPage() {
       {/* Damage */}
       <Dialog open={!!damageItem} onOpenChange={open => !open && setDamageItem(null)}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Report Damage — {damageItem?.name}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('Report Damage')} — {damageItem?.name}</DialogTitle></DialogHeader>
           <form onSubmit={handleDamage} className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
-              Record units that are damaged and cannot be used. Stock will be reduced accordingly.
+              {t('Record units that are damaged and cannot be used. Stock will be reduced accordingly.')}
             </p>
             <div className="space-y-1.5">
-              <Label>Damage Source *</Label>
+              <Label>{t('Damage Source')} *</Label>
               <Input required value={damageForm.source}
                 onChange={e => setDamageForm({ ...damageForm, source: e.target.value })}
-                placeholder="e.g. Manufacturer defect, Flood damage…" />
+                placeholder={t('e.g. Manufacturer defect, Flood damage…')} />
             </div>
             <div className="space-y-1.5">
-              <Label>Units Damaged *</Label>
+              <Label>{t('Units Damaged')} *</Label>
               <Input type="number" min={1} max={damageItem?.quantity} value={damageForm.quantity}
                 onChange={e => setDamageForm({ ...damageForm, quantity: e.target.value })} />
-              <p className="text-xs text-muted-foreground">{damageItem?.quantity} units in stock</p>
+              <p className="text-xs text-muted-foreground">{damageItem?.quantity} {t('units in stock')}</p>
             </div>
             <div className="space-y-1.5">
-              <Label>Notes</Label>
-              <Textarea value={damageForm.notes} rows={3} placeholder="Describe the damage…"
+              <Label>{t('Notes')}</Label>
+              <Textarea value={damageForm.notes} rows={3} placeholder={t('Describe the damage…')}
                 onChange={e => setDamageForm({ ...damageForm, notes: e.target.value })} />
             </div>
             <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setDamageItem(null)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setDamageItem(null)}>{t('Cancel')}</Button>
               <Button type="submit" variant="destructive" disabled={damageSaving}>
-                {damageSaving ? 'Saving…' : 'Write Off'}
+                {damageSaving ? t('Saving…') : t('Write Off')}
               </Button>
             </DialogFooter>
           </form>
@@ -905,9 +907,9 @@ export function InventoryPage() {
           </DialogHeader>
           <form onSubmit={handleIssue} className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>Select {config.recipientLabel} *</Label>
+              <Label>{t('Select')} {config.recipientLabel} *</Label>
               <Input
-                placeholder={`Search by name or ${config.identifierLabel.toLowerCase()}…`}
+                placeholder={`${t('Search by name or')} ${config.identifierLabel.toLowerCase()}…`}
                 value={recipientSearch}
                 onChange={e => { setRecipientSearch(e.target.value); setIssueForm({ ...issueForm, recipientId: '' }); }}
               />
@@ -928,32 +930,32 @@ export function InventoryPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Quantity *</Label>
+                <Label>{t('Quantity')} *</Label>
                 <Input type="number" min={1} max={issueItem?.available} value={issueForm.quantity}
                   onChange={e => setIssueForm({ ...issueForm, quantity: e.target.value })} />
-                <p className="text-xs text-muted-foreground">{issueItem?.available} available</p>
+                <p className="text-xs text-muted-foreground">{issueItem?.available} {t('available')}</p>
               </div>
               {config.enableConditionTracking && (
                 <div className="space-y-1.5">
-                  <Label>Condition</Label>
+                  <Label>{t('Condition')}</Label>
                   <Select value={issueForm.conditionIssued} onValueChange={v => setIssueForm({ ...issueForm, conditionIssued: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {['New', 'Good', 'Fair', 'Poor'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      {['New', 'Good', 'Fair', 'Poor'].map(c => <SelectItem key={c} value={c}>{t(c)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
               )}
             </div>
             <div className="space-y-1.5">
-              <Label>Expected Return Date</Label>
+              <Label>{t('Expected Return Date')}</Label>
               <Input type="date" value={issueForm.expectedReturn}
                 onChange={e => setIssueForm({ ...issueForm, expectedReturn: e.target.value })} />
             </div>
             <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setIssueItem(null)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setIssueItem(null)}>{t('Cancel')}</Button>
               <Button type="submit" disabled={!issueForm.recipientId || issueSaving}>
-                {issueSaving ? 'Saving…' : `${config.assignmentLabel} Item`}
+                {issueSaving ? t('Saving…') : `${config.assignmentLabel} ${t('Item')}`}
               </Button>
             </DialogFooter>
           </form>

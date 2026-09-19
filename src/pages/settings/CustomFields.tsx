@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { CustomField, CustomFieldType, CustomFieldEntity } from '@/types';
 
 const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
@@ -24,16 +25,6 @@ const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
   date: 'Date',
   boolean: 'Boolean',
 };
-
-const ENTITY_TABS: { value: CustomFieldEntity; label: string }[] = [
-  { value: 'item', label: 'Items' },
-  { value: 'supplier', label: 'Suppliers' },
-  { value: 'vendor', label: 'Vendors' },
-  { value: 'recipient', label: 'Recipients' },
-  { value: 'asset', label: 'Assets' },
-  { value: 'transaction', label: 'Transactions' },
-  { value: 'purchase_order', label: 'Purchase Orders' },
-];
 
 interface FieldForm {
   name: string;
@@ -50,6 +41,17 @@ export function CustomFieldsPage() {
   const { currentOrg } = useOrganization();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useTranslation();
+
+  const ENTITY_TABS: { value: CustomFieldEntity; label: string }[] = [
+    { value: 'item', label: t('Items') },
+    { value: 'supplier', label: t('Suppliers') },
+    { value: 'vendor', label: t('Vendors') },
+    { value: 'recipient', label: t('Recipients') },
+    { value: 'asset', label: t('Assets') },
+    { value: 'transaction', label: t('Transactions') },
+    { value: 'purchase_order', label: t('Purchase Orders') },
+  ];
 
   const [fields, setFields] = useState<CustomField[]>([]);
   const [activeTab, setActiveTab] = useState<CustomFieldEntity>('item');
@@ -103,7 +105,7 @@ export function CustomFieldsPage() {
         required: form.required,
         placeholder: form.placeholder || undefined,
       });
-      toast({ title: `Field "${form.name}" updated` });
+      toast({ title: t('Field "{{name}}" updated', { name: form.name }) });
     } else {
       await customFieldService.create({
         organizationId: currentOrg.id,
@@ -115,7 +117,7 @@ export function CustomFieldsPage() {
         sortOrder: tabFields.length,
         placeholder: form.placeholder || undefined,
       });
-      toast({ title: `Field "${form.name}" added` });
+      toast({ title: t('Field "{{name}}" added', { name: form.name }) });
     }
     await loadFields();
     setDialogOpen(false);
@@ -124,7 +126,7 @@ export function CustomFieldsPage() {
   async function handleDelete(id: string) {
     await customFieldService.delete(id);
     await loadFields();
-    toast({ title: 'Custom field removed' });
+    toast({ title: t('Custom field removed') });
   }
 
   async function handleMove(field: CustomField, direction: 'up' | 'down') {
@@ -144,21 +146,23 @@ export function CustomFieldsPage() {
     return fields.filter((f) => f.entity === entity).length;
   }
 
+  const activeTabLabel = ENTITY_TABS.find((tab) => tab.value === activeTab)?.label ?? activeTab;
+
   if (!currentOrg) return null;
 
   return (
     <div>
       <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} className="-ml-2 mb-4">
         <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Settings
+        {t('Back to Settings')}
       </Button>
       <PageHeader
-        title="Custom Fields"
-        description="Define additional fields for your organization's data. Fields are grouped by entity type."
+        title={t('Custom Fields')}
+        description={t('Define additional fields for your organization\'s data. Fields are grouped by entity type.')}
         actions={
           <Button size="sm" onClick={openAddDialog}>
             <Plus className="h-4 w-4 mr-2" />
-            Add Field
+            {t('Add Field')}
           </Button>
         }
       />
@@ -187,8 +191,8 @@ export function CustomFieldsPage() {
                 {tabFields.length === 0 ? (
                   <EmptyState
                     icon={Sliders}
-                    title={`No custom fields for ${tab.label}`}
-                    description={`Add custom fields to capture additional data for ${tab.label.toLowerCase()}.`}
+                    title={t('No custom fields for {{entity}}', { entity: tab.label })}
+                    description={t('Add custom fields to capture additional data for {{entity}}.', { entity: tab.label.toLowerCase() })}
                   />
                 ) : (
                   <div className="divide-y">
@@ -223,18 +227,18 @@ export function CustomFieldsPage() {
                             </div>
                             {field.options && field.options.length > 0 && (
                               <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                                Options: {field.options.join(', ')}
+                                {t('Options')}: {field.options.join(', ')}
                               </p>
                             )}
                             {field.placeholder && (
                               <p className="text-xs text-muted-foreground truncate">
-                                Placeholder: {field.placeholder}
+                                {t('Placeholder')}: {field.placeholder}
                               </p>
                             )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <Badge variant="outline" className="text-xs">{FIELD_TYPE_LABELS[field.type]}</Badge>
+                          <Badge variant="outline" className="text-xs">{t(FIELD_TYPE_LABELS[field.type])}</Badge>
                           <Button
                             variant="ghost" size="sm"
                             onClick={() => openEditDialog(field)}
@@ -264,11 +268,11 @@ export function CustomFieldsPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingField ? 'Edit Custom Field' : 'Add Custom Field'}</DialogTitle>
+            <DialogTitle>{editingField ? t('Edit Custom Field') : t('Add Custom Field')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>Field Name</Label>
+              <Label>{t('Field Name')}</Label>
               <Input
                 placeholder="e.g. Drug License No."
                 value={form.name}
@@ -277,7 +281,7 @@ export function CustomFieldsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Type</Label>
+                <Label>{t('Type')}</Label>
                 <Select
                   value={form.type}
                   onValueChange={(v) => setForm({ ...form, type: v as CustomFieldType })}
@@ -285,13 +289,13 @@ export function CustomFieldsPage() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(FIELD_TYPE_LABELS).map(([val, label]) => (
-                      <SelectItem key={val} value={val}>{label}</SelectItem>
+                      <SelectItem key={val} value={val}>{t(label)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Applies to</Label>
+                <Label>{t('Applies to')}</Label>
                 <Select
                   value={form.entity}
                   onValueChange={(v) => setForm({ ...form, entity: v as CustomFieldEntity })}
@@ -306,7 +310,7 @@ export function CustomFieldsPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Placeholder (optional)</Label>
+              <Label>{t('Placeholder (optional)')}</Label>
               <Input
                 placeholder="e.g. Enter license number..."
                 value={form.placeholder}
@@ -315,7 +319,7 @@ export function CustomFieldsPage() {
             </div>
             {form.type === 'dropdown' && (
               <div className="space-y-2">
-                <Label>Options (one per line)</Label>
+                <Label>{t('Options (one per line)')}</Label>
                 <textarea
                   className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   placeholder={"Option 1\nOption 2\nOption 3"}
@@ -329,13 +333,13 @@ export function CustomFieldsPage() {
                 checked={form.required}
                 onCheckedChange={(checked) => setForm({ ...form, required: checked })}
               />
-              <Label>Required field</Label>
+              <Label>{t('Required field')}</Label>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>{t('Cancel')}</Button>
             <Button onClick={handleSave} disabled={!form.name}>
-              {editingField ? 'Save Changes' : 'Add Field'}
+              {editingField ? t('Save Changes') : t('Add Field')}
             </Button>
           </DialogFooter>
         </DialogContent>

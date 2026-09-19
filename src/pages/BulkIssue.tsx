@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { ClassTemplate, Recipient } from '@/types';
 
 type Step = 1 | 2 | 3 | 4;
@@ -23,6 +24,7 @@ export function BulkIssuePage() {
   const { currentOrg } = useOrganization();
   const config = useOrgConfig();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const [step, setStep] = useState<Step>(1);
@@ -96,12 +98,12 @@ export function BulkIssuePage() {
         notes: notes || undefined,
       });
       toast({
-        title: 'Bulk issue complete',
-        description: `${assignments.length} assignments created for ${selectedRecipientIds.size} ${config.recipientPluralLabel.toLowerCase()}.`,
+        title: t('Bulk issue complete'),
+        description: `${assignments.length} ${t('assignments created for')} ${selectedRecipientIds.size} ${config.recipientPluralLabel.toLowerCase()}.`,
       });
       setStep(4);
     } catch (err: unknown) {
-      toast({ title: 'Error', description: String(err), variant: 'destructive' });
+      toast({ title: t('Error'), description: String(err), variant: 'destructive' });
     } finally {
       setIssuing(false);
     }
@@ -114,13 +116,13 @@ export function BulkIssuePage() {
   return (
     <div>
       <PageHeader
-        title="Bulk Issue"
-        description="Issue a class template to multiple recipients in one shot"
+        title={t("Bulk Issue")}
+        description={t("Issue a class template to multiple recipients in one shot")}
       />
 
       {/* Step indicator */}
       <div className="flex items-center gap-2 mb-6 text-sm">
-        {(['Select Template', 'Select Recipients', 'Confirm', ''].slice(0, 3) as string[]).map((label, i) => {
+        {([t('Select Template'), t('Select Recipients'), t('Confirm')]).map((label, i) => {
           const s = (i + 1) as Step;
           const active = step === s;
           const done = step > s;
@@ -141,48 +143,48 @@ export function BulkIssuePage() {
       {step === 1 && (
         <div>
           {loading ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
+            <p className="text-sm text-muted-foreground">{t('Loading…')}</p>
           ) : templates.length === 0 ? (
             <Card>
               <CardContent className="py-10 text-center">
-                <p className="text-sm text-muted-foreground mb-4">No class templates found.</p>
+                <p className="text-sm text-muted-foreground mb-4">{t('No class templates found.')}</p>
                 <Button variant="outline" onClick={() => navigate('/settings/class-templates')}>
-                  Create Templates in Settings
+                  {t('Create Templates in Settings')}
                 </Button>
               </CardContent>
             </Card>
           ) : (
             <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {templates.map(t => (
+              {templates.map(tmpl => (
                 <Card
-                  key={t.id}
-                  className={`cursor-pointer transition-all ${selectedTemplate?.id === t.id ? 'border-primary ring-1 ring-primary/30' : 'hover:border-primary/40'}`}
+                  key={tmpl.id}
+                  className={`cursor-pointer transition-all ${selectedTemplate?.id === tmpl.id ? 'border-primary ring-1 ring-primary/30' : 'hover:border-primary/40'}`}
                   onClick={() => {
-                    setSelectedTemplate(t);
+                    setSelectedTemplate(tmpl);
                     setSelectedRecipientIds(new Set());
                   }}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div>
-                        <p className="font-semibold text-sm">{t.name}</p>
-                        <p className="text-xs text-muted-foreground">{t.group}{t.academicYear ? ` · ${t.academicYear}` : ''}</p>
+                        <p className="font-semibold text-sm">{tmpl.name}</p>
+                        <p className="text-xs text-muted-foreground">{tmpl.group}{tmpl.academicYear ? ` · ${tmpl.academicYear}` : ''}</p>
                       </div>
-                      {selectedTemplate?.id === t.id && (
+                      {selectedTemplate?.id === tmpl.id && (
                         <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center shrink-0">
                           <Check className="h-3 w-3 text-white" />
                         </div>
                       )}
                     </div>
                     <div className="flex gap-1 flex-wrap mt-2">
-                      {t.items.slice(0, 4).map(li => (
+                      {tmpl.items.slice(0, 4).map(li => (
                         <Badge key={li.id} variant="secondary" className="text-[10px]">{li.itemName}</Badge>
                       ))}
-                      {t.items.length > 4 && (
-                        <Badge variant="outline" className="text-[10px]">+{t.items.length - 4} more</Badge>
+                      {tmpl.items.length > 4 && (
+                        <Badge variant="outline" className="text-[10px]">+{tmpl.items.length - 4} {t('more')}</Badge>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2">{t.items.length} items total</p>
+                    <p className="text-xs text-muted-foreground mt-2">{tmpl.items.length} {t('items total')}</p>
                   </CardContent>
                 </Card>
               ))}
@@ -192,7 +194,7 @@ export function BulkIssuePage() {
           {selectedTemplate && (
             <div className="mt-6 flex justify-end">
               <Button onClick={() => setStep(2)}>
-                Next: Select {config.recipientPluralLabel} <ChevronRight className="h-4 w-4 ml-1" />
+                {t('Next')}: {t('Select')} {config.recipientPluralLabel} <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             </div>
           )}
@@ -207,26 +209,26 @@ export function BulkIssuePage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Users className="h-4 w-4" />
-                {config.recipientPluralLabel} in "{selectedTemplate.group}"
-                <Badge variant="secondary">{groupRecipients.length} total</Badge>
+                {config.recipientPluralLabel} {t('in')} "{selectedTemplate.group}"
+                <Badge variant="secondary">{groupRecipients.length} {t('total')}</Badge>
               </CardTitle>
               <div className="flex gap-2 mt-2">
                 <Input
-                  placeholder={`Search ${config.recipientPluralLabel.toLowerCase()}…`}
+                  placeholder={`${t('Search')} ${config.recipientPluralLabel.toLowerCase()}…`}
                   value={recipientSearch}
                   onChange={e => setRecipientSearch(e.target.value)}
                   className="h-8 text-sm"
                 />
-                <Button size="sm" variant="outline" onClick={selectAll}>All</Button>
-                <Button size="sm" variant="outline" onClick={clearAll}>None</Button>
+                <Button size="sm" variant="outline" onClick={selectAll}>{t('All')}</Button>
+                <Button size="sm" variant="outline" onClick={clearAll}>{t('None')}</Button>
               </div>
             </CardHeader>
             <CardContent className="max-h-96 overflow-y-auto space-y-1 pr-3">
               {filteredRecipients.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4 text-center">
-                  No {config.recipientPluralLabel.toLowerCase()} found in this group.
+                  {t('No')} {config.recipientPluralLabel.toLowerCase()} {t('found in this group.')}
                   <br />
-                  <span className="text-xs">Make sure recipients have "{selectedTemplate.group}" as their group.</span>
+                  <span className="text-xs">{t('Make sure recipients have')} "{selectedTemplate.group}" {t('as their group.')}</span>
                 </p>
               ) : filteredRecipients.map(r => {
                 const checked = selectedRecipientIds.has(r.id);
@@ -255,7 +257,7 @@ export function BulkIssuePage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Package className="h-4 w-4" />
-                Items in "{selectedTemplate.name}"
+                {t('Items in')} "{selectedTemplate.name}"
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -266,21 +268,21 @@ export function BulkIssuePage() {
                 </div>
               ))}
               <div className="pt-3 border-t text-xs text-muted-foreground space-y-1">
-                <p>Selected: <strong>{selectedRecipientIds.size}</strong> {config.recipientPluralLabel.toLowerCase()}</p>
-                <p>Will create: <strong>{totalAssignments}</strong> assignments</p>
+                <p>{t('Selected')}: <strong>{selectedRecipientIds.size}</strong> {config.recipientPluralLabel.toLowerCase()}</p>
+                <p>{t('Will create')}: <strong>{totalAssignments}</strong> {t('assignments')}</p>
               </div>
             </CardContent>
           </Card>
 
           <div className="md:col-span-2 flex justify-between">
             <Button variant="outline" onClick={() => setStep(1)}>
-              <ChevronLeft className="h-4 w-4 mr-1" /> Back
+              <ChevronLeft className="h-4 w-4 mr-1" /> {t('Back')}
             </Button>
             <Button
               onClick={() => setStep(3)}
               disabled={selectedRecipientIds.size === 0}
             >
-              Next: Confirm <ChevronRight className="h-4 w-4 ml-1" />
+              {t('Next')}: {t('Confirm')} <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
         </div>
@@ -291,50 +293,50 @@ export function BulkIssuePage() {
         <div className="max-w-lg space-y-6">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Issue Details</CardTitle>
+              <CardTitle className="text-sm">{t('Issue Details')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Issue Date *</Label>
+                  <Label>{t('Issue Date')} *</Label>
                   <Input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Expected Return</Label>
+                  <Label>{t('Expected Return')}</Label>
                   <Input type="date" value={expectedReturn} onChange={e => setExpectedReturn(e.target.value)} />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label>Issued By</Label>
-                <Input placeholder="Store Manager" value={issuedBy} onChange={e => setIssuedBy(e.target.value)} />
+                <Label>{t('Issued By')}</Label>
+                <Input placeholder={t("Store Manager")} value={issuedBy} onChange={e => setIssuedBy(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label>Notes</Label>
-                <Input placeholder="Optional notes" value={notes} onChange={e => setNotes(e.target.value)} />
+                <Label>{t('Notes')}</Label>
+                <Input placeholder={t("Optional notes")} value={notes} onChange={e => setNotes(e.target.value)} />
               </div>
             </CardContent>
           </Card>
 
           <Card className="border-primary/30 bg-primary/5">
             <CardContent className="p-4 space-y-2 text-sm">
-              <p className="font-semibold">Summary</p>
-              <p>Template: <strong>{selectedTemplate.name}</strong></p>
-              <p>Class: <strong>{selectedTemplate.group}</strong></p>
+              <p className="font-semibold">{t('Summary')}</p>
+              <p>{t('Template')}: <strong>{selectedTemplate.name}</strong></p>
+              <p>{t('Class')}: <strong>{selectedTemplate.group}</strong></p>
               <p>{config.recipientPluralLabel}: <strong>{selectedRecipientIds.size}</strong></p>
-              <p>Items per recipient: <strong>{selectedTemplate.items.length}</strong></p>
-              <p className="text-primary font-semibold">Total assignments: {totalAssignments}</p>
+              <p>{t('Items per recipient')}: <strong>{selectedTemplate.items.length}</strong></p>
+              <p className="text-primary font-semibold">{t('Total assignments')}: {totalAssignments}</p>
             </CardContent>
           </Card>
 
           <div className="flex justify-between">
             <Button variant="outline" onClick={() => setStep(2)}>
-              <ChevronLeft className="h-4 w-4 mr-1" /> Back
+              <ChevronLeft className="h-4 w-4 mr-1" /> {t('Back')}
             </Button>
             <Button onClick={handleConfirm} disabled={issuing}>
               {issuing ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Issuing…</>
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('Issuing…')}</>
               ) : (
-                <>Issue {totalAssignments} Items <ClipboardCheck className="h-4 w-4 ml-1" /></>
+                <>{t('Issue')} {totalAssignments} {t('Items')} <ClipboardCheck className="h-4 w-4 ml-1" /></>
               )}
             </Button>
           </div>
@@ -349,27 +351,27 @@ export function BulkIssuePage() {
               <Check className="h-7 w-7 text-green-600" />
             </div>
             <div>
-              <p className="font-semibold text-lg">Bulk Issue Complete</p>
+              <p className="font-semibold text-lg">{t('Bulk Issue Complete')}</p>
               <p className="text-sm text-muted-foreground mt-1">
-                {totalAssignments} assignments created successfully.
+                {totalAssignments} {t('assignments created successfully.')}
               </p>
             </div>
             <div className="flex gap-3 justify-center flex-wrap">
               <Button variant="outline" onClick={() => navigate('/assignments')}>
-                View Assignments
+                {t('View Assignments')}
               </Button>
               <Button
                 variant="outline"
                 onClick={() => navigate(`/class-report?group=${encodeURIComponent(selectedTemplate?.group ?? '')}&date=${issueDate}`)}
               >
-                <Printer className="h-4 w-4 mr-1" /> Print Report
+                <Printer className="h-4 w-4 mr-1" /> {t('Print Report')}
               </Button>
               <Button onClick={() => {
                 setStep(1);
                 setSelectedTemplate(null);
                 setSelectedRecipientIds(new Set());
               }}>
-                New Bulk Issue
+                {t('New Bulk Issue')}
               </Button>
             </div>
           </CardContent>

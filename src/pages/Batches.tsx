@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Batch } from '@/types';
 
 const BATCH_STATUS_CONFIG = {
@@ -19,6 +20,7 @@ const BATCH_STATUS_CONFIG = {
 
 export function BatchesPage() {
   const { currentOrg } = useOrganization();
+  const { t } = useTranslation();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -50,13 +52,13 @@ export function BatchesPage() {
 
   return (
     <div>
-      <PageHeader title="Batch Management" description={`${batches.length} batches tracked`} />
+      <PageHeader title={t("Batch Management")} description={`${batches.length} ${t('batches tracked')}`} />
 
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
-          { label: 'Active', count: counts.active, colorClass: 'text-emerald-600', bgClass: 'bg-emerald-50', borderClass: 'border-emerald-200' },
-          { label: 'Expiring Soon', count: counts.expiring_soon, colorClass: 'text-amber-600', bgClass: 'bg-amber-50', borderClass: 'border-amber-200' },
-          { label: 'Expired', count: counts.expired, colorClass: 'text-red-600', bgClass: 'bg-red-50', borderClass: 'border-red-200' },
+          { label: t('Active'), count: counts.active, colorClass: 'text-emerald-600', bgClass: 'bg-emerald-50', borderClass: 'border-emerald-200' },
+          { label: t('Expiring Soon'), count: counts.expiring_soon, colorClass: 'text-amber-600', bgClass: 'bg-amber-50', borderClass: 'border-amber-200' },
+          { label: t('Expired'), count: counts.expired, colorClass: 'text-red-600', bgClass: 'bg-red-50', borderClass: 'border-red-200' },
         ].map((stat) => (
           <Card key={stat.label} className={`border ${stat.borderClass}`}>
             <CardContent className="p-4 flex items-center justify-between">
@@ -78,7 +80,7 @@ export function BatchesPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by medicine or batch number..."
+                placeholder={t("Search by medicine or batch number...")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
@@ -86,13 +88,13 @@ export function BatchesPage() {
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[170px]">
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder={t("Status")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="expiring_soon">Expiring Soon</SelectItem>
-                <SelectItem value="expired">Expired</SelectItem>
+                <SelectItem value="all">{t('All Statuses')}</SelectItem>
+                <SelectItem value="active">{t('Active')}</SelectItem>
+                <SelectItem value="expiring_soon">{t('Expiring Soon')}</SelectItem>
+                <SelectItem value="expired">{t('Expired')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -102,17 +104,17 @@ export function BatchesPage() {
       <Card>
         <CardContent className="p-0">
           {filtered.length === 0 ? (
-            <EmptyState icon={Layers} title="No batches found" description="Try adjusting your filters." />
+            <EmptyState icon={Layers} title={t("No batches found")} description={t("Try adjusting your filters.")} />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Medicine</TableHead>
-                  <TableHead>Batch Number</TableHead>
-                  <TableHead>Manufacturing Date</TableHead>
-                  <TableHead>Expiry Date</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t('Medicine')}</TableHead>
+                  <TableHead>{t('Batch Number')}</TableHead>
+                  <TableHead>{t('Manufacturing Date')}</TableHead>
+                  <TableHead>{t('Expiry Date')}</TableHead>
+                  <TableHead className="text-right">{t('Quantity')}</TableHead>
+                  <TableHead>{t('Status')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -126,7 +128,7 @@ export function BatchesPage() {
                       <TableCell className="text-muted-foreground text-sm">{batch.expiryDate}</TableCell>
                       <TableCell className="text-right font-medium">{batch.quantity}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={`text-xs ${cfg.className}`}>{cfg.label}</Badge>
+                        <Badge variant="outline" className={`text-xs ${cfg.className}`}>{t(cfg.label)}</Badge>
                       </TableCell>
                     </TableRow>
                   );

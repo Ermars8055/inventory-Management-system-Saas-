@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Quotation, Item } from '@/types';
 
 const STATUS_CONFIG = {
@@ -34,6 +35,7 @@ export function QuotationsPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [lowStockItems, setLowStockItems] = useState<Item[]>([]);
@@ -88,7 +90,7 @@ export function QuotationsPage() {
       setForm({ title: '', notes: '', selectedItems: [] });
       navigate(`/quotations/${q.id}`);
     } catch {
-      toast({ title: 'Error', description: 'Failed to create quotation', variant: 'destructive' });
+      toast({ title: t('Error'), description: t('Failed to create quotation'), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -100,9 +102,9 @@ export function QuotationsPage() {
     try {
       await quotationService.delete(q.id);
       setQuotations(prev => prev.filter(x => x.id !== q.id));
-      toast({ title: 'Deleted' });
+      toast({ title: t('Deleted') });
     } catch {
-      toast({ title: 'Error', description: 'Failed to delete', variant: 'destructive' });
+      toast({ title: t('Error'), description: t('Failed to delete'), variant: 'destructive' });
     }
   }
 
@@ -124,11 +126,11 @@ export function QuotationsPage() {
   return (
     <div>
       <PageHeader
-        title="Vendor Quotations"
-        description="Compare vendor prices and send purchase orders via email"
+        title={t("Vendor Quotations")}
+        description={t("Compare vendor prices and send purchase orders via email")}
         actions={
           <Button onClick={() => { setForm({ title: '', notes: '', selectedItems: [] }); setShowCreate(true); }}>
-            <Plus className="h-4 w-4 mr-1" /> New Quotation
+            <Plus className="h-4 w-4 mr-1" /> {t("New Quotation")}
           </Button>
         }
       />
@@ -138,9 +140,9 @@ export function QuotationsPage() {
           <CardContent className="p-0">
             <EmptyState
               icon={FileText}
-              title="No quotations yet"
-              description="Create a quotation to compare vendor prices and generate purchase orders."
-              action={<Button onClick={() => setShowCreate(true)}><Plus className="h-4 w-4 mr-1" />New Quotation</Button>}
+              title={t("No quotations yet")}
+              description={t("Create a quotation to compare vendor prices and generate purchase orders.")}
+              action={<Button onClick={() => setShowCreate(true)}><Plus className="h-4 w-4 mr-1" />{t("New Quotation")}</Button>}
             />
           </CardContent>
         </Card>
@@ -169,7 +171,7 @@ export function QuotationsPage() {
                     </p>
                   </div>
                   <Badge variant="outline" className={`text-xs shrink-0 ${cfg.color}`}>
-                    {cfg.label}
+                    {t(cfg.label)}
                   </Badge>
                   <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
                     <button
@@ -191,14 +193,14 @@ export function QuotationsPage() {
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>New Quotation</DialogTitle>
+            <DialogTitle>{t("New Quotation")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4 py-1">
             <div className="space-y-1.5">
-              <Label>Title *</Label>
+              <Label>{t("Title")} *</Label>
               <Input
                 required
-                placeholder="e.g. Term 2 Stationery Reorder"
+                placeholder={t("e.g. Term 2 Stationery Reorder")}
                 value={form.title}
                 onChange={e => setForm({ ...form, title: e.target.value })}
               />
@@ -206,7 +208,7 @@ export function QuotationsPage() {
 
             {lowStockItems.length > 0 && (
               <div className="space-y-2">
-                <Label>Pre-select low-stock items</Label>
+                <Label>{t("Pre-select low-stock items")}</Label>
                 <div className="max-h-48 overflow-y-auto space-y-1.5 rounded-lg border p-3">
                   {lowStockItems.map(item => {
                     const sel = form.selectedItems.find(i => i.itemId === item.id);
@@ -241,14 +243,14 @@ export function QuotationsPage() {
                     );
                   })}
                 </div>
-                <p className="text-xs text-muted-foreground">{form.selectedItems.length} item(s) selected — you can add more on the next screen</p>
+                <p className="text-xs text-muted-foreground">{form.selectedItems.length} {t("item(s) selected — you can add more on the next screen")}</p>
               </div>
             )}
 
             <div className="space-y-1.5">
-              <Label>Notes</Label>
+              <Label>{t("Notes")}</Label>
               <Textarea
-                placeholder="Any special requirements..."
+                placeholder={t("Any special requirements...")}
                 value={form.notes}
                 onChange={e => setForm({ ...form, notes: e.target.value })}
                 rows={2}
@@ -257,9 +259,9 @@ export function QuotationsPage() {
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>{t("Cancel")}</Button>
               <Button type="submit" disabled={saving}>
-                {saving ? 'Creating…' : 'Create & Continue →'}
+                {saving ? t('Creating…') : t('Create & Continue →')}
               </Button>
             </DialogFooter>
           </form>

@@ -12,11 +12,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Item } from '@/types';
 
 export function MedicinesPage() {
   const { currentOrg } = useOrganization();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [items, setItems] = useState<Item[]>([]);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -53,8 +55,8 @@ export function MedicinesPage() {
   return (
     <div>
       <PageHeader
-        title="Medicine Inventory"
-        description={`${items.length} medicines · ${items.filter((i) => i.medicine?.prescriptionRequired).length} Rx required`}
+        title={t("Medicine Inventory")}
+        description={`${items.length} ${t('medicines')} · ${items.filter((i) => i.medicine?.prescriptionRequired).length} ${t('Rx required')}`}
       />
 
       <Card className="mb-4">
@@ -63,7 +65,7 @@ export function MedicinesPage() {
             <div className="relative flex-1 min-w-[220px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Name, generic name or manufacturer..."
+                placeholder={t("Name, generic name or manufacturer...")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
@@ -71,32 +73,32 @@ export function MedicinesPage() {
             </div>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Category" />
+                <SelectValue placeholder={t("Category")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="all">{t('All Categories')}</SelectItem>
                 {categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={rxFilter} onValueChange={setRxFilter}>
               <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="Rx / OTC" />
+                <SelectValue placeholder={t("Rx / OTC")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="rx">Rx Required</SelectItem>
-                <SelectItem value="otc">OTC</SelectItem>
+                <SelectItem value="all">{t('All')}</SelectItem>
+                <SelectItem value="rx">{t('Rx Required')}</SelectItem>
+                <SelectItem value="otc">{t('OTC')}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={stockFilter} onValueChange={setStockFilter}>
               <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="Stock" />
+                <SelectValue placeholder={t("Stock")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Stock</SelectItem>
-                <SelectItem value="in_stock">In Stock</SelectItem>
-                <SelectItem value="low_stock">Low Stock</SelectItem>
-                <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                <SelectItem value="all">{t('All Stock')}</SelectItem>
+                <SelectItem value="in_stock">{t('In Stock')}</SelectItem>
+                <SelectItem value="low_stock">{t('Low Stock')}</SelectItem>
+                <SelectItem value="out_of_stock">{t('Out of Stock')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -106,20 +108,20 @@ export function MedicinesPage() {
       <Card>
         <CardContent className="p-0">
           {filtered.length === 0 ? (
-            <EmptyState icon={Pill} title="No medicines found" description="Try adjusting your filters." />
+            <EmptyState icon={Pill} title={t("No medicines found")} description={t("Try adjusting your filters.")} />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Medicine</TableHead>
-                  <TableHead>Generic Name</TableHead>
-                  <TableHead>Manufacturer</TableHead>
-                  <TableHead>Batch</TableHead>
-                  <TableHead>Expiry</TableHead>
-                  <TableHead className="text-right">MRP</TableHead>
-                  <TableHead className="text-right">Stock</TableHead>
-                  <TableHead>Rx</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t('Medicine')}</TableHead>
+                  <TableHead>{t('Generic Name')}</TableHead>
+                  <TableHead>{t('Manufacturer')}</TableHead>
+                  <TableHead>{t('Batch')}</TableHead>
+                  <TableHead>{t('Expiry')}</TableHead>
+                  <TableHead className="text-right">{t('MRP')}</TableHead>
+                  <TableHead className="text-right">{t('Stock')}</TableHead>
+                  <TableHead>{t('Rx')}</TableHead>
+                  <TableHead>{t('Status')}</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -137,9 +139,9 @@ export function MedicinesPage() {
                     <TableCell className="text-right font-medium">{item.quantity}</TableCell>
                     <TableCell>
                       {item.medicine?.prescriptionRequired ? (
-                        <Badge variant="outline" className="text-xs text-amber-700 border-amber-300 bg-amber-50">Rx</Badge>
+                        <Badge variant="outline" className="text-xs text-amber-700 border-amber-300 bg-amber-50">{t('Rx')}</Badge>
                       ) : (
-                        <Badge variant="outline" className="text-xs text-emerald-700 border-emerald-300 bg-emerald-50">OTC</Badge>
+                        <Badge variant="outline" className="text-xs text-emerald-700 border-emerald-300 bg-emerald-50">{t('OTC')}</Badge>
                       )}
                     </TableCell>
                     <TableCell><StatusBadge status={item.status} /></TableCell>

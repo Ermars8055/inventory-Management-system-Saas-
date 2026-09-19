@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Recipient, Assignment, Item } from '@/types';
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -25,22 +26,23 @@ function isOverdue(a: Assignment) {
 }
 
 function StatusBadge({ assignment }: { assignment: Assignment }) {
+  const { t } = useTranslation();
   if (isOverdue(assignment)) {
-    return <Badge variant="destructive" className="text-xs">Overdue</Badge>;
+    return <Badge variant="destructive" className="text-xs">{t('Overdue')}</Badge>;
   }
   switch (assignment.status) {
     case 'issued':
-      return <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">Active</Badge>;
+      return <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">{t('Active')}</Badge>;
     case 'returned':
-      return <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">Returned</Badge>;
+      return <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">{t('Returned')}</Badge>;
     case 'returned_damaged':
-      return <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-200">Damaged</Badge>;
+      return <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-200">{t('Damaged')}</Badge>;
     case 'fine_pending':
-      return <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">Fine Pending</Badge>;
+      return <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">{t('Fine Pending')}</Badge>;
     case 'fine_paid':
-      return <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">Fine Paid</Badge>;
+      return <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">{t('Fine Paid')}</Badge>;
     case 'lost':
-      return <Badge variant="outline" className="text-xs bg-gray-100 text-gray-600 border-gray-300">Lost</Badge>;
+      return <Badge variant="outline" className="text-xs bg-gray-100 text-gray-600 border-gray-300">{t('Lost')}</Badge>;
     default:
       return <Badge variant="outline" className="text-xs">{assignment.status}</Badge>;
   }
@@ -50,6 +52,7 @@ export function AssignmentsPage() {
   const { currentOrg } = useOrganization();
   const config = useOrgConfig();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [selected, setSelected] = useState<Recipient | null>(null);
@@ -141,7 +144,7 @@ export function AssignmentsPage() {
       await loadAssignments(selected);
       setIssueDialog(false);
       setIssueForm({ itemId: '', quantity: '1', conditionIssued: 'Good', expectedReturn: '', notes: '' });
-      toast({ title: `${item.name} ${config.assignmentLabel.toLowerCase()}d to ${selected.name}` });
+      toast({ title: `${item.name} ${t(config.assignmentLabel).toLowerCase()}d ${t('to')} ${selected.name}` });
     } finally {
       setIssueSaving(false);
     }
@@ -166,7 +169,7 @@ export function AssignmentsPage() {
       await inventoryService.adjustStock(returnDialog.itemId, returnDialog.quantity);
       await loadAssignments(selected);
       setReturnDialog(null);
-      toast({ title: 'Item returned', description: returnForm.damageNotes ? 'Damage noted on record.' : undefined });
+      toast({ title: t('Item returned'), description: returnForm.damageNotes ? t('Damage noted on record.') : undefined });
     } finally {
       setReturnSaving(false);
     }
@@ -188,7 +191,7 @@ export function AssignmentsPage() {
       });
       await loadAssignments(selected);
       setLostDialog(null);
-      toast({ title: 'Marked as lost', description: lostForm.fineAmount ? `${config.fineLabel} of ${config.currencySymbol}${lostForm.fineAmount} raised.` : undefined });
+      toast({ title: t('Marked as lost'), description: lostForm.fineAmount ? `${t(config.fineLabel)} ${t('of')} ${config.currencySymbol}${lostForm.fineAmount} ${t('raised.')}` : undefined });
     } finally {
       setLostSaving(false);
     }
@@ -199,7 +202,7 @@ export function AssignmentsPage() {
     if (!selected) return;
     await assignmentService.markFinePaid(a.id);
     await loadAssignments(selected);
-    toast({ title: `${config.fineLabel} marked as paid` });
+    toast({ title: `${t(config.fineLabel)} ${t('marked as paid')}` });
   };
 
   if (!currentOrg) return null;
@@ -209,8 +212,8 @@ export function AssignmentsPage() {
   return (
     <div>
       <PageHeader
-        title={`${config.assignmentLabel}s`}
-        description={`Search a ${config.recipientLabel.toLowerCase()} to manage their ${config.assignmentLabel.toLowerCase()}s`}
+        title={`${t(config.assignmentLabel)}s`}
+        description={`${t('Search a')} ${t(config.recipientLabel).toLowerCase()} ${t('to manage their')} ${t(config.assignmentLabel).toLowerCase()}s`}
       />
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -218,13 +221,13 @@ export function AssignmentsPage() {
         <div>
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Search {config.recipientLabel}</CardTitle>
+              <CardTitle className="text-base">{t('Search')} {t(config.recipientLabel)}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder={`Name or ${config.identifierLabel}…`}
+                  placeholder={`${t('Name or')} ${t(config.identifierLabel)}…`}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="pl-9"
@@ -247,7 +250,7 @@ export function AssignmentsPage() {
                 ))}
                 {filteredRecipients.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-6">
-                    No {config.recipientPluralLabel.toLowerCase()} found
+                    {t('No')} {t(config.recipientPluralLabel).toLowerCase()} {t('found')}
                   </p>
                 )}
               </div>
@@ -260,8 +263,8 @@ export function AssignmentsPage() {
           {!selected ? (
             <EmptyState
               icon={UserCheck}
-              title={`No ${config.recipientLabel.toLowerCase()} selected`}
-              description={`Search and select a ${config.recipientLabel.toLowerCase()} to view their ${config.assignmentLabel.toLowerCase()}s.`}
+              title={`${t('No')} ${t(config.recipientLabel).toLowerCase()} ${t('selected')}`}
+              description={`${t('Search and select a')} ${t(config.recipientLabel).toLowerCase()} ${t('to view their')} ${t(config.assignmentLabel).toLowerCase()}s.`}
             />
           ) : (
             <>
@@ -276,8 +279,8 @@ export function AssignmentsPage() {
                       <div>
                         <p className="font-semibold">{selected.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          {selected.group && `${config.groupLabel}: ${selected.group} · `}
-                          {config.identifierLabel}: {selected.identifier || '—'}
+                          {selected.group && `${t(config.groupLabel)}: ${selected.group} · `}
+                          {t(config.identifierLabel)}: {selected.identifier || '—'}
                         </p>
                         {selected.contact && (
                           <p className="text-xs text-muted-foreground">{selected.contact}</p>
@@ -286,32 +289,32 @@ export function AssignmentsPage() {
                     </div>
                     <Button size="sm" onClick={() => setIssueDialog(true)}>
                       <Plus className="h-4 w-4 mr-2" />
-                      {config.assignmentLabel} Item
+                      {t(config.assignmentLabel)} {t('Item')}
                     </Button>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm border-t pt-3">
                     <span>
                       <span className="font-semibold text-primary">{active.length}</span>
-                      <span className="text-muted-foreground ml-1">active</span>
+                      <span className="text-muted-foreground ml-1">{t('active')}</span>
                     </span>
                     <span>
                       <span className="font-semibold text-emerald-600">
                         {assignments.filter((a) => a.status === 'returned').length}
                       </span>
-                      <span className="text-muted-foreground ml-1">returned</span>
+                      <span className="text-muted-foreground ml-1">{t('returned')}</span>
                     </span>
                     <span>
                       <span className="font-semibold text-destructive">
                         {assignments.filter(isOverdue).length}
                       </span>
-                      <span className="text-muted-foreground ml-1">overdue</span>
+                      <span className="text-muted-foreground ml-1">{t('overdue')}</span>
                     </span>
                     {config.enableFines && (
                       <span>
                         <span className="font-semibold text-orange-600">
                           {assignments.filter((a) => a.status === 'fine_pending').length}
                         </span>
-                        <span className="text-muted-foreground ml-1">unpaid {config.fineLabel.toLowerCase()}s</span>
+                        <span className="text-muted-foreground ml-1">{t('unpaid')} {t(config.fineLabel).toLowerCase()}s</span>
                       </span>
                     )}
                   </div>
@@ -321,23 +324,23 @@ export function AssignmentsPage() {
               {/* Active assignments */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Active {config.assignmentLabel}s</CardTitle>
+                  <CardTitle className="text-base">{t('Active')} {t(config.assignmentLabel)}s</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
                   {active.length === 0 ? (
                     <div className="p-6 text-center text-sm text-muted-foreground">
-                      No active {config.assignmentLabel.toLowerCase()}s
+                      {t('No active')} {t(config.assignmentLabel).toLowerCase()}s
                     </div>
                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Item</TableHead>
-                          <TableHead>Qty</TableHead>
-                          {config.enableConditionTracking && <TableHead>Condition</TableHead>}
-                          <TableHead>{config.assignmentLabel} Date</TableHead>
-                          <TableHead>Due</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead>{t('Item')}</TableHead>
+                          <TableHead>{t('Qty')}</TableHead>
+                          {config.enableConditionTracking && <TableHead>{t('Condition')}</TableHead>}
+                          <TableHead>{t(config.assignmentLabel)} {t('Date')}</TableHead>
+                          <TableHead>{t('Due')}</TableHead>
+                          <TableHead>{t('Status')}</TableHead>
                           <TableHead></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -360,11 +363,11 @@ export function AssignmentsPage() {
                               <div className="flex gap-1.5">
                                 <Button variant="outline" size="sm" onClick={() => openReturn(a)}>
                                   <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                                  Return
+                                  {t('Return')}
                                 </Button>
                                 <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => openLost(a)}>
                                   <XCircle className="h-3.5 w-3.5 mr-1" />
-                                  Lost
+                                  {t('Lost')}
                                 </Button>
                               </div>
                             </TableCell>
@@ -380,17 +383,17 @@ export function AssignmentsPage() {
               {history.length > 0 && (
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base text-muted-foreground">History</CardTitle>
+                    <CardTitle className="text-base text-muted-foreground">{t('History')}</CardTitle>
                   </CardHeader>
                   <CardContent className="p-0">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Item</TableHead>
-                          <TableHead>{config.assignmentLabel} Date</TableHead>
-                          <TableHead>Returned</TableHead>
-                          <TableHead>Status</TableHead>
-                          {config.enableFines && <TableHead>{config.fineLabel}</TableHead>}
+                          <TableHead>{t('Item')}</TableHead>
+                          <TableHead>{t(config.assignmentLabel)} {t('Date')}</TableHead>
+                          <TableHead>{t('Returned')}</TableHead>
+                          <TableHead>{t('Status')}</TableHead>
+                          {config.enableFines && <TableHead>{t(config.fineLabel)}</TableHead>}
                           <TableHead></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -416,7 +419,7 @@ export function AssignmentsPage() {
                                 {a.fineAmount ? (
                                   <span className={a.finePaid ? 'text-emerald-600 text-sm' : 'text-red-600 text-sm font-medium'}>
                                     {config.currencySymbol}{a.fineAmount}
-                                    {a.finePaid ? ' (paid)' : ''}
+                                    {a.finePaid ? ` (${t('paid')})` : ''}
                                   </span>
                                 ) : '—'}
                               </TableCell>
@@ -425,7 +428,7 @@ export function AssignmentsPage() {
                               {a.status === 'fine_pending' && (
                                 <Button variant="outline" size="sm" onClick={() => handleFinePaid(a)}>
                                   <DollarSign className="h-3.5 w-3.5 mr-1" />
-                                  Mark Paid
+                                  {t('Mark Paid')}
                                 </Button>
                               )}
                             </TableCell>
@@ -445,21 +448,21 @@ export function AssignmentsPage() {
       <Dialog open={issueDialog} onOpenChange={setIssueDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{config.assignmentLabel} Item to {selected?.name}</DialogTitle>
+            <DialogTitle>{t(config.assignmentLabel)} {t('Item to')} {selected?.name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>Select Item</Label>
+              <Label>{t('Select Item')}</Label>
               <Select
                 value={issueForm.itemId}
                 onValueChange={(v) => setIssueForm({ ...issueForm, itemId: v })}
               >
-                <SelectTrigger><SelectValue placeholder="Choose an item…" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t('Choose an item…')} /></SelectTrigger>
                 <SelectContent>
                   {inventoryItems.filter((i) => i.available > 0).map((item) => (
                     <SelectItem key={item.id} value={item.id}>
                       {item.name}
-                      <span className="text-muted-foreground ml-2 text-xs">({item.available} available)</span>
+                      <span className="text-muted-foreground ml-2 text-xs">({item.available} {t('available')})</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -467,7 +470,7 @@ export function AssignmentsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Quantity</Label>
+                <Label>{t('Quantity')}</Label>
                 <Input
                   type="number"
                   min={1}
@@ -477,24 +480,24 @@ export function AssignmentsPage() {
               </div>
               {config.enableConditionTracking && (
                 <div className="space-y-2">
-                  <Label>Condition at {config.assignmentLabel}</Label>
+                  <Label>{t('Condition at')} {t(config.assignmentLabel)}</Label>
                   <Select
                     value={issueForm.conditionIssued}
                     onValueChange={(v) => setIssueForm({ ...issueForm, conditionIssued: v })}
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="New">New</SelectItem>
-                      <SelectItem value="Good">Good</SelectItem>
-                      <SelectItem value="Fair">Fair</SelectItem>
-                      <SelectItem value="Poor">Poor</SelectItem>
+                      <SelectItem value="New">{t('New')}</SelectItem>
+                      <SelectItem value="Good">{t('Good')}</SelectItem>
+                      <SelectItem value="Fair">{t('Fair')}</SelectItem>
+                      <SelectItem value="Poor">{t('Poor')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               )}
             </div>
             <div className="space-y-2">
-              <Label>Expected Return Date</Label>
+              <Label>{t('Expected Return Date')}</Label>
               <Input
                 type="date"
                 value={issueForm.expectedReturn}
@@ -502,19 +505,19 @@ export function AssignmentsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Notes (optional)</Label>
+              <Label>{t('Notes')} ({t('optional')})</Label>
               <Textarea
                 value={issueForm.notes}
                 onChange={(e) => setIssueForm({ ...issueForm, notes: e.target.value })}
-                placeholder="Any notes…"
+                placeholder={t('Any notes…')}
                 rows={2}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIssueDialog(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setIssueDialog(false)}>{t('Cancel')}</Button>
             <Button onClick={handleIssue} disabled={!issueForm.itemId || issueSaving}>
-              {issueSaving ? 'Saving…' : `${config.assignmentLabel} Item`}
+              {issueSaving ? t('Saving…') : `${t(config.assignmentLabel)} ${t('Item')}`}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -524,41 +527,41 @@ export function AssignmentsPage() {
       <Dialog open={!!returnDialog} onOpenChange={(open) => !open && setReturnDialog(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Return: {returnDialog?.itemName}</DialogTitle>
+            <DialogTitle>{t('Return')}: {returnDialog?.itemName}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>Reason for Return</Label>
+              <Label>{t('Reason for Return')}</Label>
               <Input
                 value={returnForm.returnReason}
                 onChange={(e) => setReturnForm({ ...returnForm, returnReason: e.target.value })}
-                placeholder="e.g. Wrong size, damaged, not needed…"
+                placeholder={t('e.g. Wrong size, damaged, not needed…')}
               />
             </div>
             {config.enableConditionTracking && (
               <div className="space-y-2">
-                <Label>Condition on Return</Label>
+                <Label>{t('Condition on Return')}</Label>
                 <Select
                   value={returnForm.conditionReturned}
                   onValueChange={(v) => setReturnForm({ ...returnForm, conditionReturned: v })}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="New">New</SelectItem>
-                    <SelectItem value="Good">Good</SelectItem>
-                    <SelectItem value="Fair">Fair</SelectItem>
-                    <SelectItem value="Poor">Poor</SelectItem>
+                    <SelectItem value="New">{t('New')}</SelectItem>
+                    <SelectItem value="Good">{t('Good')}</SelectItem>
+                    <SelectItem value="Fair">{t('Fair')}</SelectItem>
+                    <SelectItem value="Poor">{t('Poor')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             )}
             {(config.enableConditionTracking ? isDamaged : true) && (
               <div className="space-y-2">
-                <Label>Damage Notes</Label>
+                <Label>{t('Damage Notes')}</Label>
                 <Textarea
                   value={returnForm.damageNotes}
                   onChange={(e) => setReturnForm({ ...returnForm, damageNotes: e.target.value })}
-                  placeholder="Describe any damage…"
+                  placeholder={t('Describe any damage…')}
                   rows={2}
                 />
               </div>
@@ -567,7 +570,7 @@ export function AssignmentsPage() {
               <>
                 <Separator />
                 <div className="space-y-2">
-                  <Label>{config.fineLabel} Amount <span className="text-muted-foreground font-normal text-xs">(leave blank if none)</span></Label>
+                  <Label>{t(config.fineLabel)} {t('Amount')} <span className="text-muted-foreground font-normal text-xs">({t('leave blank if none')})</span></Label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{config.currencySymbol}</span>
                     <Input
@@ -584,18 +587,18 @@ export function AssignmentsPage() {
               </>
             )}
             <div className="space-y-2">
-              <Label>Received By</Label>
+              <Label>{t('Received By')}</Label>
               <Input
                 value={returnForm.receivedBy}
                 onChange={(e) => setReturnForm({ ...returnForm, receivedBy: e.target.value })}
-                placeholder="Staff name…"
+                placeholder={t('Staff name…')}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReturnDialog(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setReturnDialog(null)}>{t('Cancel')}</Button>
             <Button onClick={handleReturn} disabled={returnSaving}>
-              {returnSaving ? 'Saving…' : 'Confirm Return'}
+              {returnSaving ? t('Saving…') : t('Confirm Return')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -605,15 +608,15 @@ export function AssignmentsPage() {
       <Dialog open={!!lostDialog} onOpenChange={(open) => !open && setLostDialog(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Report Lost: {lostDialog?.itemName}</DialogTitle>
+            <DialogTitle>{t('Report Lost')}: {lostDialog?.itemName}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
-              This item will be marked as lost and removed from {selected?.name}'s active {config.assignmentLabel.toLowerCase()}s.
+              {t('This item will be marked as lost and removed from')} {selected?.name}{t("'s active")} {t(config.assignmentLabel).toLowerCase()}s.
             </p>
             {config.enableFines && (
               <div className="space-y-2">
-                <Label>{config.fineLabel} Amount <span className="text-muted-foreground font-normal text-xs">(leave blank if none)</span></Label>
+                <Label>{t(config.fineLabel)} {t('Amount')} <span className="text-muted-foreground font-normal text-xs">({t('leave blank if none')})</span></Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{config.currencySymbol}</span>
                   <Input
@@ -629,19 +632,19 @@ export function AssignmentsPage() {
               </div>
             )}
             <div className="space-y-2">
-              <Label>Notes</Label>
+              <Label>{t('Notes')}</Label>
               <Textarea
                 value={lostForm.notes}
                 onChange={(e) => setLostForm({ ...lostForm, notes: e.target.value })}
-                placeholder="Any context about how it was lost…"
+                placeholder={t('Any context about how it was lost…')}
                 rows={2}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setLostDialog(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setLostDialog(null)}>{t('Cancel')}</Button>
             <Button variant="destructive" onClick={handleLost} disabled={lostSaving}>
-              {lostSaving ? 'Saving…' : 'Mark as Lost'}
+              {lostSaving ? t('Saving…') : t('Mark as Lost')}
             </Button>
           </DialogFooter>
         </DialogContent>

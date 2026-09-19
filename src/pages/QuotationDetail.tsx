@@ -27,6 +27,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Quotation, VendorQuote, Vendor, Item, PurchaseOrder } from '@/types';
 
 const STATUS_CONFIG = {
@@ -70,6 +71,7 @@ export function QuotationDetailPage() {
   const navigate = useNavigate();
   const { currentOrg } = useOrganization();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [q, setQ] = useState<Quotation | null>(null);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -141,8 +143,8 @@ export function QuotationDetailPage() {
   }, [activeTab, q]);
 
   if (!currentOrg) return null;
-  if (loading) return <div className="p-8 text-center text-muted-foreground text-sm">Loading…</div>;
-  if (!q) return <div className="p-8 text-center text-muted-foreground text-sm">Quotation not found.</div>;
+  if (loading) return <div className="p-8 text-center text-muted-foreground text-sm">{t("Loading…")}</div>;
+  if (!q) return <div className="p-8 text-center text-muted-foreground text-sm">{t("Quotation not found.")}</div>;
 
   const cfg = STATUS_CONFIG[q.status] ?? STATUS_CONFIG.draft;
   const rfqRef = `RFQ-${q.id.slice(-6).toUpperCase()}`;
@@ -198,7 +200,7 @@ export function QuotationDetailPage() {
     if (!q) return;
     const updated = await quotationService.update(q.id, { status: 'sent' });
     setQ(updated);
-    toast({ title: 'Marked as Sent', description: 'Vendors have been notified (via email).' });
+    toast({ title: t('Marked as Sent'), description: t('Vendors have been notified (via email).') });
   }
 
   async function handleStartComparing() {
@@ -237,7 +239,7 @@ export function QuotationDetailPage() {
     const updated = await quotationService.submitVendorQuote(q.id, enteringQuoteFor, { items });
     setQ(updated);
     setEnteringQuoteFor(null);
-    toast({ title: 'Quote saved' });
+    toast({ title: t('Quote saved') });
   }
 
   async function handleRejectVendor(vqId: string) {
@@ -260,9 +262,9 @@ export function QuotationDetailPage() {
       setQ(updated);
       setShowGenerateForm(false);
       setActiveTab('orders');
-      toast({ title: `${pos.length} Purchase Order${pos.length !== 1 ? 's' : ''} generated!`, description: 'Send them to vendors via email.' });
+      toast({ title: `${pos.length} ${t('Purchase Order')}${pos.length !== 1 ? 's' : ''} ${t('generated!')}`, description: t('Send them to vendors via email.') });
     } catch {
-      toast({ title: 'Error', description: 'Failed to generate POs', variant: 'destructive' });
+      toast({ title: t('Error'), description: t('Failed to generate POs'), variant: 'destructive' });
     } finally {
       setGenerating(false);
     }
@@ -278,7 +280,7 @@ export function QuotationDetailPage() {
   return (
     <div>
       <Button variant="ghost" size="sm" onClick={() => navigate('/quotations')} className="-ml-2 mb-4">
-        <ArrowLeft className="h-4 w-4 mr-2" /> Back to Quotations
+        <ArrowLeft className="h-4 w-4 mr-2" /> {t("Back to Quotations")}
       </Button>
 
       <PageHeader
@@ -286,15 +288,15 @@ export function QuotationDetailPage() {
         description={`${rfqRef} · ${q.items.length} item${q.items.length !== 1 ? 's' : ''} · ${q.vendorQuotes.length} vendor${q.vendorQuotes.length !== 1 ? 's' : ''}`}
         actions={
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className={`text-xs ${cfg.color}`}>{cfg.label}</Badge>
+            <Badge variant="outline" className={`text-xs ${cfg.color}`}>{t(cfg.label)}</Badge>
             {q.status === 'sent' && quotedVendors.length > 0 && (
               <Button size="sm" onClick={handleStartComparing}>
-                Compare Prices →
+                {t("Compare Prices")} →
               </Button>
             )}
             {q.status === 'comparing' && Object.keys(selections).length > 0 && (
               <Button size="sm" onClick={() => setShowGenerateForm(true)}>
-                <ShoppingCart className="h-4 w-4 mr-1" /> Generate POs
+                <ShoppingCart className="h-4 w-4 mr-1" /> {t("Generate POs")}
               </Button>
             )}
           </div>
@@ -305,19 +307,19 @@ export function QuotationDetailPage() {
         <TabsList className="mb-6">
           <TabsTrigger value="items">
             <Package className="h-3.5 w-3.5 mr-1.5" />
-            Items ({q.items.length})
+            {t("Items")} ({q.items.length})
           </TabsTrigger>
           <TabsTrigger value="vendors">
             <Mail className="h-3.5 w-3.5 mr-1.5" />
-            Vendors & Quotes ({q.vendorQuotes.length})
+            {t("Vendors & Quotes")} ({q.vendorQuotes.length})
           </TabsTrigger>
           <TabsTrigger value="compare" disabled={quotedVendors.length === 0}>
-            Compare
+            {t("Compare")}
             {quotedVendors.length > 0 && <span className="ml-1.5 text-xs bg-primary text-primary-foreground rounded-full px-1.5">{quotedVendors.length}</span>}
           </TabsTrigger>
           <TabsTrigger value="orders" disabled={q.status !== 'converted'}>
             <ShoppingCart className="h-3.5 w-3.5 mr-1.5" />
-            POs ({generatedPOs.length})
+            {t("POs")} ({generatedPOs.length})
           </TabsTrigger>
         </TabsList>
 
@@ -325,16 +327,16 @@ export function QuotationDetailPage() {
         <TabsContent value="items">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-base">Items to Purchase</CardTitle>
+              <CardTitle className="text-base">{t("Items to Purchase")}</CardTitle>
               {isEditable && (
                 <Button size="sm" variant="outline" onClick={() => setShowAddItem(true)}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
+                  <Plus className="h-3.5 w-3.5 mr-1" /> {t("Add Item")}
                 </Button>
               )}
             </CardHeader>
             <CardContent>
               {q.items.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No items yet. Add the items you need to purchase.</p>
+                <p className="text-sm text-muted-foreground text-center py-6">{t("No items yet. Add the items you need to purchase.")}</p>
               ) : (
                 <div className="divide-y">
                   {q.items.map((item, idx) => (
@@ -342,10 +344,10 @@ export function QuotationDetailPage() {
                       <span className="text-sm text-muted-foreground w-6 text-right">{idx + 1}.</span>
                       <div className="flex-1">
                         <p className="text-sm font-medium">{item.itemName}</p>
-                        {item.itemId && <p className="text-xs text-muted-foreground">Linked to inventory</p>}
+                        {item.itemId && <p className="text-xs text-muted-foreground">{t("Linked to inventory")}</p>}
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold">{item.qtyNeeded} units</span>
+                        <span className="text-sm font-semibold">{item.qtyNeeded} {t("units")}</span>
                         {isEditable && (
                           <button
                             onClick={() => handleRemoveItem(item.id)}
@@ -363,10 +365,10 @@ export function QuotationDetailPage() {
               {q.status === 'draft' && q.items.length > 0 && q.vendorQuotes.length > 0 && (
                 <div className="mt-4 pt-4 border-t">
                   <Button onClick={handleMarkSent} className="w-full sm:w-auto">
-                    <Send className="h-4 w-4 mr-2" /> Mark Quote Requests as Sent
+                    <Send className="h-4 w-4 mr-2" /> {t("Mark Quote Requests as Sent")}
                   </Button>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Use the "Send Request" buttons in the Vendors tab to email each vendor, then mark as sent here.
+                    {t('Use the "Send Request" buttons in the Vendors tab to email each vendor, then mark as sent here.')}
                   </p>
                 </div>
               )}
@@ -380,7 +382,7 @@ export function QuotationDetailPage() {
             {isEditable && (
               <div className="flex justify-end">
                 <Button size="sm" variant="outline" onClick={() => setShowInviteVendor(true)}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Invite Vendor
+                  <Plus className="h-3.5 w-3.5 mr-1" /> {t("Invite Vendor")}
                 </Button>
               </div>
             )}
@@ -388,7 +390,7 @@ export function QuotationDetailPage() {
             {q.vendorQuotes.length === 0 ? (
               <Card>
                 <CardContent className="p-8 text-center text-sm text-muted-foreground">
-                  No vendors invited yet. Add vendors to request quotes from them.
+                  {t("No vendors invited yet. Add vendors to request quotes from them.")}
                 </CardContent>
               </Card>
             ) : (
@@ -406,7 +408,7 @@ export function QuotationDetailPage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="font-semibold text-sm">{vq.vendorName}</p>
-                            <Badge variant="outline" className={`text-xs ${vqCfg.color}`}>{vqCfg.label}</Badge>
+                            <Badge variant="outline" className={`text-xs ${vqCfg.color}`}>{t(vqCfg.label)}</Badge>
                           </div>
                           {vq.vendorEmail && (
                             <p className="text-xs text-muted-foreground mt-0.5">{vq.vendorEmail}</p>
@@ -419,7 +421,7 @@ export function QuotationDetailPage() {
                               href={buildMailtoRFQ(currentOrg.name, rfqRef, vq, q.items)}
                               className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded border hover:bg-muted transition-colors"
                             >
-                              <Mail className="h-3 w-3" /> Send Request
+                              <Mail className="h-3 w-3" /> {t("Send Request")}
                             </a>
                           )}
                           {isEditable && vq.status === 'invited' && (
@@ -467,7 +469,7 @@ export function QuotationDetailPage() {
                           onClick={() => openQuoteEntry(vq.id)}
                           className="text-xs h-7"
                         >
-                          {vq.status === 'quoted' ? 'Update Prices' : 'Enter Quoted Prices'}
+                          {vq.status === 'quoted' ? t('Update Prices') : t('Enter Quoted Prices')}
                         </Button>
                       )}
                     </CardContent>
@@ -481,27 +483,27 @@ export function QuotationDetailPage() {
         {/* ── Tab 3: Compare ───────────────────────────────────────────────── */}
         <TabsContent value="compare">
           {quotedVendors.length === 0 ? (
-            <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">No vendor quotes yet.</CardContent></Card>
+            <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">{t("No vendor quotes yet.")}</CardContent></Card>
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Price Comparison</CardTitle>
+                <CardTitle className="text-base">{t("Price Comparison")}</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Select the best vendor for each item. Cheapest price per item is highlighted in green.
+                  {t("Select the best vendor for each item. Cheapest price per item is highlighted in green.")}
                 </p>
               </CardHeader>
               <CardContent className="overflow-x-auto">
                 <table className="w-full text-sm border-collapse">
                   <thead>
                     <tr className="bg-muted/50">
-                      <th className="text-left px-3 py-2 text-xs font-semibold border-b">Item</th>
-                      <th className="text-center px-3 py-2 text-xs font-semibold border-b">Qty</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold border-b">{t("Item")}</th>
+                      <th className="text-center px-3 py-2 text-xs font-semibold border-b">{t("Qty")}</th>
                       {quotedVendors.map(vq => (
                         <th key={vq.id} className="text-center px-3 py-2 text-xs font-semibold border-b min-w-28">
                           {vq.vendorName}
                         </th>
                       ))}
-                      <th className="text-center px-3 py-2 text-xs font-semibold border-b">Selected</th>
+                      <th className="text-center px-3 py-2 text-xs font-semibold border-b">{t("Selected")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -527,7 +529,7 @@ export function QuotationDetailPage() {
                                   <span className={`inline-flex flex-col items-center gap-0.5 ${isBest ? 'text-emerald-700 font-bold' : ''}`}>
                                     <span>₹{price}</span>
                                     {lead !== null && <span className="text-xs text-muted-foreground font-normal">{lead}d</span>}
-                                    {isBest && <span className="text-xs">✓ Best</span>}
+                                    {isBest && <span className="text-xs">✓ {t("Best")}</span>}
                                   </span>
                                 ) : (
                                   <span className="text-muted-foreground">—</span>
@@ -541,10 +543,10 @@ export function QuotationDetailPage() {
                               onValueChange={v => setSelections(prev => ({ ...prev, [item.id]: v === '__none__' ? '' : v }))}
                             >
                               <SelectTrigger className="h-7 w-36 text-xs mx-auto">
-                                <SelectValue placeholder="Pick vendor" />
+                                <SelectValue placeholder={t("Pick vendor")} />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="__none__">— Skip —</SelectItem>
+                                <SelectItem value="__none__">{t("— Skip —")}</SelectItem>
                                 {prices.filter(p => p.price !== null).map(({ vq, price }) => (
                                   <SelectItem key={vq.id} value={vq.id}>
                                     {vq.vendorName} · ₹{price}
@@ -561,7 +563,7 @@ export function QuotationDetailPage() {
 
                 {/* Summary */}
                 <div className="mt-4 p-3 bg-muted/40 rounded-lg text-sm">
-                  <p className="font-semibold mb-1">Selection Summary</p>
+                  <p className="font-semibold mb-1">{t("Selection Summary")}</p>
                   {Object.entries(selections).filter(([, vId]) => vId).map(([itemId, vqId]) => {
                     const item = q.items.find(i => i.id === itemId);
                     const vq = quotedVendors.find(v => v.id === vqId);
@@ -575,7 +577,7 @@ export function QuotationDetailPage() {
                     );
                   })}
                   <div className="border-t mt-2 pt-2 flex justify-between font-semibold">
-                    <span>Est. Total</span>
+                    <span>{t("Est. Total")}</span>
                     <span>
                       ₹{Object.entries(selections)
                         .filter(([, vId]) => vId)
@@ -593,7 +595,7 @@ export function QuotationDetailPage() {
                 {q.status === 'comparing' && (
                   <Button className="mt-4" onClick={() => setShowGenerateForm(true)}
                     disabled={Object.values(selections).every(v => !v)}>
-                    <ShoppingCart className="h-4 w-4 mr-2" /> Generate Purchase Orders
+                    <ShoppingCart className="h-4 w-4 mr-2" /> {t("Generate Purchase Orders")}
                   </Button>
                 )}
               </CardContent>
@@ -604,7 +606,7 @@ export function QuotationDetailPage() {
         {/* ── Tab 4: Purchase Orders ───────────────────────────────────────── */}
         <TabsContent value="orders">
           {generatedPOs.length === 0 ? (
-            <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">No POs generated yet.</CardContent></Card>
+            <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">{t("No POs generated yet.")}</CardContent></Card>
           ) : (
             <div className="space-y-4">
               {generatedPOs.map(po => {
@@ -622,7 +624,7 @@ export function QuotationDetailPage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">{po.poNumber}</code>
-                            <Badge variant="outline" className={`text-xs ${poCfg.color}`}>{poCfg.label}</Badge>
+                            <Badge variant="outline" className={`text-xs ${poCfg.color}`}>{t(poCfg.label)}</Badge>
                           </div>
                           <p className="font-semibold mt-1">{po.vendorName}</p>
                           {vq?.vendorEmail && (
@@ -631,7 +633,7 @@ export function QuotationDetailPage() {
                         </div>
                         <div className="text-right">
                           <p className="text-lg font-bold">₹{po.amount.toLocaleString('en-IN')}</p>
-                          {po.expectedDate && <p className="text-xs text-muted-foreground">Expected: {po.expectedDate}</p>}
+                          {po.expectedDate && <p className="text-xs text-muted-foreground">{t("Expected")}: {po.expectedDate}</p>}
                         </div>
                       </div>
 
@@ -648,7 +650,7 @@ export function QuotationDetailPage() {
                         href={mailtoHref}
                         className="inline-flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                       >
-                        <Mail className="h-3.5 w-3.5" /> Send PO Email to {po.vendorName}
+                        <Mail className="h-3.5 w-3.5" /> {t("Send PO Email to")} {po.vendorName}
                       </a>
                     </CardContent>
                   </Card>
@@ -664,17 +666,17 @@ export function QuotationDetailPage() {
       {/* Add Item Dialog */}
       <Dialog open={showAddItem} onOpenChange={setShowAddItem}>
         <DialogContent className="sm:max-w-sm">
-          <DialogHeader><DialogTitle>Add Item</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("Add Item")}</DialogTitle></DialogHeader>
           <div className="space-y-3 py-1">
             <div className="flex gap-2">
-              <Button size="sm" variant={useInventoryItem ? 'default' : 'outline'} onClick={() => setUseInventoryItem(true)} className="text-xs h-7">From Inventory</Button>
-              <Button size="sm" variant={!useInventoryItem ? 'default' : 'outline'} onClick={() => setUseInventoryItem(false)} className="text-xs h-7">Free Text</Button>
+              <Button size="sm" variant={useInventoryItem ? 'default' : 'outline'} onClick={() => setUseInventoryItem(true)} className="text-xs h-7">{t("From Inventory")}</Button>
+              <Button size="sm" variant={!useInventoryItem ? 'default' : 'outline'} onClick={() => setUseInventoryItem(false)} className="text-xs h-7">{t("Free Text")}</Button>
             </div>
             {useInventoryItem ? (
               <div className="space-y-1.5">
-                <Label className="text-xs">Search Item</Label>
+                <Label className="text-xs">{t("Search Item")}</Label>
                 <Input
-                  placeholder="Type to search..."
+                  placeholder={t("Type to search...")}
                   value={addItemSearch}
                   onChange={e => setAddItemSearch(e.target.value)}
                   className="text-sm"
@@ -696,9 +698,9 @@ export function QuotationDetailPage() {
               </div>
             ) : (
               <div className="space-y-1.5">
-                <Label className="text-xs">Item Name</Label>
+                <Label className="text-xs">{t("Item Name")}</Label>
                 <Input
-                  placeholder="e.g. A4 Paper Ream"
+                  placeholder={t("e.g. A4 Paper Ream")}
                   value={addItemFreeText}
                   onChange={e => setAddItemFreeText(e.target.value)}
                   className="text-sm"
@@ -706,7 +708,7 @@ export function QuotationDetailPage() {
               </div>
             )}
             <div className="space-y-1.5">
-              <Label className="text-xs">Quantity Needed</Label>
+              <Label className="text-xs">{t("Quantity Needed")}</Label>
               <Input type="number" min={1} value={addItemQty} onChange={e => setAddItemQty(Number(e.target.value))} className="text-sm" />
             </div>
           </div>

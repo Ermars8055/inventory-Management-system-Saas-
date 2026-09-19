@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { User, Role } from '@/types';
 
 const ALL_PERMISSIONS = [
@@ -33,6 +34,7 @@ const EMPTY_FORM = { name: '', email: '', role: 'staff' };
 export function UsersPage() {
   const { currentOrg } = useOrganization();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -74,16 +76,16 @@ export function UsersPage() {
       if (editUser) {
         const updated = await userService.update(editUser.id, { name: form.name, email: form.email, role: form.role });
         setUsers((prev) => prev.map((u) => (u.id === editUser.id ? updated : u)));
-        toast({ title: 'User updated' });
+        toast({ title: t('User updated') });
       } else {
         await userService.create({ organizationId: currentOrg!.id, ...form });
         await load();
-        toast({ title: 'User created' });
+        toast({ title: t('User created') });
       }
       setShowCreate(false);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed';
-      toast({ title: 'Error', description: msg, variant: 'destructive' });
+      const msg = err instanceof Error ? err.message : t('Failed');
+      toast({ title: t('Error'), description: msg, variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -95,9 +97,9 @@ export function UsersPage() {
         ? await userService.deactivate(u.id)
         : await userService.activate(u.id);
       setUsers((prev) => prev.map((x) => (x.id === u.id ? updated : x)));
-      toast({ title: u.status === 'active' ? 'User deactivated' : 'User activated' });
+      toast({ title: u.status === 'active' ? t('User deactivated') : t('User activated') });
     } catch {
-      toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+      toast({ title: t('Error'), description: t('Failed to update status'), variant: 'destructive' });
     }
   }
 
@@ -105,9 +107,9 @@ export function UsersPage() {
     try {
       await userService.delete(id);
       setUsers((prev) => prev.filter((u) => u.id !== id));
-      toast({ title: 'User deleted' });
+      toast({ title: t('User deleted') });
     } catch {
-      toast({ title: 'Error', description: 'Failed to delete user', variant: 'destructive' });
+      toast({ title: t('Error'), description: t('Failed to delete user'), variant: 'destructive' });
     }
   }
 
@@ -116,36 +118,36 @@ export function UsersPage() {
   return (
     <div>
       <PageHeader
-        title="Users & Roles"
-        description={`${users.length} users in ${currentOrg.name}`}
+        title={t("Users & Roles")}
+        description={`${users.length} ${t('users in')} ${currentOrg.name}`}
         actions={
           <Button size="sm" onClick={openCreate}>
             <Plus className="h-4 w-4 mr-2" />
-            Add User
+            {t('Add User')}
           </Button>
         }
       />
 
       <Tabs defaultValue="users">
         <TabsList className="mb-6">
-          <TabsTrigger value="users">Users ({users.length})</TabsTrigger>
-          <TabsTrigger value="roles">Roles & Permissions</TabsTrigger>
+          <TabsTrigger value="users">{t('Users')} ({users.length})</TabsTrigger>
+          <TabsTrigger value="roles">{t('Roles & Permissions')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users">
           <Card>
             <CardContent className="p-0">
               {users.length === 0 ? (
-                <EmptyState icon={Users} title="No users yet" description="Add users to collaborate on this organization." />
+                <EmptyState icon={Users} title={t("No users yet")} description={t("Add users to collaborate on this organization.")} />
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Last Active</TableHead>
+                      <TableHead>{t('User')}</TableHead>
+                      <TableHead>{t('Email')}</TableHead>
+                      <TableHead>{t('Role')}</TableHead>
+                      <TableHead>{t('Status')}</TableHead>
+                      <TableHead>{t('Last Active')}</TableHead>
                       <TableHead />
                     </TableRow>
                   </TableHeader>
@@ -167,10 +169,10 @@ export function UsersPage() {
                         <TableCell>
                           {user.status === 'active' ? (
                             <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
-                              Active
+                              {t('Active')}
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-xs text-muted-foreground">Inactive</Badge>
+                            <Badge variant="outline" className="text-xs text-muted-foreground">{t('Inactive')}</Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">{user.lastActive || '—'}</TableCell>
@@ -179,14 +181,14 @@ export function UsersPage() {
                             <button
                               onClick={() => openEdit(user)}
                               className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                              title="Edit"
+                              title={t("Edit")}
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
                             <button
                               onClick={() => handleToggleStatus(user)}
                               className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                              title={user.status === 'active' ? 'Deactivate' : 'Activate'}
+                              title={user.status === 'active' ? t('Deactivate') : t('Activate')}
                             >
                               {user.status === 'active'
                                 ? <UserX className="h-3.5 w-3.5" />
@@ -196,7 +198,7 @@ export function UsersPage() {
                             <button
                               onClick={() => handleDelete(user.id)}
                               className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                              title="Delete"
+                              title={t("Delete")}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -214,7 +216,7 @@ export function UsersPage() {
         <TabsContent value="roles">
           <div className="space-y-4">
             {roles.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-12">No roles defined yet</p>
+              <p className="text-sm text-muted-foreground text-center py-12">{t('No roles defined yet')}</p>
             ) : roles.map((role) => (
               <Card key={role.id}>
                 <CardHeader className="pb-3">
@@ -222,7 +224,7 @@ export function UsersPage() {
                     <Shield className="h-4 w-4 text-muted-foreground" />
                     {role.name}
                     <span className="ml-auto text-xs font-normal text-muted-foreground">
-                      {role.permissions.length}/{ALL_PERMISSIONS.length} permissions
+                      {role.permissions.length}/{ALL_PERMISSIONS.length} {t('permissions')}
                     </span>
                   </CardTitle>
                 </CardHeader>
@@ -240,7 +242,7 @@ export function UsersPage() {
                               : 'text-muted-foreground/40 border-border/40'
                           }`}
                         >
-                          {perm.label}
+                          {t(perm.label)}
                         </Badge>
                       );
                     })}
@@ -256,21 +258,21 @@ export function UsersPage() {
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>{editUser ? 'Edit User' : 'Add User'}</DialogTitle>
+            <DialogTitle>{editUser ? t('Edit User') : t('Add User')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSave} className="space-y-3 py-2">
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Full Name *</label>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('Full Name')} *</label>
               <input required className={inp} value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email *</label>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('Email')} *</label>
               <input required type="email" className={inp} value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Role</label>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('Role')}</label>
               <select className={inp} value={form.role}
                 onChange={(e) => setForm({ ...form, role: e.target.value })}>
                 {ROLES.map((r) => (
@@ -279,8 +281,8 @@ export function UsersPage() {
               </select>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-              <Button type="submit" disabled={saving}>{saving ? 'Saving…' : editUser ? 'Update' : 'Add User'}</Button>
+              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>{t('Cancel')}</Button>
+              <Button type="submit" disabled={saving}>{saving ? t('Saving…') : editUser ? t('Update') : t('Add User')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

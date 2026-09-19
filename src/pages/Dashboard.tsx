@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   Package, AlertTriangle, XCircle, UserCheck, Truck, CalendarClock, Pill, ShoppingCart,
   type LucideIcon,
@@ -18,7 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { INDUSTRY_LABELS } from '@/data/modules';
 import type { Item, StockTransaction, Vendor, Batch } from '@/types';
 
-const TRANSACTION_LABELS: Record<string, string> = {
+const TRANSACTION_LABEL_KEYS: Record<string, string> = {
   received: 'Stock Received',
   issued: 'Issued',
   returned: 'Returned',
@@ -30,6 +31,7 @@ const TRANSACTION_LABELS: Record<string, string> = {
 export function DashboardPage() {
   const { currentOrg } = useOrganization();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [items, setItems] = useState<Item[]>([]);
   const [transactions, setTransactions] = useState<StockTransaction[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -58,18 +60,18 @@ export function DashboardPage() {
 
   const kpis: { label: string; value: number; icon: LucideIcon; variant: 'default' | 'warning' | 'danger' | 'success' }[] = isPharmacy
     ? [
-        { label: 'Total Medicines', value: items.length, icon: Pill, variant: 'default' },
-        { label: 'Low Stock', value: lowStockItems.length, icon: AlertTriangle, variant: 'warning' },
-        { label: 'Expiring Soon', value: expiringSoon.length, icon: CalendarClock, variant: 'warning' },
-        { label: 'Expired', value: expired.length, icon: XCircle, variant: 'danger' },
-        { label: 'Vendors', value: vendors.length, icon: Truck, variant: 'success' },
+        { label: t('Total Medicines'), value: items.length, icon: Pill, variant: 'default' },
+        { label: t('Low Stock'), value: lowStockItems.length, icon: AlertTriangle, variant: 'warning' },
+        { label: t('Expiring Soon'), value: expiringSoon.length, icon: CalendarClock, variant: 'warning' },
+        { label: t('Expired'), value: expired.length, icon: XCircle, variant: 'danger' },
+        { label: t('Vendors'), value: vendors.length, icon: Truck, variant: 'success' },
       ]
     : [
-        { label: 'Total Items', value: items.length, icon: Package, variant: 'default' },
-        { label: 'Low Stock', value: lowStockItems.length, icon: AlertTriangle, variant: 'warning' },
-        { label: 'Out of Stock', value: outOfStockItems.length, icon: XCircle, variant: 'danger' },
-        { label: 'Items Issued', value: issuedCount, icon: UserCheck, variant: 'success' },
-        { label: 'Vendors', value: vendors.length, icon: Truck, variant: 'default' },
+        { label: t('Total Items'), value: items.length, icon: Package, variant: 'default' },
+        { label: t('Low Stock'), value: lowStockItems.length, icon: AlertTriangle, variant: 'warning' },
+        { label: t('Out of Stock'), value: outOfStockItems.length, icon: XCircle, variant: 'danger' },
+        { label: t('Items Issued'), value: issuedCount, icon: UserCheck, variant: 'success' },
+        { label: t('Vendors'), value: vendors.length, icon: Truck, variant: 'default' },
       ];
 
   // Category chart data
@@ -92,7 +94,7 @@ export function DashboardPage() {
     <div>
       <PageHeader
         title={`${currentOrg.name}`}
-        description={`${INDUSTRY_LABELS[currentOrg.industry]} · Inventory Management`}
+        description={`${INDUSTRY_LABELS[currentOrg.industry]} · ${t('Inventory Management')}`}
       />
 
       {/* KPI Cards */}
@@ -106,7 +108,7 @@ export function DashboardPage() {
         {/* Inventory Overview Chart */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Inventory Overview</CardTitle>
+            <CardTitle className="text-base">{t('Inventory Overview')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
@@ -130,7 +132,7 @@ export function DashboardPage() {
         {/* Category Distribution Pie */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Stock Distribution</CardTitle>
+            <CardTitle className="text-base">{t('Stock Distribution')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
@@ -155,7 +157,7 @@ export function DashboardPage() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">
                 <ShoppingCart className="h-4 w-4 text-amber-600" />
-                Reorder Suggestions ({reorderItems.length})
+                {t('Reorder Suggestions')} ({reorderItems.length})
               </CardTitle>
               <div className="flex items-center gap-3">
                 <button
@@ -165,13 +167,13 @@ export function DashboardPage() {
                   }}
                   className="text-xs font-medium text-amber-700 hover:text-amber-900 underline"
                 >
-                  Get Quotes →
+                  {t('Get Quotes')} →
                 </button>
                 <button
                   onClick={() => navigate('/procurement')}
                   className="text-xs font-medium text-amber-700 hover:text-amber-900 underline"
                 >
-                  Create PO →
+                  {t('Create PO')} →
                 </button>
               </div>
             </div>
@@ -190,9 +192,9 @@ export function DashboardPage() {
                     <span className={`text-sm font-bold ${item.status === 'out_of_stock' ? 'text-red-600' : 'text-amber-600'}`}>
                       {item.available}
                     </span>
-                    <span className="text-xs text-muted-foreground">/ min {item.minQuantity ?? 10}</span>
+                    <span className="text-xs text-muted-foreground">/ {t('min')} {item.minQuantity ?? 10}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">Reorder: {item.reorderQty ?? 50}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t('Reorder')}: {item.reorderQty ?? 50}</p>
                 </div>
               ))}
             </div>
@@ -204,17 +206,17 @@ export function DashboardPage() {
         {/* Recent Transactions */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Recent Transactions</CardTitle>
+            <CardTitle className="text-base">{t('Recent Transactions')}</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Transaction</TableHead>
-                  <TableHead>Recipient</TableHead>
-                  <TableHead className="text-right">Qty</TableHead>
-                  <TableHead className="text-right">Date</TableHead>
+                  <TableHead>{t('Item')}</TableHead>
+                  <TableHead>{t('Transaction')}</TableHead>
+                  <TableHead>{t('Recipient')}</TableHead>
+                  <TableHead className="text-right">{t('Qty')}</TableHead>
+                  <TableHead className="text-right">{t('Date')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -223,7 +225,7 @@ export function DashboardPage() {
                     <TableCell className="font-medium">{tx.itemName}</TableCell>
                     <TableCell>
                       <span className={`text-xs font-medium ${tx.quantity > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                        {TRANSACTION_LABELS[tx.type] || tx.type}
+                        {t(TRANSACTION_LABEL_KEYS[tx.type] || tx.type)}
                       </span>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">{tx.recipient || tx.reference}</TableCell>
@@ -243,12 +245,12 @@ export function DashboardPage() {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
-              Low Stock Alert
+              {t('Low Stock Alert')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {lowStockItems.length === 0 && outOfStockItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-8 text-center">All items are well stocked.</p>
+              <p className="text-sm text-muted-foreground py-8 text-center">{t('All items are well stocked.')}</p>
             ) : (
               <div className="space-y-3">
                 {[...lowStockItems, ...outOfStockItems].map((item) => (
@@ -267,7 +269,7 @@ export function DashboardPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-semibold">{item.quantity} remaining</span>
+                      <span className="text-sm font-semibold">{item.quantity} {t('remaining')}</span>
                       <StatusBadge status={item.status} />
                     </div>
                   </div>

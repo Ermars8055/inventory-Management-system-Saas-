@@ -11,11 +11,13 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Item } from '@/types';
 
 export function UniformsPage() {
   const { currentOrg } = useOrganization();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [items, setItems] = useState<Item[]>([]);
   const [search, setSearch] = useState('');
   const [classFilter, setClassFilter] = useState('all');
@@ -55,8 +57,8 @@ export function UniformsPage() {
   return (
     <div>
       <PageHeader
-        title="Uniform Management"
-        description={`${items.length} uniform types · ${totalAvailable} available · ${totalIssued} issued`}
+        title={t("Uniform Management")}
+        description={`${items.length} ${t('uniform types')} · ${totalAvailable} ${t('available')} · ${totalIssued} ${t('issued')}`}
       />
 
       <Card className="mb-4">
@@ -65,7 +67,7 @@ export function UniformsPage() {
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search uniforms..."
+                placeholder={t("Search uniforms...")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
@@ -73,51 +75,51 @@ export function UniformsPage() {
             </div>
             <Select value={classFilter} onValueChange={setClassFilter}>
               <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Class" />
+                <SelectValue placeholder={t("Class")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Classes</SelectItem>
+                <SelectItem value="all">{t('All Classes')}</SelectItem>
                 {classes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={genderFilter} onValueChange={setGenderFilter}>
               <SelectTrigger className="w-[120px]">
-                <SelectValue placeholder="Gender" />
+                <SelectValue placeholder={t("Gender")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="Boys">Boys</SelectItem>
-                <SelectItem value="Girls">Girls</SelectItem>
-                <SelectItem value="Unisex">Unisex</SelectItem>
+                <SelectItem value="all">{t('All')}</SelectItem>
+                <SelectItem value="Boys">{t('Boys')}</SelectItem>
+                <SelectItem value="Girls">{t('Girls')}</SelectItem>
+                <SelectItem value="Unisex">{t('Unisex')}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Type" />
+                <SelectValue placeholder={t("Type")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                {types.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                <SelectItem value="all">{t('All Types')}</SelectItem>
+                {types.map((tp) => <SelectItem key={tp} value={tp}>{tp}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={yearFilter} onValueChange={setYearFilter}>
               <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="Year" />
+                <SelectValue placeholder={t("Year")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Years</SelectItem>
+                <SelectItem value="all">{t('All Years')}</SelectItem>
                 {years.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={stockFilter} onValueChange={setStockFilter}>
               <SelectTrigger className="w-[130px]">
-                <SelectValue placeholder="Stock" />
+                <SelectValue placeholder={t("Stock")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Stock</SelectItem>
-                <SelectItem value="in_stock">In Stock</SelectItem>
-                <SelectItem value="low_stock">Low Stock</SelectItem>
-                <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                <SelectItem value="all">{t('All Stock')}</SelectItem>
+                <SelectItem value="in_stock">{t('In Stock')}</SelectItem>
+                <SelectItem value="low_stock">{t('Low Stock')}</SelectItem>
+                <SelectItem value="out_of_stock">{t('Out of Stock')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -127,20 +129,20 @@ export function UniformsPage() {
       <Card>
         <CardContent className="p-0">
           {filtered.length === 0 ? (
-            <EmptyState icon={Shirt} title="No uniforms found" description="Try adjusting your filters." />
+            <EmptyState icon={Shirt} title={t("No uniforms found")} description={t("Try adjusting your filters.")} />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Class</TableHead>
-                  <TableHead>Gender</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead>Acad. Year</TableHead>
-                  <TableHead className="text-right">Available</TableHead>
-                  <TableHead className="text-right">Issued</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>{t('Item')}</TableHead>
+                  <TableHead>{t('Type')}</TableHead>
+                  <TableHead>{t('Class')}</TableHead>
+                  <TableHead>{t('Gender')}</TableHead>
+                  <TableHead>{t('Size')}</TableHead>
+                  <TableHead>{t('Acad. Year')}</TableHead>
+                  <TableHead className="text-right">{t('Available')}</TableHead>
+                  <TableHead className="text-right">{t('Issued')}</TableHead>
+                  <TableHead>{t('Status')}</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>

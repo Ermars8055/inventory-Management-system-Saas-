@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MODULE_DEFINITIONS } from '@/data/modules';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { ModuleId } from '@/types';
 
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -22,6 +23,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
 export function ModulesPage() {
   const { currentOrg, updateModules, isModuleEnabled } = useOrganization();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [pending, setPending] = useState<ModuleId[]>([]);
   const [dirty, setDirty] = useState(false);
 
@@ -46,7 +48,7 @@ export function ModulesPage() {
   const handleSave = async () => {
     await updateModules(pending);
     setDirty(false);
-    toast({ title: 'Module configuration saved' });
+    toast({ title: t('Module configuration saved') });
   };
 
   const handleDiscard = () => {
@@ -64,13 +66,13 @@ export function ModulesPage() {
   return (
     <div>
       <PageHeader
-        title="Modules"
-        description="Enable or disable modules for this organization"
+        title={t("Modules")}
+        description={t("Enable or disable modules for this organization")}
         actions={
           dirty ? (
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleDiscard}>Discard</Button>
-              <Button size="sm" onClick={handleSave}>Save Changes</Button>
+              <Button variant="outline" size="sm" onClick={handleDiscard}>{t('Discard')}</Button>
+              <Button size="sm" onClick={handleSave}>{t('Save Changes')}</Button>
             </div>
           ) : undefined
         }
@@ -80,7 +82,7 @@ export function ModulesPage() {
         {/* Core modules */}
         <div>
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            Core Modules
+            {t('Core Modules')}
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {coreModules.map((mod) => {
@@ -99,12 +101,12 @@ export function ModulesPage() {
                         </div>
                       </div>
                       <Badge variant="outline" className="shrink-0 text-xs bg-primary/10 text-primary border-primary/20">
-                        Core
+                        {t('Core')}
                       </Badge>
                     </div>
                     <div className="mt-3 flex items-center gap-2 text-xs text-emerald-600 font-medium">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      Always enabled
+                      {t('Always enabled')}
                     </div>
                   </CardContent>
                 </Card>
@@ -116,7 +118,7 @@ export function ModulesPage() {
         {/* Optional modules */}
         <div>
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            Optional Modules
+            {t('Optional Modules')}
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {optionalModules.map((mod) => {
@@ -146,11 +148,11 @@ export function ModulesPage() {
                     </div>
                     <div className="mt-3 flex items-center justify-between">
                       <span className={`text-xs font-medium ${enabled ? 'text-emerald-600' : 'text-muted-foreground'}`}>
-                        {enabled ? 'Enabled' : 'Disabled'}
+                        {enabled ? t('Enabled') : t('Disabled')}
                       </span>
                       {enabled && mod.configurable && (
                         <Button variant="ghost" size="sm" className="h-6 text-xs px-2">
-                          Configure
+                          {t('Configure')}
                         </Button>
                       )}
                     </div>

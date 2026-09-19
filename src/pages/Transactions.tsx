@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ArrowDownCircle, ArrowUpCircle, AlertCircle, RotateCcw, Wrench, ArrowLeftRight, Search } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
+import { useTranslation } from '@/hooks/useTranslation';
 import { transactionService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { CsvActions } from '@/components/shared/CsvActions';
@@ -22,6 +23,7 @@ const TX_CONFIG: Record<TransactionType, { label: string; icon: typeof ArrowDown
 
 export function TransactionsPage() {
   const { currentOrg } = useOrganization();
+  const { t } = useTranslation();
   const [transactions, setTransactions] = useState<StockTransaction[]>([]);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -44,8 +46,8 @@ export function TransactionsPage() {
   return (
     <div>
       <PageHeader
-        title="Stock Transactions"
-        description={`${transactions.length} transactions recorded`}
+        title={t("Stock Transactions")}
+        description={`${transactions.length} ${t("transactions recorded")}`}
         actions={<CsvActions exportUrl="/data/export/transactions" entityName="Transactions" />}
       />
 
@@ -54,16 +56,16 @@ export function TransactionsPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search by item or reference..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+              <Input placeholder={t("Search by item or reference...")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Transaction Type" />
+                <SelectValue placeholder={t("Transaction Type")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="all">{t("All Types")}</SelectItem>
                 {Object.entries(TX_CONFIG).map(([key, cfg]) => (
-                  <SelectItem key={key} value={key}>{cfg.label}</SelectItem>
+                  <SelectItem key={key} value={key}>{t(cfg.label)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -74,17 +76,17 @@ export function TransactionsPage() {
       <Card>
         <CardContent className="p-0">
           {filtered.length === 0 ? (
-            <EmptyState icon={ArrowLeftRight} title="No transactions found" description="Try adjusting your filters." />
+            <EmptyState icon={ArrowLeftRight} title={t("No transactions found")} description={t("Try adjusting your filters.")} />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Transaction</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Reference</TableHead>
+                  <TableHead>{t("Date")}</TableHead>
+                  <TableHead>{t("Item")}</TableHead>
+                  <TableHead>{t("Transaction")}</TableHead>
+                  <TableHead className="text-right">{t("Quantity")}</TableHead>
+                  <TableHead>{t("User")}</TableHead>
+                  <TableHead>{t("Reference")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -100,7 +102,7 @@ export function TransactionsPage() {
                           <div className={`flex h-7 w-7 items-center justify-center rounded-md ${cfg.bg}`}>
                             <Icon className={`h-3.5 w-3.5 ${cfg.color}`} />
                           </div>
-                          <span className="text-sm">{cfg.label}</span>
+                          <span className="text-sm">{t(cfg.label)}</span>
                         </div>
                       </TableCell>
                       <TableCell className={`text-right font-semibold ${tx.quantity > 0 ? 'text-emerald-600' : 'text-red-600'}`}>

@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { getModuleDef } from '@/data/modules';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Item, StockTransaction } from '@/types';
 
 const TRANSACTION_LABELS: Record<string, string> = {
@@ -18,6 +19,7 @@ const TRANSACTION_LABELS: Record<string, string> = {
 export function ItemDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [item, setItem] = useState<Item | null>(null);
   const [transactions, setTransactions] = useState<StockTransaction[]>([]);
 
@@ -27,7 +29,7 @@ export function ItemDetailPage() {
     transactionService.getByItem(id).then(setTransactions);
   }, [id]);
 
-  if (!item) return <div className="p-8 text-muted-foreground">Loading...</div>;
+  if (!item) return <div className="p-8 text-muted-foreground">{t('Loading...')}</div>;
 
   const moduleDef = item.module !== 'general' ? getModuleDef(item.module) : null;
 
@@ -35,68 +37,68 @@ export function ItemDetailPage() {
   const moduleAttributes: { label: string; value: string }[] = [];
   if (item.uniform) {
     moduleAttributes.push(
-      { label: 'Class', value: item.uniform.classGrade },
-      { label: 'Gender', value: item.uniform.gender },
-      { label: 'Size', value: item.uniform.size },
-      { label: 'Academic Year', value: item.uniform.academicYear },
-      { label: 'Uniform Type', value: item.uniform.uniformType },
+      { label: t('Class'), value: item.uniform.classGrade },
+      { label: t('Gender'), value: item.uniform.gender },
+      { label: t('Size'), value: item.uniform.size },
+      { label: t('Academic Year'), value: item.uniform.academicYear },
+      { label: t('Uniform Type'), value: item.uniform.uniformType },
     );
   }
   if (item.book) {
     moduleAttributes.push(
-      { label: 'ISBN', value: item.book.isbn },
-      { label: 'Subject', value: item.book.subject },
-      { label: 'Class', value: item.book.classGrade },
-      { label: 'Academic Year', value: item.book.academicYear },
-      { label: 'Edition', value: item.book.edition },
-      { label: 'Publisher', value: item.book.publisher },
+      { label: t('ISBN'), value: item.book.isbn },
+      { label: t('Subject'), value: item.book.subject },
+      { label: t('Class'), value: item.book.classGrade },
+      { label: t('Academic Year'), value: item.book.academicYear },
+      { label: t('Edition'), value: item.book.edition },
+      { label: t('Publisher'), value: item.book.publisher },
     );
   }
   if (item.medicine) {
     moduleAttributes.push(
-      { label: 'Generic Name', value: item.medicine.genericName },
-      { label: 'Manufacturer', value: item.medicine.manufacturer },
-      { label: 'Batch Number', value: item.medicine.batchNumber },
-      { label: 'Expiry Date', value: item.medicine.expiryDate },
-      { label: 'Manufacturing Date', value: item.medicine.manufacturingDate },
-      { label: 'MRP', value: `₹${item.medicine.mrp}` },
-      { label: 'Purchase Price', value: `₹${item.medicine.purchasePrice}` },
-      { label: 'Prescription Required', value: item.medicine.prescriptionRequired ? 'Yes' : 'No' },
+      { label: t('Generic Name'), value: item.medicine.genericName },
+      { label: t('Manufacturer'), value: item.medicine.manufacturer },
+      { label: t('Batch Number'), value: item.medicine.batchNumber },
+      { label: t('Expiry Date'), value: item.medicine.expiryDate },
+      { label: t('Manufacturing Date'), value: item.medicine.manufacturingDate },
+      { label: t('MRP'), value: `₹${item.medicine.mrp}` },
+      { label: t('Purchase Price'), value: `₹${item.medicine.purchasePrice}` },
+      { label: t('Prescription Required'), value: item.medicine.prescriptionRequired ? t('Yes') : t('No') },
     );
   }
 
   return (
     <div>
       <Button variant="ghost" size="sm" onClick={() => navigate('/inventory')} className="mb-4">
-        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Inventory
+        <ArrowLeft className="h-4 w-4 mr-1" /> {t('Back to Inventory')}
       </Button>
 
-      <PageHeader title={item.name} description={`SKU: ${item.sku}`} />
+      <PageHeader title={item.name} description={`${t('SKU')}: ${item.sku}`} />
 
       <div className="grid gap-6 lg:grid-cols-3 mb-6">
         {/* Stock Summary */}
         <div className="grid grid-cols-2 gap-4 lg:col-span-3">
           <Card>
             <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">Current Stock</p>
+              <p className="text-sm text-muted-foreground">{t('Current Stock')}</p>
               <p className="text-2xl font-bold mt-1">{item.quantity}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">Available</p>
+              <p className="text-sm text-muted-foreground">{t('Available')}</p>
               <p className="text-2xl font-bold mt-1 text-emerald-600">{item.available}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">Reserved</p>
+              <p className="text-sm text-muted-foreground">{t('Reserved')}</p>
               <p className="text-2xl font-bold mt-1 text-amber-600">{item.reserved}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">Status</p>
+              <p className="text-sm text-muted-foreground">{t('Status')}</p>
               <div className="mt-2"><StatusBadge status={item.status} /></div>
             </CardContent>
           </Card>
@@ -105,10 +107,10 @@ export function ItemDetailPage() {
 
       <Tabs defaultValue="overview">
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="stock">Stock</TabsTrigger>
-          <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          {item.module === 'uniforms' && <TabsTrigger value="issue-history">Issue History</TabsTrigger>}
+          <TabsTrigger value="overview">{t('Overview')}</TabsTrigger>
+          <TabsTrigger value="stock">{t('Stock')}</TabsTrigger>
+          <TabsTrigger value="transactions">{t('Transactions')}</TabsTrigger>
+          {item.module === 'uniforms' && <TabsTrigger value="issue-history">{t('Issue History')}</TabsTrigger>}
         </TabsList>
 
         {/* Overview Tab */}
@@ -116,13 +118,13 @@ export function ItemDetailPage() {
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Item Information</CardTitle>
+                <CardTitle className="text-base">{t('Item Information')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <InfoRow icon={Package} label="Category" value={item.categoryName} />
-                {moduleDef && <InfoRow icon={Package} label="Module" value={moduleDef.name} />}
-                <InfoRow icon={MapPin} label="Location" value={item.location} />
-                <InfoRow icon={Calendar} label="Last Updated" value={item.lastUpdated} />
+                <InfoRow icon={Package} label={t("Category")} value={item.categoryName} />
+                {moduleDef && <InfoRow icon={Package} label={t("Module")} value={moduleDef.name} />}
+                <InfoRow icon={MapPin} label={t("Location")} value={item.location} />
+                <InfoRow icon={Calendar} label={t("Last Updated")} value={item.lastUpdated} />
               </CardContent>
             </Card>
 
@@ -130,7 +132,7 @@ export function ItemDetailPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">
-                    {moduleDef?.name.replace(' Management', '') || 'Module'} Attributes
+                    {moduleDef?.name.replace(' Management', '') || t('Module')} {t('Attributes')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -147,13 +149,13 @@ export function ItemDetailPage() {
             {item.attributes && Object.keys(item.attributes).length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Custom Fields</CardTitle>
+                  <CardTitle className="text-base">{t('Custom Fields')}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {Object.entries(item.attributes).map(([key, val]) => (
                     <div key={key} className="flex justify-between items-center py-1.5 border-b last:border-0">
                       <span className="text-sm text-muted-foreground">{key}</span>
-                      <span className="text-sm font-medium">{typeof val === 'boolean' ? (val ? 'Yes' : 'No') : String(val)}</span>
+                      <span className="text-sm font-medium">{typeof val === 'boolean' ? (val ? t('Yes') : t('No')) : String(val)}</span>
                     </div>
                   ))}
                 </CardContent>
@@ -166,14 +168,14 @@ export function ItemDetailPage() {
         <TabsContent value="stock">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Stock Levels</CardTitle>
+              <CardTitle className="text-base">{t('Stock Levels')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-muted-foreground">Total Quantity</span>
-                    <span className="font-medium">{item.quantity} units</span>
+                    <span className="text-muted-foreground">{t('Total Quantity')}</span>
+                    <span className="font-medium">{item.quantity} {t('units')}</span>
                   </div>
                   <div className="h-2 rounded-full bg-muted overflow-hidden">
                     <div className="h-full bg-primary rounded-full" style={{ width: '100%' }} />
@@ -181,8 +183,8 @@ export function ItemDetailPage() {
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-muted-foreground">Available</span>
-                    <span className="font-medium text-emerald-600">{item.available} units</span>
+                    <span className="text-muted-foreground">{t('Available')}</span>
+                    <span className="font-medium text-emerald-600">{item.available} {t('units')}</span>
                   </div>
                   <div className="h-2 rounded-full bg-muted overflow-hidden">
                     <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${item.quantity > 0 ? (item.available / item.quantity) * 100 : 0}%` }} />
@@ -190,8 +192,8 @@ export function ItemDetailPage() {
                 </div>
                 <div>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-muted-foreground">Reserved</span>
-                    <span className="font-medium text-amber-600">{item.reserved} units</span>
+                    <span className="text-muted-foreground">{t('Reserved')}</span>
+                    <span className="font-medium text-amber-600">{item.reserved} {t('units')}</span>
                   </div>
                   <div className="h-2 rounded-full bg-muted overflow-hidden">
                     <div className="h-full bg-amber-500 rounded-full" style={{ width: `${item.quantity > 0 ? (item.reserved / item.quantity) * 100 : 0}%` }} />
@@ -206,11 +208,11 @@ export function ItemDetailPage() {
         <TabsContent value="transactions">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Stock Transaction Timeline</CardTitle>
+              <CardTitle className="text-base">{t('Stock Transaction Timeline')}</CardTitle>
             </CardHeader>
             <CardContent>
               {transactions.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">No transactions recorded for this item.</p>
+                <p className="text-sm text-muted-foreground text-center py-8">{t('No transactions recorded for this item.')}</p>
               ) : (
                 <div className="space-y-0">
                   {transactions.map((tx, idx) => (
@@ -224,12 +226,12 @@ export function ItemDetailPage() {
                       <div className="flex-1 pb-2">
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-medium">
-                            {tx.quantity > 0 ? '+' : ''}{tx.quantity} {TRANSACTION_LABELS[tx.type] || tx.type}
+                            {tx.quantity > 0 ? '+' : ''}{tx.quantity} {t(TRANSACTION_LABELS[tx.type] || tx.type)}
                           </p>
                           <span className="text-xs text-muted-foreground">{tx.date}</span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          by {tx.user} · {tx.reference}
+                          {t('by')} {tx.user} · {tx.reference}
                           {tx.recipient && ` · ${tx.recipient}`}
                         </p>
                       </div>
@@ -245,17 +247,17 @@ export function ItemDetailPage() {
           <TabsContent value="issue-history">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Issue History</CardTitle>
+                <CardTitle className="text-base">{t('Issue History')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Student</TableHead>
-                      <TableHead>Class</TableHead>
-                      <TableHead className="text-right">Quantity</TableHead>
-                      <TableHead>Issue Date</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>{t('Student')}</TableHead>
+                      <TableHead>{t('Class')}</TableHead>
+                      <TableHead className="text-right">{t('Quantity')}</TableHead>
+                      <TableHead>{t('Issue Date')}</TableHead>
+                      <TableHead>{t('Status')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

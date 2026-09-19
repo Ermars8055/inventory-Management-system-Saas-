@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { ClassTemplate, Item } from '@/types';
 
 const EMPTY_TEMPLATE = { name: '', group: '', academicYear: '', notes: '' };
@@ -19,6 +20,7 @@ const CONDITIONS = ['New', 'Good', 'Fair', 'Poor'];
 export function ClassTemplatesPage() {
   const { currentOrg } = useOrganization();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [templates, setTemplates] = useState<ClassTemplate[]>([]);
   const [items, setItems] = useState<Item[]>([]);
@@ -87,16 +89,16 @@ export function ClassTemplatesPage() {
         setTemplates(ts => [...ts, created]);
       }
       setShowTemplateDialog(false);
-      toast({ title: `Template ${editingTemplate ? 'updated' : 'created'}` });
+      toast({ title: t(editingTemplate ? 'Template updated' : 'Template created') });
     } finally { setTSaving(false); }
   }
 
-  async function deleteTemplate(t: ClassTemplate) {
-    if (!confirm(`Delete template "${t.name}"? This cannot be undone.`)) return;
-    await classTemplateService.delete(t.id);
-    setTemplates(ts => ts.filter(x => x.id !== t.id));
-    if (selected?.id === t.id) setSelected(null);
-    toast({ title: 'Template deleted' });
+  async function deleteTemplate(tmpl: ClassTemplate) {
+    if (!confirm(t('Delete template "{{name}}"? This cannot be undone.', { name: tmpl.name }))) return;
+    await classTemplateService.delete(tmpl.id);
+    setTemplates(ts => ts.filter(x => x.id !== tmpl.id));
+    if (selected?.id === tmpl.id) setSelected(null);
+    toast({ title: t('Template deleted') });
   }
 
   // ── Line-item CRUD ──────────────────────────────────────────────────────
@@ -149,7 +151,7 @@ export function ClassTemplatesPage() {
         setTemplates(ts => ts.map(t => t.id === fresh.id ? fresh : t));
       }
       setShowItemDialog(false);
-      toast({ title: `Item ${editingItem ? 'updated' : 'added'}` });
+      toast({ title: t(editingItem ? 'Item updated' : 'Item added') });
     } finally { setISaving(false); }
   }
 
@@ -159,7 +161,7 @@ export function ClassTemplatesPage() {
     const fresh: ClassTemplate = { ...selected, items: selected.items.filter(x => x.id !== li.id) };
     setSelected(fresh);
     setTemplates(ts => ts.map(t => t.id === fresh.id ? fresh : t));
-    toast({ title: 'Item removed' });
+    toast({ title: t('Item removed') });
   }
 
   // ── Inventory search for item picker ──────────────────────────────────
@@ -172,11 +174,11 @@ export function ClassTemplatesPage() {
   return (
     <div>
       <PageHeader
-        title="Class Material Templates"
-        description="Define what items each class receives. Use Bulk Issue to issue them in one shot."
+        title={t('Class Material Templates')}
+        description={t('Define what items each class receives. Use Bulk Issue to issue them in one shot.')}
         actions={
           <Button onClick={openNewTemplate}>
-            <Plus className="h-4 w-4 mr-1" /> New Template
+            <Plus className="h-4 w-4 mr-1" /> {t('New Template')}
           </Button>
         }
       />
@@ -185,31 +187,31 @@ export function ClassTemplatesPage() {
         {/* Left: template list */}
         <div className="md:col-span-2 space-y-2">
           {loading ? (
-            <p className="text-sm text-muted-foreground py-4">Loading…</p>
+            <p className="text-sm text-muted-foreground py-4">{t('Loading...')}</p>
           ) : templates.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                No templates yet. Create one to get started.
+                {t('No templates yet. Create one to get started.')}
               </CardContent>
             </Card>
           ) : (
-            templates.map(t => (
+            templates.map(tmpl => (
               <Card
-                key={t.id}
-                className={`cursor-pointer transition-all ${selected?.id === t.id ? 'border-primary ring-1 ring-primary/30' : 'hover:border-primary/40'}`}
-                onClick={() => setSelected(t)}
+                key={tmpl.id}
+                className={`cursor-pointer transition-all ${selected?.id === tmpl.id ? 'border-primary ring-1 ring-primary/30' : 'hover:border-primary/40'}`}
+                onClick={() => setSelected(tmpl)}
               >
                 <CardContent className="px-4 py-3 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{t.name}</p>
-                    <p className="text-xs text-muted-foreground">{t.group}{t.academicYear ? ` · ${t.academicYear}` : ''}</p>
-                    <p className="text-xs text-muted-foreground">{t.items.length} item{t.items.length !== 1 ? 's' : ''}</p>
+                    <p className="font-medium text-sm truncate">{tmpl.name}</p>
+                    <p className="text-xs text-muted-foreground">{tmpl.group}{tmpl.academicYear ? ` · ${tmpl.academicYear}` : ''}</p>
+                    <p className="text-xs text-muted-foreground">{tmpl.items.length} {tmpl.items.length !== 1 ? t('items') : t('item')}</p>
                   </div>
                   <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditTemplate(t)}>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditTemplate(tmpl)}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => deleteTemplate(t)}>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => deleteTemplate(tmpl)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -225,7 +227,7 @@ export function ClassTemplatesPage() {
           {!selected ? (
             <Card>
               <CardContent className="py-12 text-center text-sm text-muted-foreground">
-                Select a template to manage its items.
+                {t('Select a template to manage its items.')}
               </CardContent>
             </Card>
           ) : (
@@ -236,13 +238,13 @@ export function ClassTemplatesPage() {
                   <p className="text-xs text-muted-foreground mt-0.5">{selected.group}{selected.academicYear ? ` · ${selected.academicYear}` : ''}</p>
                 </div>
                 <Button size="sm" onClick={openNewItem}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
+                  <Plus className="h-3.5 w-3.5 mr-1" /> {t('Add Item')}
                 </Button>
               </CardHeader>
               <CardContent>
                 {selected.items.length === 0 ? (
                   <div className="py-8 text-center text-sm text-muted-foreground">
-                    No items yet. Add the materials that should be issued with this template.
+                    {t('No items yet. Add the materials that should be issued with this template.')}
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -253,7 +255,7 @@ export function ClassTemplatesPage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{li.itemName}</p>
                           <p className="text-xs text-muted-foreground">
-                            Qty: {li.quantity} · Condition: {li.conditionIssued}
+                            {t('Qty')}: {li.quantity} · {t('Condition')}: {t(li.conditionIssued)}
                             {li.notes ? ` · ${li.notes}` : ''}
                           </p>
                         </div>
@@ -277,11 +279,11 @@ export function ClassTemplatesPage() {
       <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingTemplate ? 'Edit Template' : 'New Class Template'}</DialogTitle>
+            <DialogTitle>{editingTemplate ? t('Edit Template') : t('New Class Template')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={saveTemplate} className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>Template Name *</Label>
+              <Label>{t('Template Name')} *</Label>
               <Input
                 placeholder="e.g. Grade 5A Kit 2025-26"
                 value={tForm.name}
@@ -290,7 +292,7 @@ export function ClassTemplatesPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Class / Group *</Label>
+              <Label>{t('Class / Group')} *</Label>
               <Input
                 placeholder="e.g. Grade 5A"
                 value={tForm.group}
@@ -299,7 +301,7 @@ export function ClassTemplatesPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Academic Year</Label>
+              <Label>{t('Academic Year')}</Label>
               <Input
                 placeholder="e.g. 2025-26"
                 value={tForm.academicYear}
@@ -307,16 +309,16 @@ export function ClassTemplatesPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Notes</Label>
+              <Label>{t('Notes')}</Label>
               <Input
-                placeholder="Optional notes"
+                placeholder={t('Optional notes')}
                 value={tForm.notes}
                 onChange={e => setTForm(f => ({ ...f, notes: e.target.value }))}
               />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowTemplateDialog(false)}>Cancel</Button>
-              <Button type="submit" disabled={tSaving}>{tSaving ? 'Saving…' : 'Save'}</Button>
+              <Button type="button" variant="outline" onClick={() => setShowTemplateDialog(false)}>{t('Cancel')}</Button>
+              <Button type="submit" disabled={tSaving}>{tSaving ? t('Saving...') : t('Save')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -326,13 +328,13 @@ export function ClassTemplatesPage() {
       <Dialog open={showItemDialog} onOpenChange={setShowItemDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingItem ? 'Edit Item' : 'Add Item to Template'}</DialogTitle>
+            <DialogTitle>{editingItem ? t('Edit Item') : t('Add Item to Template')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={saveItem} className="space-y-4 py-2">
             <div className="space-y-1.5 relative">
-              <Label>Item *</Label>
+              <Label>{t('Item')} *</Label>
               <Input
-                placeholder="Search inventory or type a name…"
+                placeholder={t('Search inventory or type a name...')}
                 value={itemSearch}
                 onChange={e => {
                   setItemSearch(e.target.value);
@@ -355,7 +357,7 @@ export function ClassTemplatesPage() {
                       }}
                     >
                       <span>{inv.name}</span>
-                      <span className="text-muted-foreground text-xs">{inv.available} avail</span>
+                      <span className="text-muted-foreground text-xs">{inv.available} {t('avail')}</span>
                     </button>
                   ))}
                 </div>
@@ -363,7 +365,7 @@ export function ClassTemplatesPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Quantity *</Label>
+                <Label>{t('Quantity')} *</Label>
                 <Input
                   type="number" min={1}
                   value={iForm.quantity}
@@ -372,26 +374,26 @@ export function ClassTemplatesPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Condition</Label>
+                <Label>{t('Condition')}</Label>
                 <Select value={iForm.conditionIssued} onValueChange={v => setIForm(f => ({ ...f, conditionIssued: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {CONDITIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    {CONDITIONS.map(c => <SelectItem key={c} value={c}>{t(c)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Notes</Label>
+              <Label>{t('Notes')}</Label>
               <Input
-                placeholder="Optional (e.g. Size 32)"
+                placeholder={t('Optional (e.g. Size 32)')}
                 value={iForm.notes}
                 onChange={e => setIForm(f => ({ ...f, notes: e.target.value }))}
               />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowItemDialog(false)}>Cancel</Button>
-              <Button type="submit" disabled={iSaving || !iForm.itemName}>{iSaving ? 'Saving…' : 'Save'}</Button>
+              <Button type="button" variant="outline" onClick={() => setShowItemDialog(false)}>{t('Cancel')}</Button>
+              <Button type="submit" disabled={iSaving || !iForm.itemName}>{iSaving ? t('Saving...') : t('Save')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

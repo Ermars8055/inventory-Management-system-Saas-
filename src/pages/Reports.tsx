@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { Download } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
+import { useTranslation } from '@/hooks/useTranslation';
 import { inventoryService, transactionService, vendorService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,6 +36,7 @@ const TX_COLOR = '#0891b2';
 
 export function ReportsPage() {
   const { currentOrg } = useOrganization();
+  const { t } = useTranslation();
   const [items, setItems] = useState<Item[]>([]);
   const [transactions, setTransactions] = useState<StockTransaction[]>([]);
   const [vendorCount, setVendorCount] = useState(0);
@@ -58,10 +60,10 @@ export function ReportsPage() {
     ), [items]);
 
   const statusData = useMemo(() => [
-    { name: 'In Stock', value: items.filter((i) => i.status === 'in_stock').length },
-    { name: 'Low Stock', value: items.filter((i) => i.status === 'low_stock').length },
-    { name: 'Out of Stock', value: items.filter((i) => i.status === 'out_of_stock').length },
-  ].filter((d) => d.value > 0), [items]);
+    { name: t('In Stock'), value: items.filter((i) => i.status === 'in_stock').length },
+    { name: t('Low Stock'), value: items.filter((i) => i.status === 'low_stock').length },
+    { name: t('Out of Stock'), value: items.filter((i) => i.status === 'out_of_stock').length },
+  ].filter((d) => d.value > 0), [items, t]);
 
   const txTypeData = useMemo(() =>
     Object.entries(
@@ -69,22 +71,22 @@ export function ReportsPage() {
         acc[tx.type] = (acc[tx.type] || 0) + 1;
         return acc;
       }, {} as Record<string, number>)
-    ).map(([type, count]) => ({ name: TX_LABELS[type] ?? type, count })),
-  [transactions]);
+    ).map(([type, count]) => ({ name: t(TX_LABELS[type] ?? type), count })),
+  [transactions, t]);
 
   const totalUnits = items.reduce((a, i) => a + i.quantity, 0);
   const lowStock = items.filter((i) => i.status === 'low_stock').length;
   const outOfStock = items.filter((i) => i.status === 'out_of_stock').length;
 
   function exportInventory() {
-    const headers = ['Name', 'SKU', 'Category', 'Qty', 'Available', 'Reserved', 'Min Qty', 'Reorder Qty', 'Location', 'Status'];
+    const headers = [t('Name'), t('SKU'), t('Category'), t('Qty'), t('Available'), t('Reserved'), t('Min Qty'), t('Reorder Qty'), t('Location'), t('Status')];
     const rows = items.map(i => [i.name, i.sku, i.categoryName, i.quantity, i.available, i.reserved, i.minQuantity ?? 10, i.reorderQty ?? 50, i.location, i.status]);
     exportCSV([headers, ...rows], `inventory-${new Date().toISOString().slice(0, 10)}.csv`);
   }
 
   function exportTransactions() {
-    const headers = ['Date', 'Item', 'Type', 'Quantity', 'Reference', 'Recipient', 'Notes'];
-    const rows = transactions.map(t => [t.date, t.itemName, t.type, t.quantity, t.reference || '', t.recipient || '', t.notes || '']);
+    const headers = [t('Date'), t('Item'), t('Type'), t('Quantity'), t('Reference'), t('Recipient'), t('Notes')];
+    const rows = transactions.map(tx => [tx.date, tx.itemName, tx.type, tx.quantity, tx.reference || '', tx.recipient || '', tx.notes || '']);
     exportCSV([headers, ...rows], `transactions-${new Date().toISOString().slice(0, 10)}.csv`);
   }
 
@@ -93,15 +95,15 @@ export function ReportsPage() {
   return (
     <div>
       <PageHeader
-        title="Reports & Analytics"
-        description={`Inventory overview for ${currentOrg.name}`}
+        title={t("Reports & Analytics")}
+        description={`${t("Inventory overview for")} ${currentOrg.name}`}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={exportInventory}>
-              <Download className="h-4 w-4 mr-1" /> Inventory CSV
+              <Download className="h-4 w-4 mr-1" /> {t("Inventory CSV")}
             </Button>
             <Button variant="outline" size="sm" onClick={exportTransactions}>
-              <Download className="h-4 w-4 mr-1" /> Transactions CSV
+              <Download className="h-4 w-4 mr-1" /> {t("Transactions CSV")}
             </Button>
           </div>
         }
@@ -110,10 +112,10 @@ export function ReportsPage() {
       {/* Summary row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
-          { label: 'Total Units', value: totalUnits.toLocaleString('en-IN') },
-          { label: 'Item Types', value: items.length },
-          { label: 'Low Stock Items', value: lowStock, className: 'text-amber-600' },
-          { label: 'Out of Stock', value: outOfStock, className: 'text-red-600' },
+          { label: t('Total Units'), value: totalUnits.toLocaleString('en-IN') },
+          { label: t('Item Types'), value: items.length },
+          { label: t('Low Stock Items'), value: lowStock, className: 'text-amber-600' },
+          { label: t('Out of Stock'), value: outOfStock, className: 'text-red-600' },
         ].map((stat) => (
           <Card key={stat.label}>
             <CardContent className="p-4">
@@ -128,7 +130,7 @@ export function ReportsPage() {
         {/* Stock by category */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Stock Units by Category</CardTitle>
+            <CardTitle className="text-base">{t("Stock Units by Category")}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={240}>
@@ -137,7 +139,7 @@ export function ReportsPage() {
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Bar dataKey="units" fill={BAR_COLOR} radius={[4, 4, 0, 0]} name="Units" />
+                <Bar dataKey="units" fill={BAR_COLOR} radius={[4, 4, 0, 0]} name={t("Units")} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -146,7 +148,7 @@ export function ReportsPage() {
         {/* Stock status pie */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Stock Status Distribution</CardTitle>
+            <CardTitle className="text-base">{t("Stock Status Distribution")}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={240}>
@@ -177,7 +179,7 @@ export function ReportsPage() {
       {/* Transaction summary */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Transaction Summary ({transactions.length} total)</CardTitle>
+          <CardTitle className="text-base">{t("Transaction Summary")} ({transactions.length} {t("total")})</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={200}>
@@ -189,7 +191,7 @@ export function ReportsPage() {
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Bar dataKey="count" fill={TX_COLOR} radius={[4, 4, 0, 0]} name="Count" />
+              <Bar dataKey="count" fill={TX_COLOR} radius={[4, 4, 0, 0]} name={t("Count")} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>

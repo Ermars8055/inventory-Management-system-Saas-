@@ -10,11 +10,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Item } from '@/types';
 
 export function BarcodePage() {
   const { currentOrg } = useOrganization();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [items, setItems] = useState<Item[]>([]);
   const [query, setQuery] = useState('');
   const [scannedItem, setScannedItem] = useState<Item | null>(null);
@@ -53,8 +55,8 @@ export function BarcodePage() {
   return (
     <div>
       <PageHeader
-        title="Barcode & QR Scanner"
-        description="Look up inventory items by SKU or barcode"
+        title={t("Barcode & QR Scanner")}
+        description={t("Look up inventory items by SKU or barcode")}
       />
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -64,7 +66,7 @@ export function BarcodePage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <QrCode className="h-4 w-4 text-muted-foreground" />
-                Scan / Lookup
+                {t('Scan / Lookup')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -72,7 +74,7 @@ export function BarcodePage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   className="pl-9"
-                  placeholder="Enter SKU or scan barcode..."
+                  placeholder={t("Enter SKU or scan barcode...")}
                   value={query}
                   onChange={(e) => {
                     setQuery(e.target.value);
@@ -84,7 +86,7 @@ export function BarcodePage() {
               </div>
               <Button className="w-full" onClick={handleScan} disabled={!query.trim()}>
                 <QrCode className="h-4 w-4 mr-2" />
-                Lookup Item
+                {t('Lookup Item')}
               </Button>
 
               {/* Result */}
@@ -99,19 +101,19 @@ export function BarcodePage() {
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <p className="text-muted-foreground">Category</p>
+                      <p className="text-muted-foreground">{t('Category')}</p>
                       <p className="font-medium">{scannedItem.categoryName}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Available</p>
+                      <p className="text-muted-foreground">{t('Available')}</p>
                       <p className="font-semibold text-emerald-600">{scannedItem.available}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Location</p>
+                      <p className="text-muted-foreground">{t('Location')}</p>
                       <p className="font-medium">{scannedItem.location}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Total Stock</p>
+                      <p className="text-muted-foreground">{t('Total Stock')}</p>
                       <p className="font-medium">{scannedItem.quantity}</p>
                     </div>
                   </div>
@@ -123,7 +125,7 @@ export function BarcodePage() {
                       onClick={() => navigate(`/inventory/${scannedItem.id}`)}
                     >
                       <Eye className="h-3.5 w-3.5 mr-1" />
-                      Details
+                      {t('Details')}
                     </Button>
                     <Button
                       size="sm"
@@ -131,7 +133,7 @@ export function BarcodePage() {
                       onClick={() => navigate('/transactions')}
                     >
                       <ArrowLeftRight className="h-3.5 w-3.5 mr-1" />
-                      Transact
+                      {t('Transact')}
                     </Button>
                   </div>
                 </div>
@@ -139,7 +141,7 @@ export function BarcodePage() {
 
               {notFound && (
                 <div className="border border-dashed rounded-lg p-4 text-center text-sm text-muted-foreground">
-                  No item found for <span className="font-mono font-medium">"{query}"</span>
+                  {t('No item found for')} <span className="font-mono font-medium">"{query}"</span>
                 </div>
               )}
             </CardContent>
@@ -148,9 +150,9 @@ export function BarcodePage() {
           {/* Legend */}
           <Card>
             <CardContent className="p-4 space-y-2 text-xs text-muted-foreground">
-              <p className="font-medium text-foreground text-sm">How to use</p>
-              <p>Type a SKU code (e.g. <span className="font-mono">UNI-SH-001</span>) and press Enter or click Lookup.</p>
-              <p>In a real deployment, a connected barcode scanner would auto-fill this field on scan.</p>
+              <p className="font-medium text-foreground text-sm">{t('How to use')}</p>
+              <p>{t('Type a SKU code (e.g.')} <span className="font-mono">UNI-SH-001</span>{t(') and press Enter or click Lookup.')}</p>
+              <p>{t('In a real deployment, a connected barcode scanner would auto-fill this field on scan.')}</p>
             </CardContent>
           </Card>
         </div>
@@ -160,7 +162,7 @@ export function BarcodePage() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">
-                Inventory Items
+                {t('Inventory Items')}
                 <span className="text-muted-foreground font-normal text-sm ml-2">({filteredItems.length})</span>
               </CardTitle>
             </CardHeader>
@@ -168,11 +170,11 @@ export function BarcodePage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Item</TableHead>
-                    <TableHead>SKU / Barcode</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-right">Available</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>{t('Item')}</TableHead>
+                    <TableHead>{t('SKU / Barcode')}</TableHead>
+                    <TableHead>{t('Category')}</TableHead>
+                    <TableHead className="text-right">{t('Available')}</TableHead>
+                    <TableHead>{t('Status')}</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -211,7 +213,7 @@ export function BarcodePage() {
                   {filteredItems.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
-                        No items found
+                        {t('No items found')}
                       </TableCell>
                     </TableRow>
                   )}

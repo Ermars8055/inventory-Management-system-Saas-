@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { ShoppingCart, Clock, CheckCircle, Package, Plus, Trash2, Search, PackageCheck, X } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useAuth } from '@/context/AuthContext';
+import { useTranslation } from '@/hooks/useTranslation';
 import { procurementService, vendorService, inventoryService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { KPICard } from '@/components/shared/KPICard';
@@ -45,6 +46,7 @@ export function ProcurementPage() {
   const { currentOrg } = useOrganization();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -123,7 +125,7 @@ export function ProcurementPage() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!form.vendorId && !form.vendorName) {
-      toast({ title: 'Select a vendor', variant: 'destructive' });
+      toast({ title: t('Select a vendor'), variant: 'destructive' });
       return;
     }
     const selectedVendor = vendors.find((s) => s.id === form.vendorId);
@@ -152,9 +154,9 @@ export function ProcurementPage() {
       setShowCreate(false);
       setForm(EMPTY_FORM);
       setLineItems([]);
-      toast({ title: 'Purchase order created' });
+      toast({ title: t('Purchase order created') });
     } catch {
-      toast({ title: 'Error', description: 'Failed to create purchase order', variant: 'destructive' });
+      toast({ title: t('Error'), description: t('Failed to create purchase order'), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -166,7 +168,7 @@ export function ProcurementPage() {
       const updated = await procurementService.update(id, { status });
       setOrders((prev) => prev.map((o) => (o.id === id ? updated : o)));
     } catch {
-      toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+      toast({ title: t('Error'), description: t('Failed to update status'), variant: 'destructive' });
     }
   }
 
@@ -175,9 +177,9 @@ export function ProcurementPage() {
     try {
       await procurementService.delete(id);
       setOrders((prev) => prev.filter((o) => o.id !== id));
-      toast({ title: 'Purchase order deleted' });
+      toast({ title: t('Purchase order deleted') });
     } catch {
-      toast({ title: 'Error', description: 'Failed to delete', variant: 'destructive' });
+      toast({ title: t('Error'), description: t('Failed to delete'), variant: 'destructive' });
     }
   }
 
@@ -198,7 +200,7 @@ export function ProcurementPage() {
       .filter(([, qty]) => qty > 0)
       .map(([lineItemId, quantityReceived]) => ({ lineItemId, quantityReceived }));
     if (lines.length === 0) {
-      toast({ title: 'Enter quantity to receive for at least one item', variant: 'destructive' });
+      toast({ title: t('Enter quantity to receive for at least one item'), variant: 'destructive' });
       return;
     }
     setReceiving(true);
@@ -206,10 +208,10 @@ export function ProcurementPage() {
       const updated = await procurementService.receivePO(receiveTarget.id, lines);
       setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
       setReceiveTarget(null);
-      toast({ title: 'Stock received and inventory updated' });
+      toast({ title: t('Stock received and inventory updated') });
       await load();
     } catch {
-      toast({ title: 'Error', description: 'Failed to receive stock', variant: 'destructive' });
+      toast({ title: t('Error'), description: t('Failed to receive stock'), variant: 'destructive' });
     } finally {
       setReceiving(false);
     }
@@ -218,34 +220,34 @@ export function ProcurementPage() {
   return (
     <div>
       <PageHeader
-        title="Procurement"
-        description="Manage purchase orders and vendor stock"
+        title={t("Procurement")}
+        description={t("Manage purchase orders and vendor stock")}
         actions={
           <Button size="sm" onClick={() => { setForm(EMPTY_FORM); setLineItems([]); setShowCreate(true); }}>
-            <Plus className="h-4 w-4 mr-2" /> New PO
+            <Plus className="h-4 w-4 mr-2" /> {t("New PO")}
           </Button>
         }
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <KPICard label="Total Orders"    value={orders.length} icon={ShoppingCart}  variant="default" />
-        <KPICard label="Pending"         value={pending}       icon={Clock}         variant="warning" />
-        <KPICard label="Active / Ordered" value={active}       icon={CheckCircle}   variant="success" />
-        <KPICard label="Received"        value={received}      icon={Package}       variant="default" />
+        <KPICard label={t("Total Orders")}    value={orders.length} icon={ShoppingCart}  variant="default" />
+        <KPICard label={t("Pending")}         value={pending}       icon={Clock}         variant="warning" />
+        <KPICard label={t("Active / Ordered")} value={active}       icon={CheckCircle}   variant="success" />
+        <KPICard label={t("Received")}        value={received}      icon={Package}       variant="default" />
       </div>
 
       <div className="flex flex-wrap gap-3 mb-4">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search PO number or vendor..." value={search}
+          <Input placeholder={t("Search PO number or vendor...")} value={search}
             onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="All Statuses" /></SelectTrigger>
+          <SelectTrigger className="w-44"><SelectValue placeholder={t("All Statuses")} /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="all">{t("All Statuses")}</SelectItem>
             {(Object.keys(STATUS_CONFIG) as POStatus[]).map((s) => (
-              <SelectItem key={s} value={s}>{STATUS_CONFIG[s].label}</SelectItem>
+              <SelectItem key={s} value={s}>{t(STATUS_CONFIG[s].label)}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -256,21 +258,21 @@ export function ProcurementPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>PO Number</TableHead>
-                <TableHead>Vendor</TableHead>
-                <TableHead>Line Items</TableHead>
-                <TableHead>Order Date</TableHead>
-                <TableHead>Expected</TableHead>
-                <TableHead className="text-right">Amount (₹)</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>{t("PO Number")}</TableHead>
+                <TableHead>{t("Vendor")}</TableHead>
+                <TableHead>{t("Line Items")}</TableHead>
+                <TableHead>{t("Order Date")}</TableHead>
+                <TableHead>{t("Expected")}</TableHead>
+                <TableHead className="text-right">{t("Amount (₹)")}</TableHead>
+                <TableHead>{t("Status")}</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-12">Loading…</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-12">{t("Loading…")}</TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-12">No purchase orders found</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-12">{t("No purchase orders found")}</TableCell></TableRow>
               ) : filtered.map((po) => {
                 const cfg = STATUS_CONFIG[po.status] ?? STATUS_CONFIG.draft;
                 const canReceive = po.status === 'ordered' || po.status === 'partially_received' || po.status === 'approved';
@@ -286,7 +288,7 @@ export function ProcurementPage() {
                           {po.lineItems.length} item{po.lineItems.length !== 1 ? 's' : ''}
                           {po.lineItems.some((l) => l.quantityReceived > 0) && (
                             <span className="ml-1 text-emerald-600">
-                              · {po.lineItems.reduce((s, l) => s + l.quantityReceived, 0)} received
+                              · {po.lineItems.reduce((s, l) => s + l.quantityReceived, 0)} {t("received")}
                             </span>
                           )}
                         </span>
@@ -300,11 +302,11 @@ export function ProcurementPage() {
                     <TableCell>
                       <Select value={po.status} onValueChange={(v) => handleStatusChange(po.id, v as POStatus)}>
                         <SelectTrigger className="h-7 w-[148px] text-xs">
-                          <Badge variant="outline" className={`text-xs ${cfg.className} border-0 p-0`}>{cfg.label}</Badge>
+                          <Badge variant="outline" className={`text-xs ${cfg.className} border-0 p-0`}>{t(cfg.label)}</Badge>
                         </SelectTrigger>
                         <SelectContent>
                           {(Object.keys(STATUS_CONFIG) as POStatus[]).map((s) => (
-                            <SelectItem key={s} value={s} className="text-xs">{STATUS_CONFIG[s].label}</SelectItem>
+                            <SelectItem key={s} value={s} className="text-xs">{t(STATUS_CONFIG[s].label)}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -316,7 +318,7 @@ export function ProcurementPage() {
                             onClick={() => openReceive(po)}
                             className="h-7 px-2 flex items-center gap-1 rounded text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
                           >
-                            <PackageCheck className="h-3.5 w-3.5" /> Receive
+                            <PackageCheck className="h-3.5 w-3.5" /> {t("Receive")}
                           </button>
                         )}
                         <button
@@ -338,45 +340,45 @@ export function ProcurementPage() {
       {/* ── Create PO Dialog ─────────────────────────────────────────────── */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>New Purchase Order</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("New Purchase Order")}</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4 py-2">
 
             {/* Vendor */}
             <div className="space-y-1.5">
-              <Label>Vendor *</Label>
+              <Label>{t("Vendor")} *</Label>
               {vendors.length > 0 ? (
                 <Select value={form.vendorId} onValueChange={(v) => setForm({ ...form, vendorId: v, vendorName: vendors.find((s) => s.id === v)?.name || '' })}>
-                  <SelectTrigger><SelectValue placeholder="Select vendor…" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("Select vendor…")} /></SelectTrigger>
                   <SelectContent>
                     {vendors.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               ) : (
-                <Input required placeholder="Vendor name" value={form.vendorName}
+                <Input required placeholder={t("Vendor name")} value={form.vendorName}
                   onChange={(e) => setForm({ ...form, vendorName: e.target.value })} />
               )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Order Date</Label>
+                <Label>{t("Order Date")}</Label>
                 <Input type="date" value={form.orderedDate}
                   onChange={(e) => setForm({ ...form, orderedDate: e.target.value })} />
               </div>
               <div className="space-y-1.5">
-                <Label>Expected By</Label>
+                <Label>{t("Expected By")}</Label>
                 <Input type="date" value={form.expectedDate}
                   onChange={(e) => setForm({ ...form, expectedDate: e.target.value })} />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label>Status</Label>
+              <Label>{t("Status")}</Label>
               <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as POStatus })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {(Object.keys(STATUS_CONFIG) as POStatus[]).map((s) => (
-                    <SelectItem key={s} value={s}>{STATUS_CONFIG[s].label}</SelectItem>
+                    <SelectItem key={s} value={s}>{t(STATUS_CONFIG[s].label)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -385,15 +387,15 @@ export function ProcurementPage() {
             {/* Line Items */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Line Items</Label>
+                <Label>{t("Line Items")}</Label>
                 <Button type="button" variant="outline" size="sm" onClick={addLine}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
+                  <Plus className="h-3.5 w-3.5 mr-1" /> {t("Add Item")}
                 </Button>
               </div>
 
               {lineItems.length === 0 && (
                 <p className="text-xs text-muted-foreground py-2">
-                  No items added. Click "Add Item" to specify what you're ordering.
+                  {t('No items added. Click "Add Item" to specify what you\'re ordering.')}
                 </p>
               )}
 
@@ -413,23 +415,23 @@ export function ProcurementPage() {
               {lineItems.length > 0 && (
                 <div className="flex justify-end pt-1">
                   <span className="text-sm font-semibold">
-                    Total: ₹{totalAmount.toLocaleString('en-IN')}
+                    {t("Total")}: ₹{totalAmount.toLocaleString('en-IN')}
                   </span>
                 </div>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label>Notes</Label>
+              <Label>{t("Notes")}</Label>
               <Textarea rows={2} value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="Any special instructions…" />
+                placeholder={t("Any special instructions…")} />
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>{t("Cancel")}</Button>
               <Button type="submit" disabled={saving || (!form.vendorId && !form.vendorName)}>
-                {saving ? 'Creating…' : 'Create PO'}
+                {saving ? t('Creating…') : t('Create PO')}
               </Button>
             </DialogFooter>
           </form>
@@ -442,13 +444,13 @@ export function ProcurementPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <PackageCheck className="h-5 w-5 text-emerald-600" />
-              Receive Stock — {receiveTarget?.poNumber}
+              {t("Receive Stock")} — {receiveTarget?.poNumber}
             </DialogTitle>
           </DialogHeader>
           {receiveTarget && (
             <form onSubmit={handleReceive} className="space-y-4 py-2">
               <p className="text-sm text-muted-foreground">
-                Enter the quantity received for each item. Inventory will be updated immediately.
+                {t("Enter the quantity received for each item. Inventory will be updated immediately.")}
               </p>
 
               <div className="space-y-2">
@@ -459,9 +461,9 @@ export function ProcurementPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{line.itemName}</p>
                         <p className="text-xs text-muted-foreground">
-                          Ordered: {line.quantityOrdered}
-                          {line.quantityReceived > 0 && ` · Already received: ${line.quantityReceived}`}
-                          {remaining > 0 && ` · Remaining: ${remaining}`}
+                          {t("Ordered")}: {line.quantityOrdered}
+                          {line.quantityReceived > 0 && ` · ${t("Already received")}: ${line.quantityReceived}`}
+                          {remaining > 0 && ` · ${t("Remaining")}: ${remaining}`}
                         </p>
                       </div>
                       <div className="w-24 shrink-0">
@@ -481,9 +483,9 @@ export function ProcurementPage() {
               </div>
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setReceiveTarget(null)}>Cancel</Button>
+                <Button type="button" variant="outline" onClick={() => setReceiveTarget(null)}>{t("Cancel")}</Button>
                 <Button type="submit" disabled={receiving} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                  {receiving ? 'Updating stock…' : 'Receive & Update Inventory'}
+                  {receiving ? t('Updating stock…') : t('Receive & Update Inventory')}
                 </Button>
               </DialogFooter>
             </form>
@@ -504,6 +506,7 @@ function LineItemRow({
   onSelectItem: (item: Item) => void;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation();
   const [showDropdown, setShowDropdown] = useState(false);
 
   const search = line._search || '';
@@ -516,7 +519,7 @@ function LineItemRow({
       {/* Item search */}
       <div className="flex-1 relative">
         <Input
-          placeholder="Search inventory item…"
+          placeholder={t("Search inventory item…")}
           value={search}
           onChange={(e) => {
             onUpdate({ _search: e.target.value, itemId: '', itemName: e.target.value });

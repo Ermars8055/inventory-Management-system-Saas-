@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Subscription } from '@/types';
 
 interface UsageData {
@@ -17,7 +18,7 @@ interface UsageData {
   usage: { users: number; items: number; modules: number };
 }
 
-function UsageBar({ label, icon: Icon, used, max }: { label: string; icon: typeof Users; used: number; max: number }) {
+function UsageBar({ label, icon: Icon, used, max, t }: { label: string; icon: typeof Users; used: number; max: number; t: (key: string, vars?: Record<string, string | number>) => string }) {
   const pct = max > 0 ? Math.min(100, Math.round((used / max) * 100)) : 0;
   const isNearLimit = pct >= 80;
   const isAtLimit = pct >= 100;
@@ -41,10 +42,10 @@ function UsageBar({ label, icon: Icon, used, max }: { label: string; icon: typeo
         />
       </div>
       {isAtLimit && (
-        <p className="text-xs text-destructive font-medium">Limit reached — upgrade to add more</p>
+        <p className="text-xs text-destructive font-medium">{t('Limit reached — upgrade to add more')}</p>
       )}
       {isNearLimit && !isAtLimit && (
-        <p className="text-xs text-amber-600 font-medium">Approaching limit ({pct}% used)</p>
+        <p className="text-xs text-amber-600 font-medium">{t('Approaching limit ({{pct}}% used)', { pct })}</p>
       )}
     </div>
   );
@@ -54,6 +55,7 @@ export function SubscriptionPage() {
   const { currentOrg } = useOrganization();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [plans, setPlans] = useState<Subscription[]>([]);
   const [currentPlan, setCurrentPlan] = useState<Subscription | null>(null);
   const [usage, setUsage] = useState<UsageData | null>(null);
@@ -72,7 +74,7 @@ export function SubscriptionPage() {
   }, [currentOrg]);
 
   const handleUpgrade = (tier: string) => {
-    toast({ title: `Contact sales to upgrade to ${tier}` });
+    toast({ title: t('Contact sales to upgrade to {{tier}}', { tier }) });
   };
 
   const handleRedeemCoupon = async () => {
@@ -80,10 +82,10 @@ export function SubscriptionPage() {
     setRedeeming(true);
     try {
       const data = await api.post<{ applied: boolean; code: string; discountType: string; discountValue: number }>('/subscriptions/redeem-coupon', { code: couponCode });
-      toast({ title: 'Coupon applied!', description: `${data.discountType === 'percent' ? data.discountValue + '%' : '₹' + data.discountValue} discount applied` });
+      toast({ title: t('Coupon applied!'), description: `${data.discountType === 'percent' ? data.discountValue + '%' : '\u20B9' + data.discountValue} ${t('discount applied')}` });
       setCouponCode('');
     } catch (err: unknown) {
-      toast({ title: 'Invalid coupon', description: err instanceof Error ? err.message : 'Failed', variant: 'destructive' });
+      toast({ title: t('Invalid coupon'), description: err instanceof Error ? err.message : t('Failed'), variant: 'destructive' });
     } finally { setRedeeming(false); }
   };
 
@@ -92,9 +94,9 @@ export function SubscriptionPage() {
     try {
       await subscriptionService.payInvoice(invoiceId);
       setInvoices(prev => prev.map(i => i.id === invoiceId ? { ...i, status: 'paid', paidDate: new Date().toISOString() } : i));
-      toast({ title: 'Payment successful', description: 'Invoice marked as paid' });
+      toast({ title: t('Payment successful'), description: t('Invoice marked as paid') });
     } catch (err: unknown) {
-      toast({ title: 'Payment failed', description: err instanceof Error ? err.message : 'Error', variant: 'destructive' });
+      toast({ title: t('Payment failed'), description: err instanceof Error ? err.message : t('Error'), variant: 'destructive' });
     } finally { setPaying(''); }
   };
 
@@ -104,11 +106,11 @@ export function SubscriptionPage() {
     <div>
       <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} className="-ml-2 mb-4">
         <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Settings
+        {t('Back to Settings')}
       </Button>
       <PageHeader
-        title="Subscription"
-        description="Manage your plan and billing"
+        title={t('Subscription')}
+        description={t('Manage your plan and billing')}
       />
 
       {/* Current plan summary */}
@@ -121,13 +123,13 @@ export function SubscriptionPage() {
                   <CreditCard className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Current Plan</p>
+                  <p className="text-sm text-muted-foreground">{t('Current Plan')}</p>
                   <p className="font-bold text-lg">{currentPlan.name}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-bold">₹{currentPlan.price.toLocaleString('en-IN')}</p>
-                <p className="text-xs text-muted-foreground">per {currentPlan.pricePeriod}</p>
+                <p className="text-2xl font-bold">{'\u20B9'}{currentPlan.price.toLocaleString('en-IN')}</p>
+                <p className="text-xs text-muted-foreground">{t('per {{period}}', { period: currentPlan.pricePeriod })}</p>
               </div>
             </div>
           </CardContent>
@@ -138,12 +140,12 @@ export function SubscriptionPage() {
       {usage && (
         <Card className="mb-6">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Plan Usage</CardTitle>
+            <CardTitle className="text-base">{t('Plan Usage')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <UsageBar label="Users" icon={Users} used={usage.usage.users} max={usage.limits.max_users} />
-            <UsageBar label="Inventory Items" icon={Package} used={usage.usage.items} max={usage.limits.max_items} />
-            <UsageBar label="Modules" icon={Boxes} used={usage.usage.modules} max={usage.limits.max_modules} />
+            <UsageBar label={t('Users')} icon={Users} used={usage.usage.users} max={usage.limits.max_users} t={t} />
+            <UsageBar label={t('Inventory Items')} icon={Package} used={usage.usage.items} max={usage.limits.max_items} t={t} />
+            <UsageBar label={t('Modules')} icon={Boxes} used={usage.usage.modules} max={usage.limits.max_modules} t={t} />
           </CardContent>
         </Card>
       )}
@@ -152,19 +154,19 @@ export function SubscriptionPage() {
       <Card className="mb-6">
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <Tag className="h-4 w-4" /> Have a coupon?
+            <Tag className="h-4 w-4" /> {t('Have a coupon?')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2">
             <Input
-              placeholder="Enter coupon code"
+              placeholder={t('Enter coupon code')}
               value={couponCode}
               onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
               className="max-w-xs font-mono"
             />
             <Button onClick={handleRedeemCoupon} disabled={redeeming || !couponCode.trim()}>
-              {redeeming ? 'Applying…' : 'Apply'}
+              {redeeming ? t('Applying...') : t('Apply')}
             </Button>
           </div>
         </CardContent>
@@ -181,13 +183,13 @@ export function SubscriptionPage() {
             >
               {isCurrent && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge className="bg-primary text-primary-foreground text-xs px-2.5">Current Plan</Badge>
+                  <Badge className="bg-primary text-primary-foreground text-xs px-2.5">{t('Current Plan')}</Badge>
                 </div>
               )}
               <CardHeader className="pb-3 pt-6">
                 <CardTitle className="text-base">{plan.name}</CardTitle>
                 <div className="mt-1">
-                  <span className="text-3xl font-bold">₹{plan.price.toLocaleString('en-IN')}</span>
+                  <span className="text-3xl font-bold">{'\u20B9'}{plan.price.toLocaleString('en-IN')}</span>
                   <span className="text-muted-foreground text-sm ml-1">/ {plan.pricePeriod}</span>
                 </div>
               </CardHeader>
@@ -202,11 +204,11 @@ export function SubscriptionPage() {
                 </ul>
                 {isCurrent ? (
                   <Button variant="outline" className="w-full" disabled>
-                    Current Plan
+                    {t('Current Plan')}
                   </Button>
                 ) : plan.tier === 'enterprise' ? (
                   <Button variant="outline" className="w-full" onClick={() => handleUpgrade(plan.name)}>
-                    Contact Sales
+                    {t('Contact Sales')}
                   </Button>
                 ) : (
                   <Button
@@ -215,7 +217,7 @@ export function SubscriptionPage() {
                     onClick={() => handleUpgrade(plan.name)}
                   >
                     <Zap className="h-3.5 w-3.5 mr-1.5" />
-                    Upgrade to {plan.name}
+                    {t('Upgrade to {{plan}}', { plan: plan.name })}
                   </Button>
                 )}
               </CardContent>
@@ -229,7 +231,7 @@ export function SubscriptionPage() {
         <Card className="mt-6">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <Receipt className="h-4 w-4" /> Billing History
+              <Receipt className="h-4 w-4" /> {t('Billing History')}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -247,25 +249,25 @@ export function SubscriptionPage() {
                     <div className="min-w-0">
                       <p className="text-sm font-medium">{inv.billingPeriod} — <span className="capitalize">{inv.plan}</span></p>
                       <p className="text-xs text-muted-foreground">
-                        ₹{inv.baseAmount.toLocaleString('en-IN')}
+                        {'\u20B9'}{inv.baseAmount.toLocaleString('en-IN')}
                         {inv.discountAmount > 0 && (
-                          <span className="text-emerald-600"> − ₹{inv.discountAmount.toLocaleString('en-IN')} ({inv.discountCode})</span>
+                          <span className="text-emerald-600"> − {'\u20B9'}{inv.discountAmount.toLocaleString('en-IN')} ({inv.discountCode})</span>
                         )}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <div className="text-right">
-                      <p className="text-sm font-bold">₹{inv.finalAmount.toLocaleString('en-IN')}</p>
-                      <p className="text-xs text-muted-foreground">Due {inv.dueDate?.slice(0, 10)}</p>
+                      <p className="text-sm font-bold">{'\u20B9'}{inv.finalAmount.toLocaleString('en-IN')}</p>
+                      <p className="text-xs text-muted-foreground">{t('Due')} {inv.dueDate?.slice(0, 10)}</p>
                     </div>
                     {inv.status === 'paid' ? (
-                      <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Paid</Badge>
+                      <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">{t('Paid')}</Badge>
                     ) : inv.status === 'overdue' ? (
-                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Overdue</Badge>
+                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">{t('Overdue')}</Badge>
                     ) : (
                       <Button size="sm" onClick={() => handlePayInvoice(inv.id)} disabled={paying === inv.id}>
-                        {paying === inv.id ? 'Paying…' : 'Pay Now'}
+                        {paying === inv.id ? t('Paying...') : t('Pay Now')}
                       </Button>
                     )}
                   </div>
@@ -277,8 +279,7 @@ export function SubscriptionPage() {
       )}
 
       <p className="mt-6 text-xs text-muted-foreground text-center">
-        All plans include a 14-day free trial. No credit card required to start.
-        For enterprise pricing and custom requirements, contact our sales team.
+        {t('All plans include a 14-day free trial. No credit card required to start. For enterprise pricing and custom requirements, contact our sales team.')}
       </p>
     </div>
   );

@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { MaintenanceTicket, TicketStatus, TicketPriority } from '@/types';
 
 const STATUS_CONFIG: Record<TicketStatus, { label: string; className: string }> = {
@@ -39,6 +40,7 @@ export function MaintenancePage() {
   const { currentOrg } = useOrganization();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [tickets, setTickets] = useState<MaintenanceTicket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,20 +66,20 @@ export function MaintenancePage() {
 
   if (!currentOrg) return null;
 
-  const filtered = tickets.filter((t) => {
+  const filtered = tickets.filter((tk) => {
     const matchSearch = !search ||
-      t.ticketId.toLowerCase().includes(search.toLowerCase()) ||
-      t.asset.toLowerCase().includes(search.toLowerCase()) ||
-      (t.issue || '').toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === 'all' || t.status === statusFilter;
-    const matchPriority = priorityFilter === 'all' || t.priority === priorityFilter;
+      tk.ticketId.toLowerCase().includes(search.toLowerCase()) ||
+      tk.asset.toLowerCase().includes(search.toLowerCase()) ||
+      (tk.issue || '').toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === 'all' || tk.status === statusFilter;
+    const matchPriority = priorityFilter === 'all' || tk.priority === priorityFilter;
     return matchSearch && matchStatus && matchPriority;
   });
 
-  const open = tickets.filter((t) => t.status === 'open').length;
-  const inProgress = tickets.filter((t) => t.status === 'in_progress').length;
-  const resolved = tickets.filter((t) => t.status === 'resolved' || t.status === 'closed').length;
-  const critical = tickets.filter((t) => t.priority === 'critical' && t.status !== 'closed').length;
+  const open = tickets.filter((tk) => tk.status === 'open').length;
+  const inProgress = tickets.filter((tk) => tk.status === 'in_progress').length;
+  const resolved = tickets.filter((tk) => tk.status === 'resolved' || tk.status === 'closed').length;
+  const critical = tickets.filter((tk) => tk.priority === 'critical' && tk.status !== 'closed').length;
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -92,9 +94,9 @@ export function MaintenancePage() {
       await load();
       setShowCreate(false);
       setForm(EMPTY_FORM);
-      toast({ title: 'Maintenance ticket created' });
+      toast({ title: t('Maintenance ticket created') });
     } catch {
-      toast({ title: 'Error', description: 'Failed to create ticket', variant: 'destructive' });
+      toast({ title: t('Error'), description: t('Failed to create ticket'), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -103,19 +105,19 @@ export function MaintenancePage() {
   async function handleStatusChange(id: string, status: TicketStatus) {
     try {
       const updated = await maintenanceService.update(id, { status });
-      setTickets((prev) => prev.map((t) => (t.id === id ? updated : t)));
+      setTickets((prev) => prev.map((tk) => (tk.id === id ? updated : tk)));
     } catch {
-      toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+      toast({ title: t('Error'), description: t('Failed to update status'), variant: 'destructive' });
     }
   }
 
   async function handleDelete(id: string) {
     try {
       await maintenanceService.delete(id);
-      setTickets((prev) => prev.filter((t) => t.id !== id));
-      toast({ title: 'Ticket deleted' });
+      setTickets((prev) => prev.filter((tk) => tk.id !== id));
+      toast({ title: t('Ticket deleted') });
     } catch {
-      toast({ title: 'Error', description: 'Failed to delete', variant: 'destructive' });
+      toast({ title: t('Error'), description: t('Failed to delete'), variant: 'destructive' });
     }
   }
 
@@ -124,27 +126,27 @@ export function MaintenancePage() {
   return (
     <div>
       <PageHeader
-        title="Maintenance"
-        description="Track and manage maintenance requests and repairs"
+        title={t('Maintenance')}
+        description={t('Track and manage maintenance requests and repairs')}
         actions={
           <Button size="sm" onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4 mr-2" /> New Ticket
+            <Plus className="h-4 w-4 mr-2" /> {t('New Ticket')}
           </Button>
         }
       />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <KPICard label="Open Requests"      value={open}       icon={Wrench}        variant="danger" />
-        <KPICard label="In Progress"        value={inProgress} icon={Clock}         variant="warning" />
-        <KPICard label="Resolved / Closed"  value={resolved}   icon={CheckCircle}   variant="success" />
-        <KPICard label="Critical Priority"  value={critical}   icon={AlertTriangle} variant="danger" />
+        <KPICard label={t('Open Requests')}      value={open}       icon={Wrench}        variant="danger" />
+        <KPICard label={t('In Progress')}        value={inProgress} icon={Clock}         variant="warning" />
+        <KPICard label={t('Resolved / Closed')}  value={resolved}   icon={CheckCircle}   variant="success" />
+        <KPICard label={t('Critical Priority')}  value={critical}   icon={AlertTriangle} variant="danger" />
       </div>
 
       <div className="flex flex-wrap gap-3 mb-4">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search tickets, assets, or issues..."
+            placeholder={t('Search tickets, assets, or issues...')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -152,23 +154,23 @@ export function MaintenancePage() {
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="All Statuses" />
+            <SelectValue placeholder={t('All Statuses')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="all">{t('All Statuses')}</SelectItem>
             {(Object.keys(STATUS_CONFIG) as TicketStatus[]).map((s) => (
-              <SelectItem key={s} value={s}>{STATUS_CONFIG[s].label}</SelectItem>
+              <SelectItem key={s} value={s}>{t(STATUS_CONFIG[s].label)}</SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Select value={priorityFilter} onValueChange={setPriorityFilter}>
           <SelectTrigger className="w-36">
-            <SelectValue placeholder="All Priorities" />
+            <SelectValue placeholder={t('All Priorities')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Priorities</SelectItem>
+            <SelectItem value="all">{t('All Priorities')}</SelectItem>
             {(Object.keys(PRIORITY_CONFIG) as TicketPriority[]).map((p) => (
-              <SelectItem key={p} value={p}>{PRIORITY_CONFIG[p].label}</SelectItem>
+              <SelectItem key={p} value={p}>{t(PRIORITY_CONFIG[p].label)}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -179,26 +181,26 @@ export function MaintenancePage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Ticket ID</TableHead>
-                <TableHead>Asset / Item</TableHead>
-                <TableHead>Issue</TableHead>
-                <TableHead>Reported By</TableHead>
-                <TableHead>Assigned To</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead>Reported</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>{t('Ticket ID')}</TableHead>
+                <TableHead>{t('Asset / Item')}</TableHead>
+                <TableHead>{t('Issue')}</TableHead>
+                <TableHead>{t('Reported By')}</TableHead>
+                <TableHead>{t('Assigned To')}</TableHead>
+                <TableHead>{t('Priority')}</TableHead>
+                <TableHead>{t('Reported')}</TableHead>
+                <TableHead>{t('Status')}</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground py-12">Loading…</TableCell>
+                  <TableCell colSpan={9} className="text-center text-muted-foreground py-12">{t('Loading…')}</TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center text-muted-foreground py-12">
-                    No maintenance tickets found
+                    {t('No maintenance tickets found')}
                   </TableCell>
                 </TableRow>
               ) : filtered.map((ticket) => {
@@ -216,7 +218,7 @@ export function MaintenancePage() {
                     <TableCell className="text-sm text-muted-foreground">{ticket.reportedBy || '—'}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{ticket.assignedTo || '—'}</TableCell>
                     <TableCell>
-                      <span className={`text-sm ${priorityCfg.className}`}>{priorityCfg.label}</span>
+                      <span className={`text-sm ${priorityCfg.className}`}>{t(priorityCfg.label)}</span>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{ticket.reportedDate || '—'}</TableCell>
                     <TableCell>
@@ -226,12 +228,12 @@ export function MaintenancePage() {
                       >
                         <SelectTrigger className="h-7 w-[130px] text-xs">
                           <Badge variant="outline" className={`text-xs ${statusCfg.className} border-0 p-0`}>
-                            {statusCfg.label}
+                            {t(statusCfg.label)}
                           </Badge>
                         </SelectTrigger>
                         <SelectContent>
                           {(Object.keys(STATUS_CONFIG) as TicketStatus[]).map((s) => (
-                            <SelectItem key={s} value={s} className="text-xs">{STATUS_CONFIG[s].label}</SelectItem>
+                            <SelectItem key={s} value={s} className="text-xs">{t(STATUS_CONFIG[s].label)}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -256,58 +258,58 @@ export function MaintenancePage() {
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>New Maintenance Ticket</DialogTitle>
+            <DialogTitle>{t('New Maintenance Ticket')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-3 py-2">
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Asset / Item *</label>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('Asset / Item')} *</label>
               <input required className={inp} value={form.asset}
                 onChange={(e) => setForm({ ...form, asset: e.target.value })}
-                placeholder="e.g. Projector - Room 105" />
+                placeholder={t('e.g. Projector - Room 105')} />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Issue Description</label>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('Issue Description')}</label>
               <textarea className={inp} rows={2} value={form.issue}
                 onChange={(e) => setForm({ ...form, issue: e.target.value })}
-                placeholder="Describe the issue…" />
+                placeholder={t('Describe the issue…')} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Reported By</label>
+                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('Reported By')}</label>
                 <input className={inp} value={form.reportedBy}
                   onChange={(e) => setForm({ ...form, reportedBy: e.target.value })}
                   placeholder={user?.name || 'Staff'} />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Assigned To</label>
+                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('Assigned To')}</label>
                 <input className={inp} value={form.assignedTo}
                   onChange={(e) => setForm({ ...form, assignedTo: e.target.value })} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Priority</label>
+                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('Priority')}</label>
                 <select className={inp} value={form.priority}
                   onChange={(e) => setForm({ ...form, priority: e.target.value as TicketPriority })}>
                   {(Object.keys(PRIORITY_CONFIG) as TicketPriority[]).map((p) => (
-                    <option key={p} value={p}>{PRIORITY_CONFIG[p].label}</option>
+                    <option key={p} value={p}>{t(PRIORITY_CONFIG[p].label)}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Report Date</label>
+                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('Report Date')}</label>
                 <input type="date" className={inp} value={form.reportedDate}
                   onChange={(e) => setForm({ ...form, reportedDate: e.target.value })} />
               </div>
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Notes</label>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('Notes')}</label>
               <textarea className={inp} rows={2} value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-              <Button type="submit" disabled={saving}>{saving ? 'Creating…' : 'Create Ticket'}</Button>
+              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>{t('Cancel')}</Button>
+              <Button type="submit" disabled={saving}>{saving ? t('Creating…') : t('Create Ticket')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

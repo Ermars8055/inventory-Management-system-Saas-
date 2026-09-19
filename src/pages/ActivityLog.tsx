@@ -4,6 +4,7 @@ import { api } from '@/lib/api';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface AuditEntry {
   id: string; userName: string; action: string; entityType: string;
@@ -17,19 +18,20 @@ const ACTION_CONFIG: Record<string, { icon: typeof Plus; color: string; label: s
 };
 
 export function ActivityLogPage() {
+  const { t } = useTranslation();
   const [logs, setLogs] = useState<AuditEntry[]>([]);
 
   useEffect(() => { api.get<AuditEntry[]>('/audit-log?limit=200').then(setLogs); }, []);
 
   return (
     <div>
-      <PageHeader title="Activity Log" description="Track who changed what across your organization" />
+      <PageHeader title={t("Activity Log")} description={t("Track who changed what across your organization")} />
       <Card>
         <CardContent className="p-0">
           {logs.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">
               <ScrollText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              No activity recorded yet
+              {t('No activity recorded yet')}
             </div>
           ) : (
             <div className="divide-y">
@@ -45,7 +47,7 @@ export function ActivityLogPage() {
                       <p className="text-sm">
                         <span className="font-medium">{log.userName}</span>
                         {' '}
-                        <Badge variant="outline" className="text-[10px] mx-1" style={{ color: config.color }}>{config.label}</Badge>
+                        <Badge variant="outline" className="text-[10px] mx-1" style={{ color: config.color }}>{t(config.label)}</Badge>
                         {' '}
                         <span className="text-muted-foreground">{log.entityType}</span>
                       </p>

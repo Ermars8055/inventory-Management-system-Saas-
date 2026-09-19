@@ -2,46 +2,48 @@ import { useNavigate } from 'react-router-dom';
 import { Building2, Sliders, FileText, CreditCard, BookOpen, ChevronRight } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
-
-const SETTINGS_ITEMS = [
-  {
-    path: '/settings/organization',
-    icon: Building2,
-    label: 'Organization',
-    description: 'Manage organization name, address, and contact information.',
-  },
-  {
-    path: '/settings/custom-fields',
-    icon: Sliders,
-    label: 'Custom Fields',
-    description: 'Define additional fields for inventory items and other entities.',
-  },
-  {
-    path: '/settings/document-templates',
-    icon: FileText,
-    label: 'Document Templates',
-    description: 'Configure receipt and document templates for your organization.',
-  },
-  {
-    path: '/settings/class-templates',
-    icon: BookOpen,
-    label: 'Class Material Templates',
-    description: 'Define item kits per class/group for one-click bulk issue.',
-  },
-  {
-    path: '/settings/subscription',
-    icon: CreditCard,
-    label: 'Subscription',
-    description: 'View your current plan and upgrade to access more features.',
-  },
-];
+import { useTranslation } from '@/hooks/useTranslation';
 
 export function SettingsPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
+
+  const SETTINGS_ITEMS = [
+    {
+      path: '/settings/organization',
+      icon: Building2,
+      label: t('Organization'),
+      description: t('Manage organization name, address, and contact information.'),
+    },
+    {
+      path: '/settings/custom-fields',
+      icon: Sliders,
+      label: t('Custom Fields'),
+      description: t('Define additional fields for inventory items and other entities.'),
+    },
+    {
+      path: '/settings/document-templates',
+      icon: FileText,
+      label: t('Document Templates'),
+      description: t('Configure receipt and document templates for your organization.'),
+    },
+    {
+      path: '/settings/class-templates',
+      icon: BookOpen,
+      label: t('Class Material Templates'),
+      description: t('Define item kits per class/group for one-click bulk issue.'),
+    },
+    {
+      path: '/settings/subscription',
+      icon: CreditCard,
+      label: t('Subscription'),
+      description: t('View your current plan and upgrade to access more features.'),
+    },
+  ];
 
   return (
     <div>
-      <PageHeader title="Settings" description="Manage your organization configuration" />
+      <PageHeader title={t('Settings')} description={t('Manage your organization configuration')} />
 
       <div className="grid sm:grid-cols-2 gap-4 max-w-2xl">
         {SETTINGS_ITEMS.map((item) => {

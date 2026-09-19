@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Store, Mail, Phone, MapPin, Pencil, Trash2, Settings2 } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useOrganization } from '@/context/OrganizationContext';
 import { vendorService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -28,6 +29,7 @@ export function VendorsPage() {
   const { currentOrg } = useOrganization();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [search, setSearch] = useState('');
   const [showDialog, setShowDialog] = useState(false);
@@ -71,13 +73,13 @@ export function VendorsPage() {
 
   async function handleDelete(v: Vendor, e: React.MouseEvent) {
     e.stopPropagation();
-    if (!confirm(`Delete vendor "${v.name}"?`)) return;
+    if (!confirm(t('Delete vendor') + ` "${v.name}"?`)) return;
     try {
       await vendorService.delete(v.id);
       setVendors((prev) => prev.filter((x) => x.id !== v.id));
-      toast({ title: `${v.name} deleted` });
+      toast({ title: `${v.name} ${t('deleted')}` });
     } catch {
-      toast({ title: 'Error', description: 'Failed to delete vendor', variant: 'destructive' });
+      toast({ title: t('Error'), description: t('Failed to delete vendor'), variant: 'destructive' });
     }
   }
 
@@ -89,15 +91,15 @@ export function VendorsPage() {
       if (editTarget) {
         const updated = await vendorService.update(editTarget.id, { ...form, attributes: form.attributes });
         setVendors((prev) => prev.map((v) => (v.id === editTarget.id ? updated : v)));
-        toast({ title: `${updated.name} updated` });
+        toast({ title: `${updated.name} ${t('updated')}` });
       } else {
         const created = await vendorService.create({ ...form, organizationId: currentOrg.id, attributes: form.attributes });
         setVendors((prev) => [...prev, created]);
-        toast({ title: `${created.name} added` });
+        toast({ title: `${created.name} ${t('added')}` });
       }
       setShowDialog(false);
     } catch {
-      toast({ title: 'Error', description: 'Failed to save vendor', variant: 'destructive' });
+      toast({ title: t('Error'), description: t('Failed to save vendor'), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -108,21 +110,21 @@ export function VendorsPage() {
   return (
     <div>
       <PageHeader
-        title="Vendors"
-        description={`${vendors.length} vendor${vendors.length !== 1 ? 's' : ''}`}
+        title={t('Vendors')}
+        description={`${vendors.length} ${vendors.length !== 1 ? t('vendors') : t('vendor')}`}
         actions={
           <div className="flex items-center gap-2">
             <CsvActions
               exportUrl="/data/export/vendors"
               importUrl="/data/import/vendors"
-              entityName="Vendors"
+              entityName={t('Vendors')}
               sampleHeaders="name,contact_person,phone,email,address,vendor_type"
               onImportComplete={() => currentOrg && vendorService.getByOrganization(currentOrg.id).then(setVendors)}
             />
             <Button variant="outline" size="sm" onClick={() => setFieldsSheetOpen(true)}>
-              <Settings2 className="h-4 w-4 mr-1" />Custom Fields
+              <Settings2 className="h-4 w-4 mr-1" />{t('Custom Fields')}
             </Button>
-            <Button onClick={openAdd}><Plus className="h-4 w-4 mr-1" />Add Vendor</Button>
+            <Button onClick={openAdd}><Plus className="h-4 w-4 mr-1" />{t('Add Vendor')}</Button>
           </div>
         }
       />
@@ -131,7 +133,7 @@ export function VendorsPage() {
         <CardContent className="p-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search vendors..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            <Input placeholder={t('Search vendors...')} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
           </div>
         </CardContent>
       </Card>
@@ -141,9 +143,9 @@ export function VendorsPage() {
           <CardContent className="p-0">
             <EmptyState
               icon={Store}
-              title="No vendors found"
-              description="Add a vendor to start tracking purchases."
-              action={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-1" />Add Vendor</Button>}
+              title={t('No vendors found')}
+              description={t('Add a vendor to start tracking purchases.')}
+              action={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-1" />{t('Add Vendor')}</Button>}
             />
           </CardContent>
         </Card>
@@ -187,7 +189,7 @@ export function VendorsPage() {
                   {vendor.address && <p className="flex items-center gap-2"><MapPin className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{vendor.address}</span></p>}
                 </div>
                 <div className="mt-3 pt-3 border-t flex justify-between text-sm">
-                  <span className="text-muted-foreground">Contact</span>
+                  <span className="text-muted-foreground">{t('Contact')}</span>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{vendor.contactPerson || '—'}</span>
                     <StatusBadge status={vendor.status} />
@@ -203,49 +205,49 @@ export function VendorsPage() {
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editTarget ? 'Edit Vendor' : 'Add Vendor'}</DialogTitle>
+            <DialogTitle>{editTarget ? t('Edit Vendor') : t('Add Vendor')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-3 py-2">
             <div className="space-y-1.5">
-              <Label>Vendor Name *</Label>
-              <Input required placeholder="e.g. ABC Trading Co." value={form.name}
+              <Label>{t('Vendor Name')} *</Label>
+              <Input required placeholder={t('e.g. ABC Trading Co.')} value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Contact Person</Label>
-                <Input placeholder="e.g. Rajesh Kumar" value={form.contactPerson}
+                <Label>{t('Contact Person')}</Label>
+                <Input placeholder={t('e.g. Rajesh Kumar')} value={form.contactPerson}
                   onChange={(e) => setForm({ ...form, contactPerson: e.target.value })} />
               </div>
               <div className="space-y-1.5">
-                <Label>Phone</Label>
-                <Input placeholder="+91 98765 43210" value={form.phone}
+                <Label>{t('Phone')}</Label>
+                <Input placeholder={t('+91 98765 43210')} value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })} />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Email</Label>
-              <Input type="email" placeholder="vendor@example.com" value={form.email}
+              <Label>{t('Email')}</Label>
+              <Input type="email" placeholder={t('vendor@example.com')} value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label>Address</Label>
-              <Input placeholder="City, State" value={form.address}
+              <Label>{t('Address')}</Label>
+              <Input placeholder={t('City, State')} value={form.address}
                 onChange={(e) => setForm({ ...form, address: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label>Vendor Type</Label>
-              <Input placeholder="e.g. Manufacturer, Distributor" value={form.vendorType}
+              <Label>{t('Vendor Type')}</Label>
+              <Input placeholder={t('e.g. Manufacturer, Distributor')} value={form.vendorType}
                 onChange={(e) => setForm({ ...form, vendorType: e.target.value })} />
             </div>
             {editTarget && (
               <div className="space-y-1.5">
-                <Label>Status</Label>
+                <Label>{t('Status')}</Label>
                 <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as 'active' | 'inactive' })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="active">{t('Active')}</SelectItem>
+                    <SelectItem value="inactive">{t('Inactive')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -256,8 +258,8 @@ export function VendorsPage() {
               onChange={(attrs) => setForm({ ...form, attributes: attrs })}
             />
             <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>
-              <Button type="submit" disabled={saving}>{saving ? 'Saving…' : editTarget ? 'Save Changes' : 'Add Vendor'}</Button>
+              <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>{t('Cancel')}</Button>
+              <Button type="submit" disabled={saving}>{saving ? t('Saving…') : editTarget ? t('Save Changes') : t('Add Vendor')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -265,7 +267,7 @@ export function VendorsPage() {
 
       <CustomFieldsSheet
         entity="vendor"
-        entityLabel="Vendors"
+        entityLabel={t('Vendors')}
         open={fieldsSheetOpen}
         onOpenChange={setFieldsSheetOpen}
       />

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface Ticket { id: string; subject: string; status: string; priority: string; createdAt: string; resolvedAt?: string }
 interface Message { id: string; senderType: string; senderName: string; message: string; createdAt: string }
@@ -25,6 +26,7 @@ const STATUS_STYLE: Record<string, { label: string; className: string }> = {
 
 export function SupportPage() {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ subject: '', description: '', priority: 'medium' });
@@ -40,7 +42,7 @@ export function SupportPage() {
     setSaving(true);
     try {
       await api.post('/support/tickets', form);
-      toast({ title: 'Ticket submitted' });
+      toast({ title: t('Ticket submitted') });
       setShowCreate(false);
       setForm({ subject: '', description: '', priority: 'medium' });
       api.get<Ticket[]>('/support/tickets').then(setTickets);
@@ -66,28 +68,28 @@ export function SupportPage() {
   return (
     <div>
       <PageHeader
-        title="Support"
-        description="Need help? Raise a ticket and our team will assist you."
-        actions={<Button onClick={() => setShowCreate(true)}><MessageSquarePlus className="h-4 w-4 mr-1" /> New Ticket</Button>}
+        title={t("Support")}
+        description={t("Need help? Raise a ticket and our team will assist you.")}
+        actions={<Button onClick={() => setShowCreate(true)}><MessageSquarePlus className="h-4 w-4 mr-1" /> {t('New Ticket')}</Button>}
       />
 
       {tickets.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground text-sm">No support tickets yet.</CardContent></Card>
+        <Card><CardContent className="py-12 text-center text-muted-foreground text-sm">{t('No support tickets yet.')}</CardContent></Card>
       ) : (
         <div className="space-y-2">
-          {tickets.map(t => {
-            const st = STATUS_STYLE[t.status] ?? STATUS_STYLE.open;
+          {tickets.map(tk => {
+            const st = STATUS_STYLE[tk.status] ?? STATUS_STYLE.open;
             return (
-              <Card key={t.id} className="cursor-pointer hover:shadow-sm transition-shadow" onClick={() => openTicket(t.id)}>
+              <Card key={tk.id} className="cursor-pointer hover:shadow-sm transition-shadow" onClick={() => openTicket(tk.id)}>
                 <CardContent className="p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3 min-w-0">
                     <MessageCircle className="h-5 w-5 text-muted-foreground shrink-0" />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{t.subject}</p>
-                      <p className="text-xs text-muted-foreground">{t.createdAt?.slice(0, 10)}</p>
+                      <p className="text-sm font-medium truncate">{tk.subject}</p>
+                      <p className="text-xs text-muted-foreground">{tk.createdAt?.slice(0, 10)}</p>
                     </div>
                   </div>
-                  <Badge variant="outline" className={st.className}>{st.label}</Badge>
+                  <Badge variant="outline" className={st.className}>{t(st.label)}</Badge>
                 </CardContent>
               </Card>
             );
@@ -98,31 +100,31 @@ export function SupportPage() {
       {/* Create dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent>
-          <DialogHeader><DialogTitle>New Support Ticket</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('New Support Ticket')}</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>Subject *</Label>
-              <Input required value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} placeholder="Brief summary of your issue" />
+              <Label>{t('Subject')} *</Label>
+              <Input required value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} placeholder={t("Brief summary of your issue")} />
             </div>
             <div className="space-y-1.5">
-              <Label>Description</Label>
-              <Textarea rows={4} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Describe the issue in detail..." />
+              <Label>{t('Description')}</Label>
+              <Textarea rows={4} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder={t("Describe the issue in detail...")} />
             </div>
             <div className="space-y-1.5">
-              <Label>Priority</Label>
+              <Label>{t('Priority')}</Label>
               <Select value={form.priority} onValueChange={v => setForm({ ...form, priority: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="critical">Critical</SelectItem>
+                  <SelectItem value="low">{t('Low')}</SelectItem>
+                  <SelectItem value="medium">{t('Medium')}</SelectItem>
+                  <SelectItem value="high">{t('High')}</SelectItem>
+                  <SelectItem value="critical">{t('Critical')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
-              <Button type="submit" disabled={saving}>{saving ? 'Submitting…' : 'Submit Ticket'}</Button>
+              <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>{t('Cancel')}</Button>
+              <Button type="submit" disabled={saving}>{saving ? t('Submitting…') : t('Submit Ticket')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -151,7 +153,7 @@ export function SupportPage() {
           )}
           {selected && selected.status !== 'closed' && selected.status !== 'resolved' && (
             <div className="flex gap-2 pt-2 border-t">
-              <Input value={reply} onChange={e => setReply(e.target.value)} placeholder="Type a reply..." onKeyDown={e => e.key === 'Enter' && handleReply()} />
+              <Input value={reply} onChange={e => setReply(e.target.value)} placeholder={t("Type a reply...")} onKeyDown={e => e.key === 'Enter' && handleReply()} />
               <Button size="sm" onClick={handleReply} disabled={sending || !reply.trim()}>
                 <Send className="h-4 w-4" />
               </Button>
