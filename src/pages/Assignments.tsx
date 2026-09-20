@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, UserCheck, Plus, AlertTriangle, CheckCircle2, XCircle, DollarSign } from 'lucide-react';
+import { Search, UserCheck, Plus, AlertTriangle, CheckCircle2, XCircle, DollarSign, Printer } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
 import { recipientService, assignmentService, inventoryService, transactionService } from '@/services';
@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/hooks/useTranslation';
+import { PrintReceipt } from '@/components/shared/PrintReceipt';
 import type { Recipient, Assignment, Item } from '@/types';
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -78,6 +79,7 @@ export function AssignmentsPage() {
   const [lostDialog, setLostDialog] = useState<Assignment | null>(null);
   const [lostForm, setLostForm] = useState({ fineAmount: '', notes: '' });
   const [lostSaving, setLostSaving] = useState(false);
+  const [printAssignment, setPrintAssignment] = useState<Assignment | null>(null);
 
   useEffect(() => {
     if (!currentOrg) return;
@@ -369,6 +371,9 @@ export function AssignmentsPage() {
                                   <XCircle className="h-3.5 w-3.5 mr-1" />
                                   {t('Lost')}
                                 </Button>
+                                <Button variant="ghost" size="sm" onClick={() => setPrintAssignment(a)} title={t('Print Receipt')}>
+                                  <Printer className="h-3.5 w-3.5" />
+                                </Button>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -649,6 +654,31 @@ export function AssignmentsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Print Receipt */}
+      {printAssignment && (
+        <PrintReceipt
+          open={!!printAssignment}
+          onOpenChange={(open) => !open && setPrintAssignment(null)}
+          orgName={currentOrg?.name || ''}
+          orgAddress={currentOrg?.address}
+          orgLogoUrl={currentOrg?.logoUrl}
+          title={`${config.assignmentLabel} Receipt`}
+          date={printAssignment.issueDate}
+          fields={[
+            { label: config.recipientLabel, value: printAssignment.recipientName },
+            { label: config.identifierLabel, value: printAssignment.recipientIdentifier || '—' },
+            { label: config.groupLabel, value: printAssignment.recipientGroup || '—' },
+            { label: 'Status', value: printAssignment.status },
+            ...(printAssignment.conditionIssued ? [{ label: 'Condition', value: printAssignment.conditionIssued }] : []),
+            ...(printAssignment.expectedReturn ? [{ label: 'Expected Return', value: printAssignment.expectedReturn }] : []),
+          ]}
+          items={[{ name: printAssignment.itemName, qty: printAssignment.quantity, details: printAssignment.itemDetails }]}
+          notes={printAssignment.notes}
+          showSignature
+          footer={`${config.assignmentLabel} issued by ${printAssignment.issuedBy || 'Store Manager'}`}
+        />
+      )}
     </div>
   );
 }

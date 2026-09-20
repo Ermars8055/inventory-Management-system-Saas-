@@ -35,9 +35,13 @@ export function OrgSwitcher() {
         onClick={() => setOpen(!open)}
         className="flex w-full items-center gap-3 rounded-lg p-2 hover:bg-muted transition-colors text-left"
       >
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground text-xs font-bold">
-          {currentOrg.logoText || currentOrg.name.slice(0, 2).toUpperCase()}
-        </div>
+        {currentOrg.logoUrl ? (
+          <img src={`${(import.meta.env.VITE_API_URL as string) || 'http://localhost:8000'}${currentOrg.logoUrl}`} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+        ) : (
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground text-xs font-bold">
+            {currentOrg.logoText || currentOrg.name.slice(0, 2).toUpperCase()}
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold truncate">{currentOrg.name}</p>
           <p className="text-xs text-muted-foreground">{INDUSTRY_LABELS[currentOrg.industry]}</p>

@@ -77,6 +77,7 @@ export interface Organization {
   phone?: string;
   email?: string;
   logoText?: string;
+  logoUrl?: string;
   plan: PlanTier;
   subdomain?: string;
   createdAt: string;

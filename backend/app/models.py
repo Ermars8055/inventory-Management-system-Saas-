@@ -13,6 +13,7 @@ class Organization(Base):
     phone = Column(String)
     email = Column(String)
     logo_text = Column(String)
+    logo_url = Column(String)
     plan = Column(String, default="starter")
     subdomain = Column(String, unique=True)
     created_at = Column(String)

@@ -1,5 +1,7 @@
+import os
 import time
-from fastapi import APIRouter, Depends, HTTPException
+import uuid
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Organization, User
@@ -60,6 +62,46 @@ def update_config(org_id: str, body: ConfigUpdate, user: User = Depends(require(
     current = dict(org.config or {})
     current.update(body.config)
     org.config = current  # Assign new dict so SQLAlchemy detects the change
+    db.commit()
+    db.refresh(org)
+    return org
+
+
+@router.post("/{org_id}/logo", response_model=OrganizationOut)
+async def upload_logo(
+    org_id: str,
+    file: UploadFile = File(...),
+    user: User = Depends(require("settings:update")),
+    db: Session = Depends(get_db),
+):
+    """Upload org logo image (max 2MB, jpg/png only)."""
+    same_org(org_id, user)
+    org = db.query(Organization).filter(Organization.id == org_id).first()
+    if not org:
+        raise HTTPException(404, "Organization not found")
+
+    content = await file.read()
+    if len(content) > 2 * 1024 * 1024:
+        raise HTTPException(400, "Logo must be under 2MB")
+    if file.content_type not in ("image/jpeg", "image/png", "image/svg+xml"):
+        raise HTTPException(400, "Only JPG, PNG, or SVG allowed")
+
+    upload_dir = os.getenv("UPLOAD_DIR", "/data/uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+    ext = os.path.splitext(file.filename or "")[1] or ".png"
+    filename = f"logo_{org_id}{ext}"
+    path = os.path.join(upload_dir, filename)
+
+    # Remove old logo if exists
+    if org.logo_url:
+        old_path = os.path.join(upload_dir, os.path.basename(org.logo_url))
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+    with open(path, "wb") as f:
+        f.write(content)
+
+    org.logo_url = f"/files/logo/{filename}"
     db.commit()
     db.refresh(org)
     return org

@@ -72,6 +72,16 @@ def list_files(
              "uploadedBy": f.uploaded_by, "createdAt": f.created_at} for f in files]
 
 
+@router.get("/logo/{filename}")
+def serve_logo(filename: str):
+    """Serve org logos — public (no auth needed, logo shown on login page)."""
+    path = os.path.join(UPLOAD_DIR, filename)
+    if not os.path.exists(path):
+        raise HTTPException(404, "Logo not found")
+    mime = "image/png" if filename.endswith(".png") else "image/jpeg" if filename.endswith(".jpg") else "image/svg+xml"
+    return FileResponse(path, media_type=mime)
+
+
 @router.get("/{file_id}")
 def download(file_id: str, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     att = db.query(FileAttachment).filter(FileAttachment.id == file_id).first()

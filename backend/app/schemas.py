@@ -66,6 +66,7 @@ class OrganizationOut(CamelModel):
     phone: Optional[str] = None
     email: Optional[str] = None
     logo_text: Optional[str] = None
+    logo_url: Optional[str] = None
     plan: str = "starter"
     subdomain: Optional[str] = None
     created_at: Optional[str] = None

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Building2, SlidersHorizontal, Globe } from 'lucide-react';
+import { ArrowLeft, Building2, SlidersHorizontal, Globe, Upload, ImageIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
@@ -78,6 +78,62 @@ export function OrganizationSettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Logo Upload */}
+          <div className="flex items-center gap-5">
+            <div className="relative group">
+              {currentOrg.logoUrl ? (
+                <img
+                  src={`${(import.meta.env.VITE_API_URL as string) || 'http://localhost:8000'}${currentOrg.logoUrl}`}
+                  alt={currentOrg.name}
+                  className="h-20 w-20 rounded-2xl object-cover border-2 border-muted"
+                />
+              ) : (
+                <div className="h-20 w-20 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground text-2xl font-bold border-2 border-muted">
+                  {currentOrg.logoText || currentOrg.name.slice(0, 2).toUpperCase()}
+                </div>
+              )}
+              <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                <Upload className="h-5 w-5 text-white" />
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/svg+xml"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 2 * 1024 * 1024) {
+                      toast({ title: 'Logo must be under 2MB', variant: 'destructive' });
+                      return;
+                    }
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    try {
+                      const token = localStorage.getItem('token') ?? '';
+                      const base = (import.meta.env.VITE_API_URL as string) || 'http://localhost:8000';
+                      const res = await fetch(`${base}/organizations/${currentOrg.id}/logo`, {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${token}` },
+                        body: formData,
+                      });
+                      if (!res.ok) throw new Error('Upload failed');
+                      await refreshOrganizations();
+                      toast({ title: 'Logo updated' });
+                    } catch {
+                      toast({ title: 'Failed to upload logo', variant: 'destructive' });
+                    }
+                  }}
+                />
+              </label>
+            </div>
+            <div>
+              <p className="text-sm font-medium">Organization Logo</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Click to upload. JPG, PNG, or SVG. Max 2MB.</p>
+              <p className="text-xs text-muted-foreground">Shown in sidebar, receipts, and login page.</p>
+            </div>
+          </div>
+
+          <Separator />
+
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Organization Name</Label>
