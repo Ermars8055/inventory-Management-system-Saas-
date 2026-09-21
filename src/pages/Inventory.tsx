@@ -299,7 +299,7 @@ export function InventoryPage() {
           name: form.name, sku: form.sku,
           categoryId: form.categoryId,
           categoryName: cat?.name || form.categoryId,
-          module: form.module || 'general',
+          module: (form.module || 'general') as Item['module'],
           quantity: Number(form.quantity),
           available: Number(form.quantity),
           reserved: 0,
