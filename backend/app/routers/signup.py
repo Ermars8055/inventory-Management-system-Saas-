@@ -90,6 +90,44 @@ def signup(body: SignupBody, db: Session = Depends(get_db)):
 
     # Create org
     org_id = f"org_{int(time.time() * 1000)}"
+    # Industry-specific default config
+    INDUSTRY_CONFIGS = {
+        "school": {
+            "recipientLabel": "Student", "recipientPluralLabel": "Students",
+            "identifierLabel": "Roll Number", "groupLabel": "Class",
+            "assignmentLabel": "Issue", "assignmentMode": "distribution",
+            "itemUnit": "units", "currencyCode": "INR", "currencySymbol": "₹",
+            "timezone": "Asia/Kolkata", "language": "en",
+            "enableFines": False, "enableConditionTracking": True, "fineLabel": "Fine",
+        },
+        "pharmacy": {
+            "recipientLabel": "Customer", "recipientPluralLabel": "Customers",
+            "identifierLabel": "Customer ID", "groupLabel": "Area",
+            "assignmentLabel": "Sale", "assignmentMode": "distribution",
+            "itemUnit": "strips", "currencyCode": "INR", "currencySymbol": "₹",
+            "timezone": "Asia/Kolkata", "language": "en",
+            "enableFines": False, "enableConditionTracking": False, "fineLabel": "Fine",
+        },
+        "retail": {
+            "recipientLabel": "Customer", "recipientPluralLabel": "Customers",
+            "identifierLabel": "Customer ID", "groupLabel": "Region",
+            "assignmentLabel": "Sale", "assignmentMode": "distribution",
+            "itemUnit": "units", "currencyCode": "INR", "currencySymbol": "₹",
+            "timezone": "Asia/Kolkata", "language": "en",
+            "enableFines": False, "enableConditionTracking": False, "fineLabel": "Fine",
+        },
+    }
+    DEFAULT_CONFIG = {
+        "recipientLabel": "Recipient", "recipientPluralLabel": "Recipients",
+        "identifierLabel": "ID", "groupLabel": "Group",
+        "assignmentLabel": "Issue", "assignmentMode": "distribution",
+        "itemUnit": "units", "currencyCode": "INR", "currencySymbol": "₹",
+        "timezone": "Asia/Kolkata", "language": "en",
+        "enableFines": False, "enableConditionTracking": True, "fineLabel": "Fine",
+    }
+
+    org_config = INDUSTRY_CONFIGS.get(body.industry, DEFAULT_CONFIG)
+
     org = Organization(
         id=org_id,
         name=body.org_name,
@@ -99,6 +137,7 @@ def signup(body: SignupBody, db: Session = Depends(get_db)):
         subdomain=subdomain,
         logo_text=body.org_name[:3].upper(),
         created_at=date.today().isoformat(),
+        config=org_config,
     )
     db.add(org)
 

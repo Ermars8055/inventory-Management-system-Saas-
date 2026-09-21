@@ -122,8 +122,9 @@ export function AssignmentsPage() {
     setAssignments(data);
   };
 
-  const active = assignments.filter((a) => a.status === 'issued');
-  const history = assignments.filter((a) => a.status !== 'issued');
+  const ACTIVE_STATUSES = ['issued', 'distributed', 'fine_pending'];
+  const active = assignments.filter((a) => ACTIVE_STATUSES.includes(a.status) || isOverdue(a));
+  const history = assignments.filter((a) => !ACTIVE_STATUSES.includes(a.status) && !isOverdue(a));
 
   // ── Issue ─────────────────────────────────────────────────────────────────
   const handleIssue = async () => {

@@ -22,6 +22,7 @@ import type { Recipient, Assignment, Item } from '@/types';
 
 const STATUS_BADGE: Record<string, { label: string; class: string }> = {
   issued:           { label: 'Active',          class: 'bg-blue-50 text-blue-700 border-blue-200' },
+  distributed:      { label: 'Distributed',     class: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   returned:         { label: 'Returned',         class: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   returned_damaged: { label: 'Returned – Dmgd',  class: 'bg-orange-50 text-orange-700 border-orange-200' },
   lost:             { label: 'Lost',             class: 'bg-red-50 text-red-700 border-red-200' },
@@ -30,8 +31,10 @@ const STATUS_BADGE: Record<string, { label: string; class: string }> = {
   closed:           { label: 'Closed',           class: 'bg-slate-50 text-slate-500 border-slate-200' },
 };
 
+const ACTIVE_STATUSES = ['issued', 'distributed', 'fine_pending'];
+
 function isOverdue(a: Assignment): boolean {
-  return a.status === 'issued' && !!a.expectedReturn && a.expectedReturn < new Date().toISOString().slice(0, 10);
+  return a.mode === 'lending' && a.status === 'issued' && !!a.expectedReturn && a.expectedReturn < new Date().toISOString().slice(0, 10);
 }
 
 export function RecipientDetailPage() {
@@ -106,8 +109,8 @@ export function RecipientDetailPage() {
     }
   }
 
-  const active = assignments.filter((a) => ['issued', 'fine_pending'].includes(a.status) || isOverdue(a));
-  const history = assignments.filter((a) => !['issued', 'fine_pending'].includes(a.status) && !isOverdue(a));
+  const active = assignments.filter((a) => ACTIVE_STATUSES.includes(a.status) || isOverdue(a));
+  const history = assignments.filter((a) => !ACTIVE_STATUSES.includes(a.status) && !isOverdue(a));
   const totalFines = assignments.reduce((sum, a) => sum + (a.fineAmount || 0), 0);
   const unpaidFines = assignments.filter((a) => a.fineAmount > 0 && !a.finePaid).reduce((sum, a) => sum + a.fineAmount, 0);
 
@@ -205,7 +208,7 @@ export function RecipientDetailPage() {
             </Button>
             <Button onClick={() => setShowIssue(true)}>
               <Plus className="h-4 w-4 mr-1" />
-              {config.assignmentLabel} Item
+              {t(config.assignmentLabel)} {t('Item')}
             </Button>
           </div>
         }
