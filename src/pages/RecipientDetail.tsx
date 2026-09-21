@@ -68,7 +68,7 @@ export function RecipientDetailPage() {
 
   // Fee-first distribution
   const [fees, setFees] = useState<{ id: string; recipientName: string; templateName: string; totalAmount: number; paidAmount: number; status: string; distributedDate?: string; createdAt: string }[]>([]);
-  const [templates, setTemplates] = useState<{ id: string; name: string }[]>([]);
+  const [templates, setTemplates] = useState<{ id: string; name: string; items: unknown[] }[]>([]);
   const [showAssignPackage, setShowAssignPackage] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [showPayDialog, setShowPayDialog] = useState<string | null>(null);
@@ -601,9 +601,12 @@ export function RecipientDetailPage() {
               <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
                 <SelectTrigger><SelectValue placeholder={t('Choose a package...')} /></SelectTrigger>
                 <SelectContent>
-                  {templates.map(tmpl => (
-                    <SelectItem key={tmpl.id} value={tmpl.id}>{tmpl.name}</SelectItem>
+                  {templates.filter(tmpl => tmpl.items && tmpl.items.length > 0).map(tmpl => (
+                    <SelectItem key={tmpl.id} value={tmpl.id}>{tmpl.name} ({tmpl.items.length} items)</SelectItem>
                   ))}
+                  {templates.every(tmpl => !tmpl.items || tmpl.items.length === 0) && (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">{t('No packages with items. Add items to templates first.')}</div>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -612,11 +615,15 @@ export function RecipientDetailPage() {
             <Button variant="outline" onClick={() => setShowAssignPackage(false)}>{t('Cancel')}</Button>
             <Button disabled={!selectedTemplate} onClick={async () => {
               if (!id) return;
-              await feeService.assignPackage(id, selectedTemplate);
-              setShowAssignPackage(false);
-              setSelectedTemplate('');
-              refreshRecipient();
-              toast({ title: t('Package assigned — fee record created') });
+              try {
+                await feeService.assignPackage(id, selectedTemplate);
+                setShowAssignPackage(false);
+                setSelectedTemplate('');
+                refreshRecipient();
+                toast({ title: t('Package assigned — fee record created') });
+              } catch (err: unknown) {
+                toast({ title: t('Error'), description: err instanceof Error ? err.message : t('Failed to assign package'), variant: 'destructive' });
+              }
             }}>{t('Assign')}</Button>
           </DialogFooter>
         </DialogContent>
