@@ -378,6 +378,27 @@ class ClassTemplate(Base):
     )
 
 
+class FeeRecord(Base):
+    """
+    Fee-first distribution: student owes fee for a package.
+    Flow: created (unpaid) → paid → distributed
+    """
+    __tablename__ = "fee_records"
+    id = Column(String, primary_key=True)
+    organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
+    recipient_id = Column(String, ForeignKey("recipients.id"), nullable=False)
+    recipient_name = Column(String)
+    template_id = Column(String, ForeignKey("class_templates.id"), nullable=True)
+    template_name = Column(String)
+    total_amount = Column(Integer, default=0)      # total fee in smallest currency unit
+    paid_amount = Column(Integer, default=0)
+    status = Column(String, default="unpaid")       # unpaid | partial | paid | distributed | waived
+    payment_date = Column(String)
+    distributed_date = Column(String)
+    notes = Column(String)
+    created_at = Column(String)
+
+
 class ClassTemplateItem(Base):
     """One line item inside a ClassTemplate."""
     __tablename__ = "class_template_items"
@@ -386,6 +407,7 @@ class ClassTemplateItem(Base):
     item_id = Column(String, ForeignKey("items.id"), nullable=True)   # nullable for free-text
     item_name = Column(String, nullable=False)
     quantity = Column(Integer, default=1)
+    unit_price = Column(Integer, default=0)       # price per unit
     condition_issued = Column(String, default="New")
     notes = Column(String)
     template = relationship("ClassTemplate", back_populates="items")

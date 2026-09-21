@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Plus, RotateCcw, AlertTriangle, CheckCircle2, Clock,
-  XCircle, DollarSign, Package, Pencil,
+  XCircle, DollarSign, Package, Pencil, CreditCard, Truck,
 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
-import { recipientService, assignmentService, inventoryService, transactionService } from '@/services';
+import { recipientService, assignmentService, inventoryService, transactionService, feeService, classTemplateService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -66,16 +66,28 @@ export function RecipientDetailPage() {
   const [markingLost, setMarkingLost] = useState<Assignment | null>(null);
   const [lostForm, setLostForm] = useState({ fineAmount: '0', notes: '' });
 
+  // Fee-first distribution
+  const [fees, setFees] = useState<{ id: string; recipientName: string; templateName: string; totalAmount: number; paidAmount: number; status: string; distributedDate?: string; createdAt: string }[]>([]);
+  const [templates, setTemplates] = useState<{ id: string; name: string }[]>([]);
+  const [showAssignPackage, setShowAssignPackage] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [showPayDialog, setShowPayDialog] = useState<string | null>(null);
+  const [payAmount, setPayAmount] = useState('');
+
   function refreshRecipient() {
     if (!id || !currentOrg) return;
     recipientService.getById(id).then((r) => setRecipient(r || null));
     recipientService.getAssignments(currentOrg.id, id).then(setAssignments);
     inventoryService.getByOrganization(currentOrg.id).then(setItems);
+    feeService.getByRecipient(id).then(setFees);
+    classTemplateService.getByOrganization(currentOrg.id).then(setTemplates);
   }
 
   useEffect(() => {
     refreshRecipient();
   }, [id, currentOrg]);
+
+  const isDistribution = config.assignmentMode === 'distribution';
 
   function openEditRecipient() {
     if (!recipient) return;
@@ -206,6 +218,12 @@ export function RecipientDetailPage() {
             <Button variant="outline" size="sm" onClick={openEditRecipient}>
               <Pencil className="h-4 w-4 mr-1" /> {t('Edit')}
             </Button>
+            {isDistribution && templates.length > 0 && (
+              <Button variant="outline" onClick={() => setShowAssignPackage(true)}>
+                <CreditCard className="h-4 w-4 mr-1" />
+                {t('Assign Package')}
+              </Button>
+            )}
             <Button onClick={() => setShowIssue(true)}>
               <Plus className="h-4 w-4 mr-1" />
               {t(config.assignmentLabel)} {t('Item')}
@@ -490,6 +508,140 @@ export function RecipientDetailPage() {
               <Button type="submit" disabled={editRecipientSaving}>{editRecipientSaving ? t('Saving...') : t('Save')}</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Fee Records Section ── */}
+      {isDistribution && fees.length > 0 && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <CreditCard className="h-4 w-4" /> {t('Fee Packages')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {fees.map(fee => (
+                <div key={fee.id} className="flex items-center justify-between px-4 py-3 gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{fee.templateName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t('Total')}: ₹{fee.totalAmount} · {t('Paid')}: ₹{fee.paidAmount}
+                      {fee.distributedDate && ` · ${t('Distributed')}: ${fee.distributedDate}`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {fee.status === 'unpaid' && (
+                      <>
+                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">{t('Unpaid')}</Badge>
+                        <Button size="sm" onClick={() => { setShowPayDialog(fee.id); setPayAmount(String(fee.totalAmount - fee.paidAmount)); }}>
+                          <DollarSign className="h-3.5 w-3.5 mr-1" /> {t('Pay')}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={async () => {
+                          await feeService.waive(fee.id);
+                          refreshRecipient();
+                          toast({ title: t('Fee waived') });
+                        }}>{t('Waive')}</Button>
+                      </>
+                    )}
+                    {fee.status === 'partial' && (
+                      <>
+                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">{t('Partial')} (₹{fee.paidAmount})</Badge>
+                        <Button size="sm" onClick={() => { setShowPayDialog(fee.id); setPayAmount(String(fee.totalAmount - fee.paidAmount)); }}>
+                          <DollarSign className="h-3.5 w-3.5 mr-1" /> {t('Pay Remaining')}
+                        </Button>
+                      </>
+                    )}
+                    {fee.status === 'paid' && (
+                      <>
+                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">{t('Paid')}</Badge>
+                        <Button size="sm" onClick={async () => {
+                          await feeService.distribute(fee.id);
+                          refreshRecipient();
+                          toast({ title: t('Items distributed!') });
+                        }}>
+                          <Truck className="h-3.5 w-3.5 mr-1" /> {t('Distribute')}
+                        </Button>
+                      </>
+                    )}
+                    {fee.status === 'waived' && !fee.distributedDate && (
+                      <>
+                        <Badge variant="outline" className="bg-gray-100 text-gray-600">{t('Waived')}</Badge>
+                        <Button size="sm" onClick={async () => {
+                          await feeService.distribute(fee.id);
+                          refreshRecipient();
+                          toast({ title: t('Items distributed!') });
+                        }}>
+                          <Truck className="h-3.5 w-3.5 mr-1" /> {t('Distribute')}
+                        </Button>
+                      </>
+                    )}
+                    {fee.status === 'distributed' && (
+                      <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">{t('Distributed')}</Badge>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Assign Package Dialog */}
+      <Dialog open={showAssignPackage} onOpenChange={setShowAssignPackage}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('Assign Fee Package')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>{t('Select Package')}</Label>
+              <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                <SelectTrigger><SelectValue placeholder={t('Choose a package...')} /></SelectTrigger>
+                <SelectContent>
+                  {templates.map(tmpl => (
+                    <SelectItem key={tmpl.id} value={tmpl.id}>{tmpl.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAssignPackage(false)}>{t('Cancel')}</Button>
+            <Button disabled={!selectedTemplate} onClick={async () => {
+              if (!id) return;
+              await feeService.assignPackage(id, selectedTemplate);
+              setShowAssignPackage(false);
+              setSelectedTemplate('');
+              refreshRecipient();
+              toast({ title: t('Package assigned — fee record created') });
+            }}>{t('Assign')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pay Fee Dialog */}
+      <Dialog open={!!showPayDialog} onOpenChange={(open) => !open && setShowPayDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('Record Payment')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>{t('Amount')}</Label>
+              <Input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPayDialog(null)}>{t('Cancel')}</Button>
+            <Button onClick={async () => {
+              if (!showPayDialog) return;
+              await feeService.pay(showPayDialog, Number(payAmount));
+              setShowPayDialog(null);
+              refreshRecipient();
+              toast({ title: t('Payment recorded') });
+            }}>{t('Record Payment')}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -192,6 +192,27 @@ export const assignmentService = {
   },
 };
 
+export const feeService = {
+  async getByRecipient(recipientId: string): Promise<{ id: string; recipientName: string; templateName: string; totalAmount: number; paidAmount: number; status: string; distributedDate?: string; createdAt: string }[]> {
+    return api.get(`/fees?recipient_id=${recipientId}`);
+  },
+  async getAll(): Promise<{ id: string; recipientName: string; templateName: string; totalAmount: number; paidAmount: number; status: string; createdAt: string }[]> {
+    return api.get('/fees');
+  },
+  async assignPackage(recipientId: string, templateId: string, notes?: string): Promise<unknown> {
+    return api.post('/fees', { recipientId, templateId, notes });
+  },
+  async pay(feeId: string, amount: number, notes?: string): Promise<unknown> {
+    return api.patch(`/fees/${feeId}/pay`, { amount, notes });
+  },
+  async waive(feeId: string): Promise<unknown> {
+    return api.patch(`/fees/${feeId}/waive`, {});
+  },
+  async distribute(feeId: string): Promise<unknown> {
+    return api.post(`/fees/${feeId}/distribute`, {});
+  },
+};
+
 // Keep legacy alias
 export const studentService = {
   getByOrganization: (orgId: string) => recipientService.getByOrganization(orgId),

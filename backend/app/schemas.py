@@ -651,6 +651,7 @@ class ClassTemplateItemOut(CamelModel):
     item_id: Optional[str] = None
     item_name: str
     quantity: int = 1
+    unit_price: int = 0
     condition_issued: str = "New"
     notes: Optional[str] = None
 
@@ -659,8 +660,25 @@ class ClassTemplateItemCreate(CamelModel):
     item_id: Optional[str] = None
     item_name: str
     quantity: int = 1
+    unit_price: int = 0
     condition_issued: str = "New"
     notes: Optional[str] = None
+
+
+class FeeRecordOut(CamelModel):
+    id: str
+    organization_id: str
+    recipient_id: str
+    recipient_name: Optional[str] = None
+    template_id: Optional[str] = None
+    template_name: Optional[str] = None
+    total_amount: int = 0
+    paid_amount: int = 0
+    status: str = "unpaid"
+    payment_date: Optional[str] = None
+    distributed_date: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: Optional[str] = None
 
 
 class ClassTemplateOut(CamelModel):

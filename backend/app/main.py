@@ -38,6 +38,7 @@ from .routers.notifications import router as notifications_router
 from .routers.files import router as files_router
 from .routers.api_keys import router as api_keys_router
 from .routers.translate import router as translate_router
+from .routers.fees import router as fees_router
 
 load_dotenv()
 
@@ -207,6 +208,7 @@ app.include_router(notifications_router)
 app.include_router(files_router)
 app.include_router(api_keys_router)
 app.include_router(translate_router)
+app.include_router(fees_router)
 
 
 @app.get("/health")

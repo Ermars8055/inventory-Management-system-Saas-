@@ -27,6 +27,8 @@ def run():
         "ALTER TABLE assignments ADD COLUMN unit_price INTEGER DEFAULT 0",
         "ALTER TABLE assignments ADD COLUMN fee_amount INTEGER DEFAULT 0",
         "ALTER TABLE assignments ADD COLUMN fee_status VARCHAR DEFAULT 'unpaid'",
+        # Class template items: unit_price
+        "ALTER TABLE class_template_items ADD COLUMN unit_price INTEGER DEFAULT 0",
         # Custom fields: module tag
         "ALTER TABLE custom_fields ADD COLUMN module VARCHAR",
         # Suppliers: attributes JSON for custom field values
