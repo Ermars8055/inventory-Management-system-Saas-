@@ -433,6 +433,7 @@ export interface ClassTemplateItem {
   itemId?: string;
   itemName: string;
   quantity: number;
+  unitPrice: number;
   conditionIssued: string;
   notes?: string;
 }
