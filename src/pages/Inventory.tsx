@@ -314,6 +314,8 @@ export function InventoryPage() {
       setShowAddDialog(false);
       setEditItem(null);
       setForm(EMPTY_FORM);
+    } catch (err: unknown) {
+      toast({ title: t('Error'), description: err instanceof Error ? err.message : t('Failed to save item'), variant: 'destructive' });
     } finally { setSaving(false); }
   }
 
