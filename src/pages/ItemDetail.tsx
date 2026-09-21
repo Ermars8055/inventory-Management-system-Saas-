@@ -81,39 +81,6 @@ export function ItemDetailPage() {
 
   const moduleDef = item.module !== 'general' ? getModuleDef(item.module) : null;
 
-  // Build module-specific attributes
-  const moduleAttributes: { label: string; value: string }[] = [];
-  if (item.uniform) {
-    moduleAttributes.push(
-      { label: t('Class'), value: item.uniform.classGrade },
-      { label: t('Gender'), value: item.uniform.gender },
-      { label: t('Size'), value: item.uniform.size },
-      { label: t('Academic Year'), value: item.uniform.academicYear },
-      { label: t('Uniform Type'), value: item.uniform.uniformType },
-    );
-  }
-  if (item.book) {
-    moduleAttributes.push(
-      { label: t('ISBN'), value: item.book.isbn },
-      { label: t('Subject'), value: item.book.subject },
-      { label: t('Class'), value: item.book.classGrade },
-      { label: t('Academic Year'), value: item.book.academicYear },
-      { label: t('Edition'), value: item.book.edition },
-      { label: t('Publisher'), value: item.book.publisher },
-    );
-  }
-  if (item.medicine) {
-    moduleAttributes.push(
-      { label: t('Generic Name'), value: item.medicine.genericName },
-      { label: t('Manufacturer'), value: item.medicine.manufacturer },
-      { label: t('Batch Number'), value: item.medicine.batchNumber },
-      { label: t('Expiry Date'), value: item.medicine.expiryDate },
-      { label: t('Manufacturing Date'), value: item.medicine.manufacturingDate },
-      { label: t('MRP'), value: `₹${item.medicine.mrp}` },
-      { label: t('Purchase Price'), value: `₹${item.medicine.purchasePrice}` },
-      { label: t('Prescription Required'), value: item.medicine.prescriptionRequired ? t('Yes') : t('No') },
-    );
-  }
 
   return (
     <div>
@@ -184,39 +151,62 @@ export function ItemDetailPage() {
               </CardContent>
             </Card>
 
-            {moduleAttributes.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    {moduleDef?.name.replace(' Management', '') || t('Module')} {t('Attributes')}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {moduleAttributes.map((attr) => (
-                    <div key={attr.label} className="flex justify-between items-center py-1.5 border-b last:border-0">
-                      <span className="text-sm text-muted-foreground">{attr.label}</span>
-                      <span className="text-sm font-medium">{attr.value}</span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-
-            {item.attributes && Object.keys(item.attributes).length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">{t('Custom Fields')}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {Object.entries(item.attributes).map(([key, val]) => (
-                    <div key={key} className="flex justify-between items-center py-1.5 border-b last:border-0">
-                      <span className="text-sm text-muted-foreground">{key}</span>
-                      <span className="text-sm font-medium">{typeof val === 'boolean' ? (val ? t('Yes') : t('No')) : String(val)}</span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
+            {/* Unified attributes card — module fields + custom fields all in one */}
+            {(() => {
+              // Merge: legacy module fields + attributes (single source of truth)
+              const allAttrs: { label: string; value: string }[] = [];
+              // Legacy fallback for old items with uniform/book/medicine JSON
+              if (item.uniform) {
+                for (const [k, v] of Object.entries(item.uniform)) {
+                  if (v && !item.attributes?.[k]) {
+                    const label = k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+                    allAttrs.push({ label, value: String(v) });
+                  }
+                }
+              }
+              if (item.book) {
+                for (const [k, v] of Object.entries(item.book)) {
+                  if (v && !item.attributes?.[k]) {
+                    const label = k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+                    allAttrs.push({ label, value: String(v) });
+                  }
+                }
+              }
+              if (item.medicine) {
+                for (const [k, v] of Object.entries(item.medicine)) {
+                  if (v && !item.attributes?.[k]) {
+                    const label = k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+                    allAttrs.push({ label, value: typeof v === 'boolean' ? (v ? 'Yes' : 'No') : String(v) });
+                  }
+                }
+              }
+              // Attributes (new system — single source of truth)
+              if (item.attributes) {
+                for (const [k, v] of Object.entries(item.attributes)) {
+                  if (v !== undefined && v !== null && v !== '') {
+                    allAttrs.push({ label: k, value: typeof v === 'boolean' ? (v ? t('Yes') : t('No')) : String(v) });
+                  }
+                }
+              }
+              if (allAttrs.length === 0) return null;
+              return (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      {moduleDef ? `${moduleDef.name.replace(' Management', '')} ${t('Details')}` : t('Item Details')}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {allAttrs.map((attr) => (
+                      <div key={attr.label} className="flex justify-between items-center py-1.5 border-b last:border-0">
+                        <span className="text-sm text-muted-foreground">{t(attr.label)}</span>
+                        <span className="text-sm font-medium">{attr.value}</span>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              );
+            })()}
           </div>
         </TabsContent>
 

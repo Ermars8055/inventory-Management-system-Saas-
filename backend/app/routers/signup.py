@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 from ..database import get_db
 from ..models import Organization, User
+from ..module_fields import create_module_fields
 from ..auth import hash_password, create_access_token
 from ..email_service import send_welcome
 
@@ -152,6 +153,10 @@ def signup(body: SignupBody, db: Session = Depends(get_db)):
         status="active",
     )
     db.add(user)
+
+    # Auto-create default custom fields for enabled modules
+    create_module_fields(db, org_id, org.enabled_modules or [])
+
     db.commit()
 
     # Create DNS record + send welcome email
