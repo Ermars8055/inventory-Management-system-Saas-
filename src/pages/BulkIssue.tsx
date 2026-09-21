@@ -113,6 +113,23 @@ export function BulkIssuePage() {
 
   if (!currentOrg) return null;
 
+  // Distribution mode: bulk issue bypasses fee payment — redirect to proper flow
+  if (config.assignmentMode === 'distribution') {
+    return (
+      <div className="max-w-lg mx-auto py-16 text-center">
+        <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+        <h2 className="text-xl font-bold mb-2">{t('Bulk Issue Not Available')}</h2>
+        <p className="text-sm text-muted-foreground mb-6">
+          {t('In distribution mode, items are distributed through fee packages. Go to a student\'s page, assign a fee package, collect payment, then distribute.')}
+        </p>
+        <div className="flex gap-3 justify-center">
+          <Button variant="outline" onClick={() => navigate('/recipients')}>{t('Go to')} {t(config.recipientPluralLabel)}</Button>
+          <Button onClick={() => navigate('/settings/class-templates')}>{t('Manage Templates')}</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <PageHeader
@@ -193,9 +210,13 @@ export function BulkIssuePage() {
 
           {selectedTemplate && (
             <div className="mt-6 flex justify-end">
-              <Button onClick={() => setStep(2)}>
-                {t('Next')}: {t('Select')} {config.recipientPluralLabel} <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
+              {selectedTemplate.items.length === 0 ? (
+                <p className="text-sm text-destructive">{t('This template has no items. Add items in Settings → Class Templates first.')}</p>
+              ) : (
+                <Button onClick={() => setStep(2)}>
+                  {t('Next')}: {t('Select')} {config.recipientPluralLabel} <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              )}
             </div>
           )}
         </div>
