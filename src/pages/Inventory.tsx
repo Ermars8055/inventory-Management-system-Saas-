@@ -947,11 +947,13 @@ export function InventoryPage() {
                 </div>
               )}
             </div>
-            <div className="space-y-1.5">
-              <Label>{t('Expected Return Date')}</Label>
-              <Input type="date" value={issueForm.expectedReturn}
-                onChange={e => setIssueForm({ ...issueForm, expectedReturn: e.target.value })} />
-            </div>
+            {config.assignmentMode === 'lending' && (
+              <div className="space-y-1.5">
+                <Label>{t('Expected Return Date')}</Label>
+                <Input type="date" value={issueForm.expectedReturn}
+                  onChange={e => setIssueForm({ ...issueForm, expectedReturn: e.target.value })} />
+              </div>
+            )}
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => setIssueItem(null)}>{t('Cancel')}</Button>
               <Button type="submit" disabled={!issueForm.recipientId || issueSaving}>
