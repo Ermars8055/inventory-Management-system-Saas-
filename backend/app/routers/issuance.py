@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import Recipient, Assignment, Item, User
+from ..models import Recipient, Assignment, Item, User, Organization
 from ..schemas import (
     RecipientOut, RecipientCreate, RecipientUpdate,
     AssignmentOut, AssignmentCreate, ReturnBody, LostBody,
@@ -96,6 +96,14 @@ def list_assignments(user: User = Depends(require("assignments:read")), db: Sess
 
 @router.post("/assignments", response_model=AssignmentOut, status_code=201)
 def create_assignment(body: AssignmentCreate, user: User = Depends(require("assignments:create")), db: Session = Depends(get_db)):
+    # Determine mode from org config
+    org = db.query(Organization).filter(Organization.id == user.organization_id).first()
+    org_config = org.config or {} if org else {}
+    mode = body.mode or org_config.get("assignmentMode", "distribution")
+    is_distribution = mode == "distribution"
+
+    fee_amount = body.unit_price * body.quantity if body.unit_price else 0
+
     a = Assignment(
         id=f"asgn_{int(time.time() * 1000)}",
         organization_id=user.organization_id,
@@ -109,17 +117,27 @@ def create_assignment(body: AssignmentCreate, user: User = Depends(require("assi
         quantity=body.quantity,
         condition_issued=body.condition_issued,
         issue_date=body.issue_date,
-        expected_return=body.expected_return,
+        expected_return=body.expected_return if not is_distribution else None,
         issued_by=body.issued_by,
         notes=body.notes,
-        status="issued",
+        mode=mode,
+        status="distributed" if is_distribution else "issued",
+        unit_price=body.unit_price,
+        fee_amount=fee_amount,
+        fee_status="unpaid" if fee_amount > 0 else "waived",
     )
     db.add(a)
     item = db.query(Item).filter(Item.id == body.item_id).first()
     if item:
         same_org(item.organization_id, user)
-        item.reserved = (item.reserved or 0) + body.quantity
-        item.available = max(0, item.quantity - item.reserved)
+        if is_distribution:
+            # Distribution: reduce stock permanently (sold/given, not coming back)
+            item.quantity = max(0, item.quantity - body.quantity)
+            item.available = max(0, item.quantity - (item.reserved or 0))
+        else:
+            # Lending: reserve stock (will come back on return)
+            item.reserved = (item.reserved or 0) + body.quantity
+            item.available = max(0, item.quantity - item.reserved)
         from ..routers.inventory import _compute_status
         item.status = _compute_status(item.available, item.min_quantity or 10)
         item.last_updated = date.today().isoformat()
@@ -205,6 +223,19 @@ def mark_fine_paid(assignment_id: str, user: User = Depends(require("assignments
     same_org(a.organization_id, user)
     a.fine_paid = True
     a.status = "fine_paid"
+    db.commit()
+    db.refresh(a)
+    return a
+
+
+@router.patch("/assignments/{assignment_id}/fee-paid", response_model=AssignmentOut)
+def mark_fee_paid(assignment_id: str, user: User = Depends(require("assignments:update")), db: Session = Depends(get_db)):
+    """Mark fee as paid for a distributed item."""
+    a = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if not a:
+        raise HTTPException(404, "Assignment not found")
+    same_org(a.organization_id, user)
+    a.fee_status = "paid"
     db.commit()
     db.refresh(a)
     return a

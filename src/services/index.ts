@@ -187,6 +187,9 @@ export const assignmentService = {
   async markFinePaid(assignmentId: string): Promise<Assignment> {
     return api.patch(`/assignments/${assignmentId}/fine-paid`, {});
   },
+  async markFeePaid(assignmentId: string): Promise<Assignment> {
+    return api.patch(`/assignments/${assignmentId}/fee-paid`, {});
+  },
 };
 
 // Keep legacy alias

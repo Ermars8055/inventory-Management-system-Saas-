@@ -22,6 +22,11 @@ def run():
         "ALTER TABLE custom_fields ADD COLUMN required BOOLEAN DEFAULT 0",
         "ALTER TABLE custom_fields ADD COLUMN sort_order INTEGER DEFAULT 0",
         "ALTER TABLE custom_fields ADD COLUMN placeholder VARCHAR",
+        # Assignments: distribution mode + fee tracking
+        "ALTER TABLE assignments ADD COLUMN mode VARCHAR DEFAULT 'distribution'",
+        "ALTER TABLE assignments ADD COLUMN unit_price INTEGER DEFAULT 0",
+        "ALTER TABLE assignments ADD COLUMN fee_amount INTEGER DEFAULT 0",
+        "ALTER TABLE assignments ADD COLUMN fee_status VARCHAR DEFAULT 'unpaid'",
         # Suppliers: attributes JSON for custom field values
         "ALTER TABLE suppliers ADD COLUMN attributes JSON",
         # Purchase orders: link to vendor

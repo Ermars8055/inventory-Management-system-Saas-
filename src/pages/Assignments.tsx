@@ -23,7 +23,7 @@ import type { Recipient, Assignment, Item } from '@/types';
 const TODAY = new Date().toISOString().slice(0, 10);
 
 function isOverdue(a: Assignment) {
-  return a.status === 'issued' && !!a.expectedReturn && a.expectedReturn < TODAY;
+  return a.mode === 'lending' && a.status === 'issued' && !!a.expectedReturn && a.expectedReturn < TODAY;
 }
 
 function StatusBadge({ assignment }: { assignment: Assignment }) {
@@ -32,6 +32,8 @@ function StatusBadge({ assignment }: { assignment: Assignment }) {
     return <Badge variant="destructive" className="text-xs">{t('Overdue')}</Badge>;
   }
   switch (assignment.status) {
+    case 'distributed':
+      return <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">{t('Distributed')}</Badge>;
     case 'issued':
       return <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">{t('Active')}</Badge>;
     case 'returned':
@@ -46,6 +48,21 @@ function StatusBadge({ assignment }: { assignment: Assignment }) {
       return <Badge variant="outline" className="text-xs bg-gray-100 text-gray-600 border-gray-300">{t('Lost')}</Badge>;
     default:
       return <Badge variant="outline" className="text-xs">{assignment.status}</Badge>;
+  }
+}
+
+function FeeBadge({ assignment }: { assignment: Assignment }) {
+  const { t } = useTranslation();
+  if (assignment.mode !== 'distribution' || assignment.feeAmount === 0) return null;
+  switch (assignment.feeStatus) {
+    case 'paid':
+      return <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">{t('Paid')}</Badge>;
+    case 'partial':
+      return <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">{t('Partial')}</Badge>;
+    case 'waived':
+      return <Badge variant="outline" className="text-xs bg-gray-100 text-gray-600">{t('Waived')}</Badge>;
+    default:
+      return <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">₹{assignment.feeAmount} {t('Unpaid')}</Badge>;
   }
 }
 
@@ -340,9 +357,10 @@ export function AssignmentsPage() {
                           <TableHead>{t('Item')}</TableHead>
                           <TableHead>{t('Qty')}</TableHead>
                           {config.enableConditionTracking && <TableHead>{t('Condition')}</TableHead>}
-                          <TableHead>{t(config.assignmentLabel)} {t('Date')}</TableHead>
-                          <TableHead>{t('Due')}</TableHead>
+                          <TableHead>{t('Date')}</TableHead>
+                          {config.assignmentMode === 'lending' && <TableHead>{t('Due')}</TableHead>}
                           <TableHead>{t('Status')}</TableHead>
+                          <TableHead>{t('Fee')}</TableHead>
                           <TableHead></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -357,20 +375,39 @@ export function AssignmentsPage() {
                               </TableCell>
                             )}
                             <TableCell className="text-muted-foreground text-sm">{a.issueDate}</TableCell>
-                            <TableCell className={`text-sm ${isOverdue(a) ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
-                              {a.expectedReturn ?? '—'}
-                            </TableCell>
+                            {config.assignmentMode === 'lending' && (
+                              <TableCell className={`text-sm ${isOverdue(a) ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+                                {a.expectedReturn ?? '—'}
+                              </TableCell>
+                            )}
                             <TableCell><StatusBadge assignment={a} /></TableCell>
                             <TableCell>
+                              <FeeBadge assignment={a} />
+                            </TableCell>
+                            <TableCell>
                               <div className="flex gap-1.5">
-                                <Button variant="outline" size="sm" onClick={() => openReturn(a)}>
-                                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                                  {t('Return')}
-                                </Button>
-                                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => openLost(a)}>
-                                  <XCircle className="h-3.5 w-3.5 mr-1" />
-                                  {t('Lost')}
-                                </Button>
+                                {a.mode === 'lending' && (
+                                  <>
+                                    <Button variant="outline" size="sm" onClick={() => openReturn(a)}>
+                                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                                      {t('Return')}
+                                    </Button>
+                                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => openLost(a)}>
+                                      <XCircle className="h-3.5 w-3.5 mr-1" />
+                                      {t('Lost')}
+                                    </Button>
+                                  </>
+                                )}
+                                {a.mode === 'distribution' && a.feeStatus === 'unpaid' && a.feeAmount > 0 && (
+                                  <Button variant="outline" size="sm" onClick={async () => {
+                                    await assignmentService.markFeePaid(a.id);
+                                    setAssignments(prev => prev.map(x => x.id === a.id ? { ...x, feeStatus: 'paid' as const } : x));
+                                    toast({ title: t('Fee marked as paid') });
+                                  }}>
+                                    <DollarSign className="h-3.5 w-3.5 mr-1" />
+                                    {t('Mark Paid')}
+                                  </Button>
+                                )}
                                 <Button variant="ghost" size="sm" onClick={() => setPrintAssignment(a)} title={t('Print Receipt')}>
                                   <Printer className="h-3.5 w-3.5" />
                                 </Button>

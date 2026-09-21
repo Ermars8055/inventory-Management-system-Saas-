@@ -193,9 +193,9 @@ class Recipient(Base):
 
 class Assignment(Base):
     """
-    Generic issue/return record.
-    Replaces IssuedItem — works for schools, clinics, warehouses, libraries, etc.
-    Status flow: issued → returned | returned_damaged | lost | fine_pending → fine_paid
+    Generic issue/distribution/lending record.
+    Distribution mode (schools): issued → distributed (permanent, no return)
+    Lending mode (libraries): issued → returned | returned_damaged | lost | fine_pending → fine_paid
     """
     __tablename__ = "assignments"
     id = Column(String, primary_key=True)
@@ -223,10 +223,17 @@ class Assignment(Base):
     return_date = Column(String)
 
     # Status
-    # issued | returned | returned_damaged | lost | fine_pending | fine_paid | closed
+    # Distribution: issued | distributed
+    # Lending: issued | returned | returned_damaged | lost | fine_pending | fine_paid | closed
     status = Column(String, default="issued")
+    mode = Column(String, default="distribution")  # "distribution" | "lending"
 
-    # Damage & fine tracking
+    # Fee tracking (distribution mode)
+    unit_price = Column(Integer, default=0)         # price per unit in smallest currency unit
+    fee_amount = Column(Integer, default=0)          # total fee = unit_price × quantity
+    fee_status = Column(String, default="unpaid")    # unpaid | partial | paid | waived
+
+    # Damage & fine tracking (lending mode)
     damage_notes = Column(String)
     fine_amount = Column(Integer, default=0)
     fine_paid = Column(Boolean, default=False)

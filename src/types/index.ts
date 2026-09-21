@@ -42,6 +42,7 @@ export interface OrgConfig {
   identifierLabel: string;
   groupLabel: string;
   assignmentLabel: string;
+  assignmentMode: 'distribution' | 'lending';
   itemUnit: string;
   currencyCode: string;
   currencySymbol: string;
@@ -58,6 +59,7 @@ export const DEFAULT_ORG_CONFIG: OrgConfig = {
   identifierLabel: 'ID',
   groupLabel: 'Group',
   assignmentLabel: 'Assignment',
+  assignmentMode: 'distribution',
   itemUnit: 'units',
   currencyCode: 'INR',
   currencySymbol: '₹',
@@ -244,12 +246,16 @@ export interface Recipient {
 
 export type AssignmentStatus =
   | 'issued'
+  | 'distributed'
   | 'returned'
   | 'returned_damaged'
   | 'lost'
   | 'fine_pending'
   | 'fine_paid'
   | 'closed';
+
+export type AssignmentMode = 'distribution' | 'lending';
+export type FeeStatus = 'unpaid' | 'partial' | 'paid' | 'waived';
 
 export interface Assignment {
   id: string;
@@ -268,6 +274,10 @@ export interface Assignment {
   expectedReturn?: string;
   returnDate?: string;
   status: AssignmentStatus;
+  mode: AssignmentMode;
+  unitPrice: number;
+  feeAmount: number;
+  feeStatus: FeeStatus;
   damageNotes?: string;
   fineAmount: number;
   finePaid: boolean;

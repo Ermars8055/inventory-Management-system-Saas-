@@ -43,6 +43,7 @@ class OrgConfig(CamelModel):
     identifier_label: str = "ID"
     group_label: str = "Group"
     assignment_label: str = "Assignment"
+    assignment_mode: str = "distribution"   # "distribution" (schools) | "lending" (libraries)
     item_unit: str = "units"
     currency_code: str = "INR"
     currency_symbol: str = "₹"
@@ -322,6 +323,10 @@ class AssignmentOut(CamelModel):
     expected_return: Optional[str] = None
     return_date: Optional[str] = None
     status: str = "issued"
+    mode: str = "distribution"
+    unit_price: int = 0
+    fee_amount: int = 0
+    fee_status: str = "unpaid"
     damage_notes: Optional[str] = None
     fine_amount: int = 0
     fine_paid: bool = False
@@ -345,6 +350,8 @@ class AssignmentCreate(CamelModel):
     expected_return: Optional[str] = None
     issued_by: Optional[str] = None
     notes: Optional[str] = None
+    mode: str = "distribution"
+    unit_price: int = 0
 
 
 class ReturnBody(CamelModel):

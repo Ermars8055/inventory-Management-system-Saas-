@@ -231,8 +231,23 @@ export function OrganizationSettingsPage() {
 
           {/* Assignment & item labels */}
           <div>
-            <p className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide text-xs">Assignment & Inventory Labels</p>
-            <div className="grid sm:grid-cols-3 gap-4">
+            <p className="text-sm font-semibold mb-3 text-muted-foreground uppercase tracking-wide text-xs">Assignment & Inventory</p>
+            <div className="grid sm:grid-cols-2 gap-4 mb-4">
+              <div className="space-y-2">
+                <Label>Assignment Mode</Label>
+                <Select value={cfg.assignmentMode || 'distribution'} onValueChange={(v) => setCfg({ ...cfg, assignmentMode: v as 'distribution' | 'lending' })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="distribution">Distribution (schools — items sold/given, no return)</SelectItem>
+                    <SelectItem value="lending">Lending (libraries — items loaned, must return)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {(cfg.assignmentMode || 'distribution') === 'distribution'
+                    ? 'Items are permanently distributed. Stock reduces on issue. Fee tracking enabled.'
+                    : 'Items are loaned out. Stock is reserved and returned. Overdue tracking enabled.'}
+                </p>
+              </div>
               <div className="space-y-2">
                 <Label>Assignment Label</Label>
                 <Input
@@ -241,6 +256,8 @@ export function OrganizationSettingsPage() {
                   placeholder="Issue / Loan / Checkout…"
                 />
               </div>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Item Unit</Label>
                 <Input
