@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Check, Users, Package, ClipboardCheck, Loader2, ChevronLeft, Printer } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
-import { classTemplateService, recipientService } from '@/services';
+import { classTemplateService, recipientService, feeService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,20 +90,35 @@ export function BulkIssuePage() {
     if (!selectedTemplate || selectedRecipientIds.size === 0) return;
     setIssuing(true);
     try {
-      const assignments = await classTemplateService.bulkIssue(selectedTemplate.id, {
-        recipientIds: Array.from(selectedRecipientIds),
-        issueDate,
-        issuedBy: issuedBy || undefined,
-        expectedReturn: expectedReturn || undefined,
-        notes: notes || undefined,
-      });
-      toast({
-        title: t('Bulk issue complete'),
-        description: `${assignments.length} ${t('assignments created for')} ${selectedRecipientIds.size} ${config.recipientPluralLabel.toLowerCase()}.`,
-      });
+      if (isDistribution) {
+        // Distribution mode: create fee records for each recipient
+        const recipientIds = Array.from(selectedRecipientIds);
+        let created = 0;
+        for (const rid of recipientIds) {
+          await feeService.assignPackage(rid, selectedTemplate.id);
+          created++;
+        }
+        toast({
+          title: t('Fee packages assigned'),
+          description: `${created} ${t('fee records created for')} ${recipientIds.length} ${config.recipientPluralLabel.toLowerCase()}. ${t('Collect payment then distribute.')}`,
+        });
+      } else {
+        // Lending mode: direct bulk issue
+        const assignments = await classTemplateService.bulkIssue(selectedTemplate.id, {
+          recipientIds: Array.from(selectedRecipientIds),
+          issueDate,
+          issuedBy: issuedBy || undefined,
+          expectedReturn: expectedReturn || undefined,
+          notes: notes || undefined,
+        });
+        toast({
+          title: t('Bulk issue complete'),
+          description: `${assignments.length} ${t('assignments created for')} ${selectedRecipientIds.size} ${config.recipientPluralLabel.toLowerCase()}.`,
+        });
+      }
       setStep(4);
     } catch (err: unknown) {
-      toast({ title: t('Error'), description: String(err), variant: 'destructive' });
+      toast({ title: t('Error'), description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
     } finally {
       setIssuing(false);
     }
@@ -113,22 +128,8 @@ export function BulkIssuePage() {
 
   if (!currentOrg) return null;
 
-  // Distribution mode: bulk issue bypasses fee payment — redirect to proper flow
-  if (config.assignmentMode === 'distribution') {
-    return (
-      <div className="max-w-lg mx-auto py-16 text-center">
-        <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-        <h2 className="text-xl font-bold mb-2">{t('Bulk Issue Not Available')}</h2>
-        <p className="text-sm text-muted-foreground mb-6">
-          {t('In distribution mode, items are distributed through fee packages. Go to a student\'s page, assign a fee package, collect payment, then distribute.')}
-        </p>
-        <div className="flex gap-3 justify-center">
-          <Button variant="outline" onClick={() => navigate('/recipients')}>{t('Go to')} {t(config.recipientPluralLabel)}</Button>
-          <Button onClick={() => navigate('/settings/class-templates')}>{t('Manage Templates')}</Button>
-        </div>
-      </div>
-    );
-  }
+  // Distribution mode: bulk assign fee packages instead of direct issue
+  const isDistribution = config.assignmentMode === 'distribution';
 
   return (
     <div>
@@ -357,7 +358,9 @@ export function BulkIssuePage() {
             </Button>
             <Button onClick={handleConfirm} disabled={issuing}>
               {issuing ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('Issuing…')}</>
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {isDistribution ? t('Assigning…') : t('Issuing…')}</>
+              ) : isDistribution ? (
+                <>{t('Assign Fee Packages')} ({selectedRecipientIds.size}) <ClipboardCheck className="h-4 w-4 ml-1" /></>
               ) : (
                 <>{t('Issue')} {totalAssignments} {t('Items')} <ClipboardCheck className="h-4 w-4 ml-1" /></>
               )}
@@ -374,9 +377,11 @@ export function BulkIssuePage() {
               <Check className="h-7 w-7 text-green-600" />
             </div>
             <div>
-              <p className="font-semibold text-lg">{t('Bulk Issue Complete')}</p>
+              <p className="font-semibold text-lg">{isDistribution ? t('Fee Packages Assigned') : t('Bulk Issue Complete')}</p>
               <p className="text-sm text-muted-foreground mt-1">
-                {totalAssignments} {t('assignments created successfully.')}
+                {isDistribution
+                  ? `${selectedRecipientIds.size} ${t('fee records created. Collect payments and distribute from each student page.')}`
+                  : `${totalAssignments} ${t('assignments created successfully.')}`}
               </p>
             </div>
             <div className="flex gap-3 justify-center flex-wrap">
