@@ -76,16 +76,26 @@ function isSubdomain(): boolean {
 // Shows landing page for guests on main domain, login on subdomains
 function RootRoute() {
   const { user, loading } = useAuth();
+  const { currentOrg } = useOrganization();
   if (loading) return <div className="flex h-screen items-center justify-center"><div className="text-muted-foreground text-sm">Loading…</div></div>;
-  if (user) return <Navigate to="/dashboard" replace />;
+  if (user) {
+    // On main domain: if org has a subdomain, redirect there
+    if (!isSubdomain() && currentOrg?.subdomain) {
+      window.location.href = `https://${currentOrg.subdomain}.stockpilot.ermarscastar.in/dashboard`;
+      return <div className="flex h-screen items-center justify-center"><div className="text-muted-foreground text-sm">Redirecting to your workspace…</div></div>;
+    }
+    return <Navigate to="/dashboard" replace />;
+  }
   // On subdomain → go to login, not landing page
   if (isSubdomain()) return <Navigate to="/login" replace />;
   return <LandingPage />;
 }
 
 // Redirects to /login if not authenticated
+// On main domain, redirects to subdomain if org has one
 function ProtectedRoutes() {
   const { user, loading } = useAuth();
+  const { currentOrg } = useOrganization();
 
   if (loading) {
     return (
@@ -96,6 +106,17 @@ function ProtectedRoutes() {
   }
 
   if (!user) return <Navigate to="/login" replace />;
+
+  // On main domain: if org has subdomain, redirect to it
+  if (!isSubdomain() && currentOrg?.subdomain) {
+    window.location.href = `https://${currentOrg.subdomain}.stockpilot.ermarscastar.in${window.location.pathname}`;
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-muted-foreground text-sm">Redirecting to your workspace…</div>
+      </div>
+    );
+  }
+
   return <Outlet />;
 }
 

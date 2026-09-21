@@ -21,8 +21,8 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      // After login, the AuthContext has the user; navigate to dashboard.
-      // OrganizationContext will auto-pick the user's org on next refresh.
+      // On subdomain → go to dashboard directly
+      // On main domain → let RootRoute handle redirect to subdomain
       navigate('/dashboard');
     } catch {
       setError('Invalid email or password');
