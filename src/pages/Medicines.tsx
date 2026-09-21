@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Pill, Eye } from 'lucide-react';
+import { Search, Pill, Eye, Plus } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { inventoryService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -57,6 +57,11 @@ export function MedicinesPage() {
       <PageHeader
         title={t("Medicine Inventory")}
         description={`${items.length} ${t('medicines')} · ${items.filter((i) => i.medicine?.prescriptionRequired).length} ${t('Rx required')}`}
+        actions={
+          <Button onClick={() => navigate('/inventory?module=pharmacy')}>
+            <Plus className="h-4 w-4 mr-1" /> {t('Add Medicine')}
+          </Button>
+        }
       />
 
       <Card className="mb-4">

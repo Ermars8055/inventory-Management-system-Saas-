@@ -95,7 +95,8 @@ def update_item(item_id: str, body: ItemUpdate, user: User = Depends(require("in
 
 @router.patch("/{item_id}/stock", response_model=ItemOut)
 def adjust_stock(item_id: str, body: StockAdjust, user: User = Depends(require("inventory:update")), db: Session = Depends(get_db)):
-    item = db.query(Item).filter(Item.id == item_id).first()
+    # Use with_for_update() to prevent race conditions on concurrent stock changes
+    item = db.query(Item).filter(Item.id == item_id).with_for_update().first()
     if not item:
         raise HTTPException(404, "Item not found")
     same_org(item.organization_id, user)

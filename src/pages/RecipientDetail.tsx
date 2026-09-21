@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Plus, RotateCcw, AlertTriangle, CheckCircle2, Clock,
-  XCircle, DollarSign, Package,
+  XCircle, DollarSign, Package, Pencil,
 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Recipient, Assignment, Item } from '@/types';
 
 const STATUS_BADGE: Record<string, { label: string; class: string }> = {
@@ -39,10 +40,16 @@ export function RecipientDetailPage() {
   const { currentOrg } = useOrganization();
   const config = useOrgConfig();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [recipient, setRecipient] = useState<Recipient | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [items, setItems] = useState<Item[]>([]);
+
+  // Edit dialog
+  const [showEditRecipient, setShowEditRecipient] = useState(false);
+  const [editRecipientForm, setEditRecipientForm] = useState({ name: '', identifier: '', group: '', contact: '' });
+  const [editRecipientSaving, setEditRecipientSaving] = useState(false);
 
   // Issue dialog
   const [showIssue, setShowIssue] = useState(false);
@@ -56,12 +63,48 @@ export function RecipientDetailPage() {
   const [markingLost, setMarkingLost] = useState<Assignment | null>(null);
   const [lostForm, setLostForm] = useState({ fineAmount: '0', notes: '' });
 
-  useEffect(() => {
+  function refreshRecipient() {
     if (!id || !currentOrg) return;
     recipientService.getById(id).then((r) => setRecipient(r || null));
     recipientService.getAssignments(currentOrg.id, id).then(setAssignments);
     inventoryService.getByOrganization(currentOrg.id).then(setItems);
+  }
+
+  useEffect(() => {
+    refreshRecipient();
   }, [id, currentOrg]);
+
+  function openEditRecipient() {
+    if (!recipient) return;
+    setEditRecipientForm({
+      name: recipient.name,
+      identifier: recipient.identifier || '',
+      group: recipient.group || '',
+      contact: recipient.contact || '',
+    });
+    setShowEditRecipient(true);
+  }
+
+  async function handleEditRecipient(e: React.FormEvent) {
+    e.preventDefault();
+    if (!id) return;
+    setEditRecipientSaving(true);
+    try {
+      await recipientService.update(id, {
+        name: editRecipientForm.name,
+        identifier: editRecipientForm.identifier,
+        group: editRecipientForm.group,
+        contact: editRecipientForm.contact || undefined,
+      });
+      toast({ title: t('Recipient updated successfully') });
+      setShowEditRecipient(false);
+      refreshRecipient();
+    } catch {
+      toast({ title: t('Failed to update recipient'), variant: 'destructive' });
+    } finally {
+      setEditRecipientSaving(false);
+    }
+  }
 
   const active = assignments.filter((a) => ['issued', 'fine_pending'].includes(a.status) || isOverdue(a));
   const history = assignments.filter((a) => !['issued', 'fine_pending'].includes(a.status) && !isOverdue(a));
@@ -156,10 +199,15 @@ export function RecipientDetailPage() {
         title={recipient.name}
         description={`${config.identifierLabel}: ${recipient.identifier || '—'} · ${config.groupLabel}: ${recipient.group || '—'}`}
         actions={
-          <Button onClick={() => setShowIssue(true)}>
-            <Plus className="h-4 w-4 mr-1" />
-            {config.assignmentLabel} Item
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={openEditRecipient}>
+              <Pencil className="h-4 w-4 mr-1" /> {t('Edit')}
+            </Button>
+            <Button onClick={() => setShowIssue(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              {config.assignmentLabel} Item
+            </Button>
+          </div>
         }
       />
 
@@ -406,6 +454,37 @@ export function RecipientDetailPage() {
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setMarkingLost(null)}>Cancel</Button>
               <Button type="submit" variant="destructive">Mark as Lost</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit Recipient Dialog ── */}
+      <Dialog open={showEditRecipient} onOpenChange={setShowEditRecipient}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('Edit')} {config.recipientLabel}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditRecipient} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>{t('Name')}</Label>
+              <Input value={editRecipientForm.name} onChange={(e) => setEditRecipientForm({ ...editRecipientForm, name: e.target.value })} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{config.identifierLabel}</Label>
+              <Input value={editRecipientForm.identifier} onChange={(e) => setEditRecipientForm({ ...editRecipientForm, identifier: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{config.groupLabel}</Label>
+              <Input value={editRecipientForm.group} onChange={(e) => setEditRecipientForm({ ...editRecipientForm, group: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('Contact')}</Label>
+              <Input value={editRecipientForm.contact} onChange={(e) => setEditRecipientForm({ ...editRecipientForm, contact: e.target.value })} />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowEditRecipient(false)}>{t('Cancel')}</Button>
+              <Button type="submit" disabled={editRecipientSaving}>{editRecipientSaving ? t('Saving...') : t('Save')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

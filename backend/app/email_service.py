@@ -17,11 +17,11 @@ FROM_EMAIL = os.getenv("FROM_EMAIL", SMTP_USER)
 APP_URL = os.getenv("APP_URL", "https://stockpilot.ermarscastar.in")
 
 
-def _send(to: str, subject: str, html_body: str):
-    """Send an email via Gmail SMTP."""
+def _send(to: str, subject: str, html_body: str) -> bool:
+    """Send an email via Gmail SMTP. Returns True if sent, False if skipped/failed."""
     if not SMTP_USER or not SMTP_PASS:
         print(f"[EMAIL SKIP] No SMTP creds. Would send to {to}: {subject}")
-        return
+        return False
 
     msg = MIMEMultipart("alternative")
     msg["From"] = f"{FROM_NAME} <{FROM_EMAIL}>"
@@ -35,8 +35,10 @@ def _send(to: str, subject: str, html_body: str):
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(FROM_EMAIL, to, msg.as_string())
         print(f"[EMAIL SENT] {to}: {subject}")
+        return True
     except Exception as e:
         print(f"[EMAIL ERROR] {to}: {e}")
+        return False
 
 
 def _wrap(content: str) -> str:
@@ -76,7 +78,7 @@ def send_welcome(to: str, name: str, org_name: str, subdomain: Optional[str] = N
             Go to Dashboard
         </a>
     """)
-    _send(to, f"Welcome to StockPilot — {org_name}", html)
+    return _send(to, f"Welcome to StockPilot — {org_name}", html)
 
 
 def send_password_reset(to: str, name: str, reset_url: str):

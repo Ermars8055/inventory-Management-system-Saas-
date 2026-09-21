@@ -117,7 +117,7 @@ def signup(body: SignupBody, db: Session = Depends(get_db)):
 
     # Create DNS record + send welcome email
     _create_dns_record(subdomain)
-    send_welcome(body.email, body.name, body.org_name, subdomain)
+    email_sent = send_welcome(body.email, body.name, body.org_name, subdomain)
 
     # Generate JWT token
     token = create_access_token({
@@ -144,6 +144,7 @@ def signup(body: SignupBody, db: Session = Depends(get_db)):
             "subdomain": subdomain,
             "domain": full_domain,
         },
+        "emailSent": email_sent,
     }
 
 

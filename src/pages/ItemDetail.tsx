@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Package, MapPin, Calendar, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Package, MapPin, Calendar, TrendingUp, Pencil } from 'lucide-react';
 import { inventoryService, transactionService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
@@ -8,6 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 import { getModuleDef } from '@/data/modules';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { Item, StockTransaction } from '@/types';
@@ -20,14 +24,58 @@ export function ItemDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { toast } = useToast();
   const [item, setItem] = useState<Item | null>(null);
   const [transactions, setTransactions] = useState<StockTransaction[]>([]);
 
-  useEffect(() => {
+  // Edit dialog state
+  const [showEdit, setShowEdit] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', sku: '', location: '', minQuantity: '', reorderQty: '' });
+  const [editSaving, setEditSaving] = useState(false);
+
+  function refreshItem() {
     if (!id) return;
     inventoryService.getById(id).then((i) => setItem(i || null));
     transactionService.getByItem(id).then(setTransactions);
+  }
+
+  useEffect(() => {
+    refreshItem();
   }, [id]);
+
+  function openEdit() {
+    if (!item) return;
+    setEditForm({
+      name: item.name,
+      sku: item.sku,
+      location: item.location,
+      minQuantity: item.minQuantity != null ? String(item.minQuantity) : '',
+      reorderQty: item.reorderQty != null ? String(item.reorderQty) : '',
+    });
+    setShowEdit(true);
+  }
+
+  async function handleEditSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!id) return;
+    setEditSaving(true);
+    try {
+      await inventoryService.update(id, {
+        name: editForm.name,
+        sku: editForm.sku,
+        location: editForm.location,
+        minQuantity: editForm.minQuantity ? parseInt(editForm.minQuantity) : undefined,
+        reorderQty: editForm.reorderQty ? parseInt(editForm.reorderQty) : undefined,
+      });
+      toast({ title: t('Item updated successfully') });
+      setShowEdit(false);
+      refreshItem();
+    } catch {
+      toast({ title: t('Failed to update item'), variant: 'destructive' });
+    } finally {
+      setEditSaving(false);
+    }
+  }
 
   if (!item) return <div className="p-8 text-muted-foreground">{t('Loading...')}</div>;
 
@@ -73,7 +121,15 @@ export function ItemDetailPage() {
         <ArrowLeft className="h-4 w-4 mr-1" /> {t('Back to Inventory')}
       </Button>
 
-      <PageHeader title={item.name} description={`${t('SKU')}: ${item.sku}`} />
+      <PageHeader
+        title={item.name}
+        description={`${t('SKU')}: ${item.sku}`}
+        actions={
+          <Button variant="outline" size="sm" onClick={openEdit}>
+            <Pencil className="h-4 w-4 mr-1" /> {t('Edit')}
+          </Button>
+        }
+      />
 
       <div className="grid gap-6 lg:grid-cols-3 mb-6">
         {/* Stock Summary */}
@@ -277,6 +333,43 @@ export function ItemDetailPage() {
           </TabsContent>
         )}
       </Tabs>
+
+      {/* Edit Dialog */}
+      <Dialog open={showEdit} onOpenChange={setShowEdit}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('Edit Item')}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSave} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>{t('Name')}</Label>
+              <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('SKU')}</Label>
+              <Input value={editForm.sku} onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('Location')}</Label>
+              <Input value={editForm.location} onChange={(e) => setEditForm({ ...editForm, location: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>{t('Min Quantity')}</Label>
+                <Input type="number" min={0} value={editForm.minQuantity} onChange={(e) => setEditForm({ ...editForm, minQuantity: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t('Reorder Qty')}</Label>
+                <Input type="number" min={0} value={editForm.reorderQty} onChange={(e) => setEditForm({ ...editForm, reorderQty: e.target.value })} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowEdit(false)}>{t('Cancel')}</Button>
+              <Button type="submit" disabled={editSaving}>{editSaving ? t('Saving...') : t('Save')}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

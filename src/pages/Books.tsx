@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, BookOpen, Eye, ArrowDownCircle, ArrowUpCircle, RotateCcw, AlertCircle } from 'lucide-react';
+import { Search, BookOpen, Eye, ArrowDownCircle, ArrowUpCircle, RotateCcw, AlertCircle, Plus } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { inventoryService, transactionService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -61,7 +61,15 @@ export function BooksPage() {
 
   return (
     <div>
-      <PageHeader title={t("Book Management")} description={`${items.length} ${t('book titles in inventory')}`} />
+      <PageHeader
+        title={t("Book Management")}
+        description={`${items.length} ${t('book titles in inventory')}`}
+        actions={
+          <Button onClick={() => navigate('/inventory?module=books')}>
+            <Plus className="h-4 w-4 mr-1" /> {t('Add Book')}
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <KPICard label={t("Books Received")} value={received} icon={ArrowDownCircle} variant="success" />

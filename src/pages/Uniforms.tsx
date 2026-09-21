@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Shirt, Eye } from 'lucide-react';
+import { Search, Shirt, Eye, Plus } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { inventoryService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -59,6 +59,11 @@ export function UniformsPage() {
       <PageHeader
         title={t("Uniform Management")}
         description={`${items.length} ${t('uniform types')} · ${totalAvailable} ${t('available')} · ${totalIssued} ${t('issued')}`}
+        actions={
+          <Button onClick={() => navigate('/inventory?module=uniforms')}>
+            <Plus className="h-4 w-4 mr-1" /> {t('Add Uniform')}
+          </Button>
+        }
       />
 
       <Card className="mb-4">

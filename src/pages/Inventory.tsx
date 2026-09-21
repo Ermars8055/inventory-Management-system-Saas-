@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
   Plus, Search, Package, MoreHorizontal, Eye, ArrowRightLeft,
@@ -26,7 +26,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import type { Item, Category, Recipient } from '@/types';
 
-const EMPTY_FORM = { name: '', sku: '', categoryId: '', categoryName: '', module: 'general', quantity: '', location: '', minQuantity: '10', reorderQty: '50', attributes: {} as Record<string, string | number | boolean> };
+const EMPTY_FORM = { name: '', sku: '', categoryId: '', categoryName: '', module: 'general', quantity: '', location: '', minQuantity: '10', reorderQty: '50', attributes: {} as Record<string, string | number | boolean>, uniform: null as { size: string; gender: string } | null, book: null as { isbn: string; subject: string } | null, medicine: null as { batchNumber: string; expiryDate: string } | null };
 
 const MODULE_OPTIONS = [
   { value: 'general', label: 'General' },
@@ -152,6 +152,7 @@ export function InventoryPage() {
   const { currentOrg } = useOrganization();
   const config = useOrgConfig();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const { t } = useTranslation();
 
@@ -190,6 +191,22 @@ export function InventoryPage() {
     recipientService.getByOrganization(currentOrg.id).then(setRecipients);
   }, [currentOrg]);
 
+  // Auto-open add dialog when navigated with ?module= query param
+  useEffect(() => {
+    const moduleParam = searchParams.get('module');
+    if (moduleParam && ['uniforms', 'books', 'pharmacy'].includes(moduleParam)) {
+      setForm({
+        ...EMPTY_FORM,
+        module: moduleParam,
+        uniform: moduleParam === 'uniforms' ? { size: '', gender: '' } : null,
+        book: moduleParam === 'books' ? { isbn: '', subject: '' } : null,
+        medicine: moduleParam === 'pharmacy' ? { batchNumber: '', expiryDate: '' } : null,
+      });
+      setShowAddDialog(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   const locations = useMemo(() => Array.from(new Set(items.map(i => i.location))), [items]);
 
   const filtered = useMemo(() => items.filter(item => {
@@ -227,6 +244,9 @@ export function InventoryPage() {
       minQuantity: String(item.minQuantity ?? 10),
       reorderQty: String(item.reorderQty ?? 50),
       attributes: (item.attributes ?? {}) as Record<string, string | number | boolean>,
+      uniform: item.uniform ? { size: item.uniform.size || '', gender: item.uniform.gender || '' } : null,
+      book: item.book ? { isbn: item.book.isbn || '', subject: item.book.subject || '' } : null,
+      medicine: item.medicine ? { batchNumber: item.medicine.batchNumber || '', expiryDate: item.medicine.expiryDate || '' } : null,
     });
     setShowAddDialog(true);
   }
@@ -249,6 +269,18 @@ export function InventoryPage() {
     const cat = categories.find(c => c.id === form.categoryId);
     setSaving(true);
     try {
+      // Build module-specific payload
+      const moduleFields: Record<string, unknown> = {};
+      if (form.module === 'uniforms' && form.uniform) {
+        moduleFields.uniform = form.uniform;
+      }
+      if (form.module === 'books' && form.book) {
+        moduleFields.book = form.book;
+      }
+      if (form.module === 'pharmacy' && form.medicine) {
+        moduleFields.medicine = form.medicine;
+      }
+
       if (editItem) {
         const updated = await inventoryService.update(editItem.id, {
           name: form.name, sku: form.sku,
@@ -258,6 +290,7 @@ export function InventoryPage() {
           minQuantity: Number(form.minQuantity),
           reorderQty: Number(form.reorderQty),
           attributes: form.attributes,
+          ...moduleFields,
         });
         setItems(prev => prev.map(i => i.id === editItem.id ? updated : i));
       } else {
@@ -274,6 +307,7 @@ export function InventoryPage() {
           reorderQty: Number(form.reorderQty),
           location: form.location,
           attributes: form.attributes,
+          ...moduleFields,
         });
         setItems(prev => [...prev, created]);
       }
@@ -766,13 +800,88 @@ export function InventoryPage() {
             </div>
             <div className="space-y-1.5">
               <Label>{t('Module')}</Label>
-              <Select value={form.module} onValueChange={val => setForm({ ...form, module: val })}>
+              <Select value={form.module} onValueChange={val => {
+                setForm({
+                  ...form,
+                  module: val,
+                  uniform: val === 'uniforms' ? (form.uniform ?? { size: '', gender: '' }) : null,
+                  book: val === 'books' ? (form.book ?? { isbn: '', subject: '' }) : null,
+                  medicine: val === 'pharmacy' ? (form.medicine ?? { batchNumber: '', expiryDate: '' }) : null,
+                });
+              }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {MODULE_OPTIONS.map(m => <SelectItem key={m.value} value={m.value}>{t(m.label)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
+            {/* Module-specific fields */}
+            {form.module === 'uniforms' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>{t('Size')}</Label>
+                  <Input
+                    placeholder={t('e.g. M, L, XL')}
+                    value={form.uniform?.size ?? ''}
+                    onChange={e => setForm({ ...form, uniform: { ...(form.uniform ?? { size: '', gender: '' }), size: e.target.value } })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('Gender')}</Label>
+                  <Select
+                    value={form.uniform?.gender ?? ''}
+                    onValueChange={val => setForm({ ...form, uniform: { ...(form.uniform ?? { size: '', gender: '' }), gender: val } })}
+                  >
+                    <SelectTrigger><SelectValue placeholder={t('Select gender')} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Male">{t('Male')}</SelectItem>
+                      <SelectItem value="Female">{t('Female')}</SelectItem>
+                      <SelectItem value="Unisex">{t('Unisex')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+            {form.module === 'books' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>{t('ISBN')}</Label>
+                  <Input
+                    placeholder={t('e.g. 978-3-16-148410-0')}
+                    value={form.book?.isbn ?? ''}
+                    onChange={e => setForm({ ...form, book: { ...(form.book ?? { isbn: '', subject: '' }), isbn: e.target.value } })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('Subject')}</Label>
+                  <Input
+                    placeholder={t('e.g. Mathematics')}
+                    value={form.book?.subject ?? ''}
+                    onChange={e => setForm({ ...form, book: { ...(form.book ?? { isbn: '', subject: '' }), subject: e.target.value } })}
+                  />
+                </div>
+              </div>
+            )}
+            {form.module === 'pharmacy' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>{t('Batch Number')}</Label>
+                  <Input
+                    placeholder={t('e.g. BN-2024-001')}
+                    value={form.medicine?.batchNumber ?? ''}
+                    onChange={e => setForm({ ...form, medicine: { ...(form.medicine ?? { batchNumber: '', expiryDate: '' }), batchNumber: e.target.value } })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('Expiry Date')}</Label>
+                  <Input
+                    type="date"
+                    value={form.medicine?.expiryDate ?? ''}
+                    onChange={e => setForm({ ...form, medicine: { ...(form.medicine ?? { batchNumber: '', expiryDate: '' }), expiryDate: e.target.value } })}
+                  />
+                </div>
+              </div>
+            )}
             {!editItem && (
               <div className="space-y-1.5">
                 <Label htmlFor="item-qty">{t('Initial Quantity')} *</Label>

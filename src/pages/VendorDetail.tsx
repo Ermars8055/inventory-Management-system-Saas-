@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Store, Phone, Mail, MapPin, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Store, Phone, Mail, MapPin, ShoppingCart, Pencil } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useOrganization } from '@/context/OrganizationContext';
 import { vendorService, procurementService } from '@/services';
@@ -10,7 +10,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
 import type { Vendor, PurchaseOrder, POStatus } from '@/types';
 
 const STATUS_CONFIG: Record<POStatus, { label: string; className: string }> = {
@@ -28,12 +32,22 @@ export function VendorDetailPage() {
   const navigate = useNavigate();
   const { currentOrg } = useOrganization();
   const { t } = useTranslation();
+  const { toast } = useToast();
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
 
-  useEffect(() => {
+  // Edit dialog
+  const [showEditVendor, setShowEditVendor] = useState(false);
+  const [editVendorForm, setEditVendorForm] = useState({ name: '', contactPerson: '', phone: '', email: '', address: '', vendorType: '' });
+  const [editVendorSaving, setEditVendorSaving] = useState(false);
+
+  function refreshVendor() {
     if (!id) return;
     vendorService.getById(id).then((v) => setVendor(v || null));
+  }
+
+  useEffect(() => {
+    refreshVendor();
   }, [id]);
 
   useEffect(() => {
@@ -42,6 +56,42 @@ export function VendorDetailPage() {
       setOrders(all.filter((po) => po.vendorId === id)),
     );
   }, [currentOrg, id]);
+
+  function openEditVendor() {
+    if (!vendor) return;
+    setEditVendorForm({
+      name: vendor.name,
+      contactPerson: vendor.contactPerson || '',
+      phone: vendor.phone || '',
+      email: vendor.email || '',
+      address: vendor.address || '',
+      vendorType: vendor.vendorType || '',
+    });
+    setShowEditVendor(true);
+  }
+
+  async function handleEditVendor(e: React.FormEvent) {
+    e.preventDefault();
+    if (!id) return;
+    setEditVendorSaving(true);
+    try {
+      await vendorService.update(id, {
+        name: editVendorForm.name,
+        contactPerson: editVendorForm.contactPerson,
+        phone: editVendorForm.phone,
+        email: editVendorForm.email,
+        address: editVendorForm.address,
+        vendorType: editVendorForm.vendorType,
+      });
+      toast({ title: t('Vendor updated successfully') });
+      setShowEditVendor(false);
+      refreshVendor();
+    } catch {
+      toast({ title: t('Failed to update vendor'), variant: 'destructive' });
+    } finally {
+      setEditVendorSaving(false);
+    }
+  }
 
   if (vendor === null) {
     return <div className="p-8 text-center text-muted-foreground">{t('Vendor not found.')}</div>;
@@ -64,7 +114,14 @@ export function VendorDetailPage() {
         <PageHeader
           title={vendor.name}
           description={`${vendor.vendorType || t('General Vendor')} · ${vendor.contactPerson || ''}`}
-          actions={<StatusBadge status={vendor.status} />}
+          actions={
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={openEditVendor}>
+                <Pencil className="h-4 w-4 mr-1" /> {t('Edit')}
+              </Button>
+              <StatusBadge status={vendor.status} />
+            </div>
+          }
         />
       </div>
 
@@ -259,6 +316,47 @@ export function VendorDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Vendor Dialog */}
+      <Dialog open={showEditVendor} onOpenChange={setShowEditVendor}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('Edit Vendor')}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditVendor} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>{t('Name')}</Label>
+              <Input value={editVendorForm.name} onChange={(e) => setEditVendorForm({ ...editVendorForm, name: e.target.value })} required />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('Contact Person')}</Label>
+              <Input value={editVendorForm.contactPerson} onChange={(e) => setEditVendorForm({ ...editVendorForm, contactPerson: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>{t('Phone')}</Label>
+                <Input value={editVendorForm.phone} onChange={(e) => setEditVendorForm({ ...editVendorForm, phone: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t('Email')}</Label>
+                <Input type="email" value={editVendorForm.email} onChange={(e) => setEditVendorForm({ ...editVendorForm, email: e.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('Address')}</Label>
+              <Input value={editVendorForm.address} onChange={(e) => setEditVendorForm({ ...editVendorForm, address: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('Vendor Type')}</Label>
+              <Input value={editVendorForm.vendorType} onChange={(e) => setEditVendorForm({ ...editVendorForm, vendorType: e.target.value })} />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowEditVendor(false)}>{t('Cancel')}</Button>
+              <Button type="submit" disabled={editVendorSaving}>{editVendorSaving ? t('Saving...') : t('Save')}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
