@@ -348,6 +348,7 @@ export interface CustomField {
   required: boolean;
   sortOrder: number;
   placeholder?: string;
+  module?: string;
 }
 
 // --- Procurement ---

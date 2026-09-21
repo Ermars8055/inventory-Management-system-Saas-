@@ -283,6 +283,7 @@ class CustomField(Base):
     required = Column(Boolean, default=False)
     sort_order = Column(Integer, default=0)
     placeholder = Column(String)
+    module = Column(String)              # Tag field to a module: uniforms, books, pharmacy, etc.
 
 
 class PurchaseOrder(Base):

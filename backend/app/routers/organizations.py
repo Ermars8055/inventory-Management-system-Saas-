@@ -4,7 +4,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import Organization, User
+from ..models import Organization, User, CustomField
 from ..schemas import OrganizationOut, OrganizationCreate, OrganizationUpdate, ModulesUpdate, ConfigUpdate
 from ..dependencies import get_current_user, require, same_org, get_plan_limits
 
@@ -48,6 +48,55 @@ def update_modules(org_id: str, body: ModulesUpdate, user: User = Depends(requir
     if len(body.enabled_modules) > limits["max_modules"]:
         raise HTTPException(403, f"Plan limit reached: {limits['max_modules']} modules max. Upgrade your plan to enable more.")
     org.enabled_modules = body.enabled_modules
+
+    # Auto-create default custom fields for newly enabled modules
+    MODULE_DEFAULT_FIELDS = {
+        "uniforms": [
+            {"name": "Class", "type": "text", "sort_order": 0},
+            {"name": "Gender", "type": "dropdown", "options": ["Male", "Female", "Unisex"], "sort_order": 1},
+            {"name": "Size", "type": "text", "sort_order": 2},
+            {"name": "Academic Year", "type": "text", "sort_order": 3},
+            {"name": "Uniform Type", "type": "text", "sort_order": 4},
+        ],
+        "books": [
+            {"name": "ISBN", "type": "text", "sort_order": 0},
+            {"name": "Subject", "type": "text", "sort_order": 1},
+            {"name": "Class", "type": "text", "sort_order": 2},
+            {"name": "Academic Year", "type": "text", "sort_order": 3},
+            {"name": "Edition", "type": "text", "sort_order": 4},
+            {"name": "Publisher", "type": "text", "sort_order": 5},
+        ],
+        "pharmacy": [
+            {"name": "Generic Name", "type": "text", "sort_order": 0},
+            {"name": "Manufacturer", "type": "text", "sort_order": 1},
+            {"name": "Batch Number", "type": "text", "sort_order": 2},
+            {"name": "Expiry Date", "type": "date", "sort_order": 3},
+            {"name": "Manufacturing Date", "type": "date", "sort_order": 4},
+            {"name": "MRP", "type": "number", "sort_order": 5},
+            {"name": "Prescription Required", "type": "boolean", "sort_order": 6},
+        ],
+    }
+    for mod in body.enabled_modules:
+        if mod in MODULE_DEFAULT_FIELDS:
+            existing = db.query(CustomField).filter(
+                CustomField.organization_id == org_id,
+                CustomField.entity == "item",
+                CustomField.module == mod,
+            ).count()
+            if existing == 0:
+                for i, field_def in enumerate(MODULE_DEFAULT_FIELDS[mod]):
+                    db.add(CustomField(
+                        id=f"cf_auto_{mod}_{i}_{int(time.time()*1000)}",
+                        organization_id=org_id,
+                        name=field_def["name"],
+                        type=field_def["type"],
+                        entity="item",
+                        module=mod,
+                        options=field_def.get("options"),
+                        required=False,
+                        sort_order=field_def.get("sort_order", i),
+                    ))
+
     db.commit()
     db.refresh(org)
     return org

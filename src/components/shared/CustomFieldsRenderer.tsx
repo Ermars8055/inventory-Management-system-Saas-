@@ -11,9 +11,10 @@ interface CustomFieldsRendererProps {
   entity: CustomFieldEntity;
   values: Record<string, string | number | boolean>;
   onChange: (values: Record<string, string | number | boolean>) => void;
+  moduleFilter?: string;  // If set, only show fields tagged to this module
 }
 
-export function CustomFieldsRenderer({ entity, values, onChange }: CustomFieldsRendererProps) {
+export function CustomFieldsRenderer({ entity, values, onChange, moduleFilter }: CustomFieldsRendererProps) {
   const { currentOrg } = useOrganization();
   const [fields, setFields] = useState<CustomField[]>([]);
 
@@ -23,10 +24,11 @@ export function CustomFieldsRenderer({ entity, values, onChange }: CustomFieldsR
       setFields(
         all
           .filter((f) => f.entity === entity)
+          .filter((f) => moduleFilter ? f.module === moduleFilter : !f.module)
           .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
       );
     });
-  }, [currentOrg, entity]);
+  }, [currentOrg, entity, moduleFilter]);
 
   if (fields.length === 0) return null;
 

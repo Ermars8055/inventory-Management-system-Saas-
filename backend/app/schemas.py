@@ -426,6 +426,7 @@ class CustomFieldOut(CamelModel):
     required: bool = False
     sort_order: int = 0
     placeholder: Optional[str] = None
+    module: Optional[str] = None
 
 
 class CustomFieldCreate(CamelModel):
@@ -437,6 +438,7 @@ class CustomFieldCreate(CamelModel):
     required: bool = False
     sort_order: int = 0
     placeholder: Optional[str] = None
+    module: Optional[str] = None
 
 
 class CustomFieldUpdate(CamelModel):
@@ -447,6 +449,7 @@ class CustomFieldUpdate(CamelModel):
     required: Optional[bool] = None
     sort_order: Optional[int] = None
     placeholder: Optional[str] = None
+    module: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------

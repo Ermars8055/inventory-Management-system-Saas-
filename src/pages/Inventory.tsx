@@ -269,18 +269,7 @@ export function InventoryPage() {
     const cat = categories.find(c => c.id === form.categoryId);
     setSaving(true);
     try {
-      // Build module-specific payload
-      const moduleFields: Record<string, unknown> = {};
-      if (form.module === 'uniforms' && form.uniform) {
-        moduleFields.uniform = form.uniform;
-      }
-      if (form.module === 'books' && form.book) {
-        moduleFields.book = form.book;
-      }
-      if (form.module === 'pharmacy' && form.medicine) {
-        moduleFields.medicine = form.medicine;
-      }
-
+      // Module-specific fields are now stored in attributes via CustomFieldsRenderer
       if (editItem) {
         const updated = await inventoryService.update(editItem.id, {
           name: form.name, sku: form.sku,
@@ -290,7 +279,6 @@ export function InventoryPage() {
           minQuantity: Number(form.minQuantity),
           reorderQty: Number(form.reorderQty),
           attributes: form.attributes,
-          ...moduleFields,
         });
         setItems(prev => prev.map(i => i.id === editItem.id ? updated : i));
       } else {
@@ -307,7 +295,6 @@ export function InventoryPage() {
           reorderQty: Number(form.reorderQty),
           location: form.location,
           attributes: form.attributes,
-          ...moduleFields,
         });
         setItems(prev => [...prev, created]);
       }
@@ -817,72 +804,14 @@ export function InventoryPage() {
                 </SelectContent>
               </Select>
             </div>
-            {/* Module-specific fields */}
-            {form.module === 'uniforms' && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>{t('Size')}</Label>
-                  <Input
-                    placeholder={t('e.g. M, L, XL')}
-                    value={form.uniform?.size ?? ''}
-                    onChange={e => setForm({ ...form, uniform: { ...(form.uniform ?? { size: '', gender: '' }), size: e.target.value } })}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>{t('Gender')}</Label>
-                  <Select
-                    value={form.uniform?.gender ?? ''}
-                    onValueChange={val => setForm({ ...form, uniform: { ...(form.uniform ?? { size: '', gender: '' }), gender: val } })}
-                  >
-                    <SelectTrigger><SelectValue placeholder={t('Select gender')} /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Male">{t('Male')}</SelectItem>
-                      <SelectItem value="Female">{t('Female')}</SelectItem>
-                      <SelectItem value="Unisex">{t('Unisex')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            )}
-            {form.module === 'books' && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>{t('ISBN')}</Label>
-                  <Input
-                    placeholder={t('e.g. 978-3-16-148410-0')}
-                    value={form.book?.isbn ?? ''}
-                    onChange={e => setForm({ ...form, book: { ...(form.book ?? { isbn: '', subject: '' }), isbn: e.target.value } })}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>{t('Subject')}</Label>
-                  <Input
-                    placeholder={t('e.g. Mathematics')}
-                    value={form.book?.subject ?? ''}
-                    onChange={e => setForm({ ...form, book: { ...(form.book ?? { isbn: '', subject: '' }), subject: e.target.value } })}
-                  />
-                </div>
-              </div>
-            )}
-            {form.module === 'pharmacy' && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>{t('Batch Number')}</Label>
-                  <Input
-                    placeholder={t('e.g. BN-2024-001')}
-                    value={form.medicine?.batchNumber ?? ''}
-                    onChange={e => setForm({ ...form, medicine: { ...(form.medicine ?? { batchNumber: '', expiryDate: '' }), batchNumber: e.target.value } })}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>{t('Expiry Date')}</Label>
-                  <Input
-                    type="date"
-                    value={form.medicine?.expiryDate ?? ''}
-                    onChange={e => setForm({ ...form, medicine: { ...(form.medicine ?? { batchNumber: '', expiryDate: '' }), expiryDate: e.target.value } })}
-                  />
-                </div>
-              </div>
+            {/* Module-specific custom fields — dynamically loaded from custom fields system */}
+            {form.module && form.module !== 'general' && (
+              <CustomFieldsRenderer
+                entity="item"
+                values={form.attributes}
+                onChange={(attrs) => setForm({ ...form, attributes: attrs })}
+                moduleFilter={form.module}
+              />
             )}
             {!editItem && (
               <div className="space-y-1.5">
