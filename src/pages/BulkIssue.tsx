@@ -53,12 +53,15 @@ export function BulkIssuePage() {
     }).finally(() => setLoading(false));
   }, [currentOrg]);
 
-  // Filter recipients by the selected template's group, then by search
+  // Show all recipients — matching group first, then others
   const groupRecipients = useMemo(() => {
     if (!selectedTemplate) return [];
-    return recipients.filter(r =>
-      r.group?.toLowerCase() === selectedTemplate.group.toLowerCase()
-    );
+    // Sort: matching group first, then rest
+    return [...recipients].sort((a, b) => {
+      const aMatch = a.group?.toLowerCase() === selectedTemplate.group.toLowerCase() ? 0 : 1;
+      const bMatch = b.group?.toLowerCase() === selectedTemplate.group.toLowerCase() ? 0 : 1;
+      return aMatch - bMatch;
+    });
   }, [recipients, selectedTemplate]);
 
   const filteredRecipients = useMemo(() => {
@@ -66,7 +69,8 @@ export function BulkIssuePage() {
     const q = recipientSearch.toLowerCase();
     return groupRecipients.filter(r =>
       r.name.toLowerCase().includes(q) ||
-      r.identifier?.toLowerCase().includes(q)
+      r.identifier?.toLowerCase().includes(q) ||
+      r.group?.toLowerCase().includes(q)
     );
   }, [groupRecipients, recipientSearch]);
 
@@ -231,7 +235,7 @@ export function BulkIssuePage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Users className="h-4 w-4" />
-                {config.recipientPluralLabel} {t('in')} "{selectedTemplate.group}"
+                {t('All')} {config.recipientPluralLabel}
                 <Badge variant="secondary">{groupRecipients.length} {t('total')}</Badge>
               </CardTitle>
               <div className="flex gap-2 mt-2">
@@ -248,9 +252,9 @@ export function BulkIssuePage() {
             <CardContent className="max-h-96 overflow-y-auto space-y-1 pr-3">
               {filteredRecipients.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4 text-center">
-                  {t('No')} {config.recipientPluralLabel.toLowerCase()} {t('found in this group.')}
+                  {t('No')} {config.recipientPluralLabel.toLowerCase()} {t('found.')}
                   <br />
-                  <span className="text-xs">{t('Make sure recipients have')} "{selectedTemplate.group}" {t('as their group.')}</span>
+                  <span className="text-xs">{t('Add recipients from the Recipients page first.')}</span>
                 </p>
               ) : filteredRecipients.map(r => {
                 const checked = selectedRecipientIds.has(r.id);

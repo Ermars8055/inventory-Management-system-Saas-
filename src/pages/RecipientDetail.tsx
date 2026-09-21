@@ -290,17 +290,19 @@ export function RecipientDetailPage() {
                       )}
                     </div>
                     <div className="flex gap-2 shrink-0">
-                      {a.status === 'fine_pending' ? (
+                      {isDistribution ? (
+                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">{t('Distributed')}</Badge>
+                      ) : a.status === 'fine_pending' ? (
                         <Button size="sm" variant="outline" className="text-amber-700 border-amber-300" onClick={() => handleFinePaid(a.id)}>
-                          <DollarSign className="h-3.5 w-3.5 mr-1" /> Mark Paid
+                          <DollarSign className="h-3.5 w-3.5 mr-1" /> {t('Mark Paid')}
                         </Button>
                       ) : (
                         <>
                           <Button size="sm" variant="outline" onClick={() => { setReturning(a); setReturnForm({ returnReason: '', conditionReturned: 'Good', damageNotes: '', fineAmount: '0', receivedBy: '', notes: '' }); }}>
-                            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Return
+                            <RotateCcw className="h-3.5 w-3.5 mr-1" /> {t('Return')}
                           </Button>
                           <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => { setMarkingLost(a); }}>
-                            <XCircle className="h-3.5 w-3.5 mr-1" /> Lost
+                            <XCircle className="h-3.5 w-3.5 mr-1" /> {t('Lost')}
                           </Button>
                         </>
                       )}
