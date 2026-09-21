@@ -6,7 +6,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import ClassTemplate, ClassTemplateItem, Recipient, Assignment, Item, User
+from ..models import ClassTemplate, ClassTemplateItem, Recipient, Assignment, Item, User, Organization
 from ..schemas import (
     ClassTemplateOut, ClassTemplateCreate, ClassTemplateUpdate,
     ClassTemplateItemOut, ClassTemplateItemCreate,
@@ -168,6 +168,12 @@ def bulk_issue(template_id: str, body: BulkIssueBody, user: User = Depends(requi
 
     from ..routers.inventory import _compute_status
 
+    # Determine mode from org config
+    org = db.query(Organization).filter(Organization.id == user.organization_id).first()
+    org_config = org.config or {} if org else {}
+    mode = org_config.get("assignmentMode", "distribution")
+    is_distribution = mode == "distribution"
+
     created: list[Assignment] = []
     ts = int(time.time() * 1000)
 
@@ -186,10 +192,11 @@ def bulk_issue(template_id: str, body: BulkIssueBody, user: User = Depends(requi
                 quantity=titem.quantity,
                 condition_issued=titem.condition_issued,
                 issue_date=body.issue_date,
-                expected_return=body.expected_return,
+                expected_return=body.expected_return if not is_distribution else None,
                 issued_by=body.issued_by,
                 notes=body.notes,
-                status="issued",
+                mode=mode,
+                status="distributed" if is_distribution else "issued",
             )
             db.add(a)
             created.append(a)
@@ -197,8 +204,12 @@ def bulk_issue(template_id: str, body: BulkIssueBody, user: User = Depends(requi
             if titem.item_id:
                 inv_item = db.query(Item).filter(Item.id == titem.item_id).first()
                 if inv_item:
-                    inv_item.reserved = (inv_item.reserved or 0) + titem.quantity
-                    inv_item.available = max(0, inv_item.quantity - inv_item.reserved)
+                    if is_distribution:
+                        inv_item.quantity = max(0, inv_item.quantity - titem.quantity)
+                        inv_item.available = max(0, inv_item.quantity - (inv_item.reserved or 0))
+                    else:
+                        inv_item.reserved = (inv_item.reserved or 0) + titem.quantity
+                        inv_item.available = max(0, inv_item.quantity - inv_item.reserved)
                     inv_item.status = _compute_status(inv_item.available, inv_item.min_quantity or 10)
                     inv_item.last_updated = date.today().isoformat()
 

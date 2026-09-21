@@ -249,8 +249,10 @@ def generate_pos(qid: str, body: GeneratePOsBody, user: User = Depends(require("
             continue
         price = next(
             (x.unit_price for x in vq.quote_items if x.quotation_item_id == qi_id),
-            0,
-        ) or 0
+            None,
+        )
+        if price is None or price <= 0:
+            raise HTTPException(400, f"Missing or invalid price for item '{qi.item_name}' from vendor '{vq.vendor_name}'")
         groups.setdefault(vq_id, []).append((qi, vq, price))
 
     created_pos = []

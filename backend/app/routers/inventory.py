@@ -28,6 +28,11 @@ def list_items(user: User = Depends(require("inventory:read")), db: Session = De
 @router.post("", response_model=ItemOut, status_code=201)
 def create_item(body: ItemCreate, user: User = Depends(require("inventory:create")), db: Session = Depends(get_db)):
     check_limit("items", user, db)
+    # Duplicate SKU check
+    if body.sku:
+        existing = db.query(Item).filter(Item.organization_id == user.organization_id, Item.sku == body.sku).first()
+        if existing:
+            raise HTTPException(409, f"An item with SKU '{body.sku}' already exists")
     avail = body.available if body.available is not None else body.quantity
     min_qty = body.min_quantity if body.min_quantity is not None else 10
     reorder_qty = body.reorder_qty if body.reorder_qty is not None else 50

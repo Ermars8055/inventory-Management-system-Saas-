@@ -301,10 +301,12 @@ export function BulkIssuePage() {
                   <Label>{t('Issue Date')} *</Label>
                   <Input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>{t('Expected Return')}</Label>
-                  <Input type="date" value={expectedReturn} onChange={e => setExpectedReturn(e.target.value)} />
-                </div>
+                {config.assignmentMode === 'lending' && (
+                  <div className="space-y-1.5">
+                    <Label>{t('Expected Return')}</Label>
+                    <Input type="date" value={expectedReturn} onChange={e => setExpectedReturn(e.target.value)} />
+                  </div>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>{t('Issued By')}</Label>

@@ -16,6 +16,10 @@ def list_vendors(user: User = Depends(require("vendors:read")), db: Session = De
 
 @router.post("", response_model=VendorOut, status_code=201)
 def create_vendor(body: VendorCreate, user: User = Depends(require("vendors:create")), db: Session = Depends(get_db)):
+    if body.email:
+        existing = db.query(Vendor).filter(Vendor.organization_id == user.organization_id, Vendor.email == body.email).first()
+        if existing:
+            raise HTTPException(409, f"A vendor with email '{body.email}' already exists")
     vendor = Vendor(
         id=f"ven_{int(time.time() * 1000)}",
         organization_id=user.organization_id,

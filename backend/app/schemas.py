@@ -741,6 +741,12 @@ class QuotationItemCreate(CamelModel):
     item_name: str
     qty_needed: int = 1
 
+    @model_validator(mode='after')
+    def check_qty(self):
+        if self.qty_needed < 1:
+            raise ValueError('qty_needed must be at least 1')
+        return self
+
 class VendorQuoteItemOut(CamelModel):
     id: str
     vendor_quote_id: str

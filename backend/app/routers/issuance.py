@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import Recipient, Assignment, Item, User, Organization
+from ..models import Recipient, Assignment, Item, User, Organization, StockTransaction
 from ..schemas import (
     RecipientOut, RecipientCreate, RecipientUpdate,
     AssignmentOut, AssignmentCreate, ReturnBody, LostBody,
@@ -22,6 +22,10 @@ def list_recipients(user: User = Depends(require("recipients:read")), db: Sessio
 
 @router.post("/recipients", response_model=RecipientOut, status_code=201)
 def create_recipient(body: RecipientCreate, user: User = Depends(require("recipients:create")), db: Session = Depends(get_db)):
+    if body.identifier:
+        existing = db.query(Recipient).filter(Recipient.organization_id == user.organization_id, Recipient.identifier == body.identifier).first()
+        if existing:
+            raise HTTPException(409, f"A recipient with identifier '{body.identifier}' already exists")
     r = Recipient(
         id=f"rec_{int(time.time() * 1000)}",
         organization_id=user.organization_id,
@@ -184,6 +188,20 @@ def return_assignment(assignment_id: str, body: ReturnBody, user: User = Depends
         from ..routers.inventory import _compute_status
         item.status = _compute_status(item.available, item.min_quantity or 10)
         item.last_updated = date.today().isoformat()
+
+    # Log return transaction
+    db.add(StockTransaction(
+        id=f"tx_{int(time.time() * 1000)}_ret",
+        organization_id=a.organization_id,
+        date=date.today().isoformat(),
+        item_id=a.item_id,
+        item_name=a.item_name,
+        type="returned",
+        quantity=a.quantity,
+        user=user.name,
+        reference=f"Return-{a.id[-8:]}",
+        recipient=a.recipient_name,
+    ))
 
     db.commit()
     db.refresh(a)
