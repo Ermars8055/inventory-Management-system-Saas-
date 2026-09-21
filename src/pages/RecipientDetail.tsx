@@ -224,10 +224,12 @@ export function RecipientDetailPage() {
                 {t('Assign Package')}
               </Button>
             )}
-            <Button onClick={() => setShowIssue(true)}>
-              <Plus className="h-4 w-4 mr-1" />
-              {t(config.assignmentLabel)} {t('Item')}
-            </Button>
+            {!isDistribution && (
+              <Button onClick={() => setShowIssue(true)}>
+                <Plus className="h-4 w-4 mr-1" />
+                {t(config.assignmentLabel)} {t('Item')}
+              </Button>
+            )}
           </div>
         }
       />

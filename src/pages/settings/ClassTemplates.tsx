@@ -14,7 +14,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import type { ClassTemplate, Item } from '@/types';
 
 const EMPTY_TEMPLATE = { name: '', group: '', academicYear: '', notes: '' };
-const EMPTY_ITEM = { itemId: '', itemName: '', quantity: '1', conditionIssued: 'New', notes: '' };
+const EMPTY_ITEM = { itemId: '', itemName: '', quantity: '1', unitPrice: '0', conditionIssued: 'New', notes: '' };
 const CONDITIONS = ['New', 'Good', 'Fair', 'Poor'];
 
 export function ClassTemplatesPage() {
@@ -116,6 +116,7 @@ export function ClassTemplatesPage() {
       itemId: li.itemId ?? '',
       itemName: li.itemName,
       quantity: String(li.quantity),
+      unitPrice: String(li.unitPrice ?? 0),
       conditionIssued: li.conditionIssued,
       notes: li.notes ?? '',
     });
@@ -132,6 +133,7 @@ export function ClassTemplatesPage() {
       itemId: iForm.itemId || undefined,
       itemName: iForm.itemName,
       quantity: parseInt(iForm.quantity) || 1,
+      unitPrice: parseInt(iForm.unitPrice) || 0,
       conditionIssued: iForm.conditionIssued,
       notes: iForm.notes || undefined,
     };
@@ -255,7 +257,9 @@ export function ClassTemplatesPage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{li.itemName}</p>
                           <p className="text-xs text-muted-foreground">
-                            {t('Qty')}: {li.quantity} · {t('Condition')}: {t(li.conditionIssued)}
+                            {t('Qty')}: {li.quantity}
+                            {(li.unitPrice ?? 0) > 0 ? ` · ₹${li.unitPrice} × ${li.quantity} = ₹${(li.unitPrice ?? 0) * li.quantity}` : ''}
+                            {` · ${t('Condition')}: ${t(li.conditionIssued)}`}
                             {li.notes ? ` · ${li.notes}` : ''}
                           </p>
                         </div>
@@ -363,7 +367,7 @@ export function ClassTemplatesPage() {
                 </div>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label>{t('Quantity')} *</Label>
                 <Input
@@ -371,6 +375,15 @@ export function ClassTemplatesPage() {
                   value={iForm.quantity}
                   onChange={e => setIForm(f => ({ ...f, quantity: e.target.value }))}
                   required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t('Unit Price')}</Label>
+                <Input
+                  type="number" min={0}
+                  value={iForm.unitPrice}
+                  onChange={e => setIForm(f => ({ ...f, unitPrice: e.target.value }))}
+                  placeholder="0"
                 />
               </div>
               <div className="space-y-1.5">

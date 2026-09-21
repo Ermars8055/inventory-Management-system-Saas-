@@ -585,20 +585,26 @@ export function InventoryPage() {
                     className="flex items-center gap-1.5 pt-3 mt-3 border-t border-gray-50"
                     onClick={e => e.stopPropagation()}
                   >
-                    {item.available > 0 ? (
-                      <button
-                        className="flex-1 text-[12px] font-semibold py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1.5"
-                        style={{ background: color + '12', color }}
-                        onMouseEnter={e => (e.currentTarget.style.background = color + '28')}
-                        onMouseLeave={e => (e.currentTarget.style.background = color + '12')}
-                        onClick={e => openIssue(item, e)}
-                      >
-                        <ArrowRightLeft className="h-3 w-3" />
-                        {config.assignmentLabel}
-                      </button>
+                    {config.assignmentMode !== 'distribution' ? (
+                      item.available > 0 ? (
+                        <button
+                          className="flex-1 text-[12px] font-semibold py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                          style={{ background: color + '12', color }}
+                          onMouseEnter={e => (e.currentTarget.style.background = color + '28')}
+                          onMouseLeave={e => (e.currentTarget.style.background = color + '12')}
+                          onClick={e => openIssue(item, e)}
+                        >
+                          <ArrowRightLeft className="h-3 w-3" />
+                          {config.assignmentLabel}
+                        </button>
+                      ) : (
+                        <span className="flex-1 text-[11px] text-gray-300 text-center py-1.5 select-none">
+                          {t('No stock')}
+                        </span>
+                      )
                     ) : (
-                      <span className="flex-1 text-[11px] text-gray-300 text-center py-1.5 select-none">
-                        {t('No stock')}
+                      <span className="flex-1 text-[11px] text-gray-400 text-center py-1.5 select-none">
+                        {t('Use fee packages')}
                       </span>
                     )}
                     <DropdownMenu>
@@ -699,7 +705,7 @@ export function InventoryPage() {
                       <TableCell className="text-[12px] text-gray-400 whitespace-nowrap">{item.lastUpdated}</TableCell>
                       <TableCell onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-1.5">
-                          {item.available > 0 && (
+                          {item.available > 0 && config.assignmentMode !== 'distribution' && (
                             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={e => openIssue(item, e)}>
                               <ArrowRightLeft className="h-3 w-3 mr-1" />
                               {config.assignmentLabel}
