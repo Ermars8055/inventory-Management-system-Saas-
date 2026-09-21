@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { SessionWarning } from '@/components/shared/SessionWarning';
+import SessionWarning from '@/components/shared/SessionWarning';
 import { TutorialOverlay } from '@/components/shared/TutorialOverlay';
 import { useTutorial } from '@/hooks/useTutorial';
 
