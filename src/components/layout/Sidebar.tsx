@@ -68,10 +68,28 @@ export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
           </button>
         </div>
 
-        {/* Org switcher */}
-        <div className="p-3 border-b">
-          <OrgSwitcher />
-        </div>
+        {/* Org switcher — hidden on subdomains since each subdomain = one org */}
+        {!(window.location.hostname.includes('.stockpilot.') && window.location.hostname !== 'stockpilot.ermarscastar.in') && (
+          <div className="p-3 border-b">
+            <OrgSwitcher />
+          </div>
+        )}
+        {(window.location.hostname.includes('.stockpilot.') && window.location.hostname !== 'stockpilot.ermarscastar.in') && currentOrg && (
+          <div className="p-3 border-b">
+            <div className="flex items-center gap-3 p-2">
+              {currentOrg.logoUrl ? (
+                <img src={`${(import.meta.env.VITE_API_URL as string) || 'http://localhost:8000'}${currentOrg.logoUrl}`} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+              ) : (
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground text-xs font-bold">
+                  {currentOrg.logoText || currentOrg.name.slice(0, 2).toUpperCase()}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">{currentOrg.name}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4">

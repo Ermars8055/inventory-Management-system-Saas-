@@ -26,7 +26,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import type { Item, Category, Recipient } from '@/types';
 
-const EMPTY_FORM = { name: '', sku: '', categoryId: '', categoryName: '', quantity: '', location: '', minQuantity: '10', reorderQty: '50', attributes: {} as Record<string, string | number | boolean> };
+const EMPTY_FORM = { name: '', sku: '', categoryId: '', categoryName: '', module: 'general', quantity: '', location: '', minQuantity: '10', reorderQty: '50', attributes: {} as Record<string, string | number | boolean> };
+
+const MODULE_OPTIONS = [
+  { value: 'general', label: 'General' },
+  { value: 'uniforms', label: 'Uniforms' },
+  { value: 'books', label: 'Books' },
+  { value: 'pharmacy', label: 'Medicines / Pharmacy' },
+  { value: 'assets', label: 'Assets' },
+];
 const EMPTY_ISSUE = { recipientId: '', quantity: '1', conditionIssued: 'Good', expectedReturn: '' };
 
 // ── Colour helpers ─────────────────────────────────────────────────────────────
@@ -213,6 +221,7 @@ export function InventoryPage() {
       name: item.name, sku: item.sku,
       categoryId: item.categoryId,
       categoryName: item.categoryName,
+      module: item.module || 'general',
       quantity: String(item.quantity),
       location: item.location,
       minQuantity: String(item.minQuantity ?? 10),
@@ -257,7 +266,7 @@ export function InventoryPage() {
           name: form.name, sku: form.sku,
           categoryId: form.categoryId,
           categoryName: cat?.name || form.categoryId,
-          module: 'general',
+          module: form.module || 'general',
           quantity: Number(form.quantity),
           available: Number(form.quantity),
           reserved: 0,
@@ -752,6 +761,15 @@ export function InventoryPage() {
                 <SelectContent>
                   {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   <SelectItem value="__new__" className="text-primary font-medium">+ {t('Create New Category')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('Module')}</Label>
+              <Select value={form.module} onValueChange={val => setForm({ ...form, module: val })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {MODULE_OPTIONS.map(m => <SelectItem key={m.value} value={m.value}>{t(m.label)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
