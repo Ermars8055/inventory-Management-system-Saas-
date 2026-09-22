@@ -67,7 +67,9 @@ export function RecipientsPage() {
         identifier: form.identifier,
         group: form.group,
         contact: form.contact || undefined,
-        extraData: Object.keys(form.extraData).length > 0 ? form.extraData : undefined,
+        extraData: Object.keys(form.extraData).length > 0
+          ? Object.fromEntries(Object.entries(form.extraData).map(([k, v]) => [k, String(v)]))
+          : undefined,
       });
       setRecipients((prev) => [...prev, created]);
       setShowAdd(false);
