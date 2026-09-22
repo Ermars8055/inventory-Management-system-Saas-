@@ -234,6 +234,22 @@ export function RecipientDetailPage() {
         }
       />
 
+      {/* Custom Fields */}
+      {recipient.extraData && Object.keys(recipient.extraData).length > 0 && (
+        <Card className="mb-6">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2">
+              {Object.entries(recipient.extraData).map(([key, val]) => (
+                <div key={key} className="flex justify-between items-center py-1 border-b last:border-0">
+                  <span className="text-sm text-muted-foreground">{t(key)}</span>
+                  <span className="text-sm font-medium">{typeof val === 'boolean' ? (val ? t('Yes') : t('No')) : String(val)}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         {[

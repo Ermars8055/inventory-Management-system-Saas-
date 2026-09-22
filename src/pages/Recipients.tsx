@@ -8,6 +8,7 @@ import { recipientService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { CustomFieldsSheet } from '@/components/shared/CustomFieldsSheet';
+import { CustomFieldsRenderer } from '@/components/shared/CustomFieldsRenderer';
 import { CsvActions } from '@/components/shared/CsvActions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +25,7 @@ export function RecipientsPage() {
   const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ name: '', identifier: '', group: '', contact: '' });
+  const [form, setForm] = useState({ name: '', identifier: '', group: '', contact: '', extraData: {} as Record<string, string | number | boolean> });
   const [saving, setSaving] = useState(false);
   const [fieldsSheetOpen, setFieldsSheetOpen] = useState(false);
 
@@ -66,10 +67,11 @@ export function RecipientsPage() {
         identifier: form.identifier,
         group: form.group,
         contact: form.contact || undefined,
+        extraData: Object.keys(form.extraData).length > 0 ? form.extraData : undefined,
       });
       setRecipients((prev) => [...prev, created]);
       setShowAdd(false);
-      setForm({ name: '', identifier: '', group: '', contact: '' });
+      setForm({ name: '', identifier: '', group: '', contact: '', extraData: {} });
     } finally {
       setSaving(false);
     }
@@ -190,6 +192,11 @@ export function RecipientsPage() {
               <Label>{t('Contact')} ({t('optional')})</Label>
               <Input value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} placeholder={t('Phone or email')} />
             </div>
+            <CustomFieldsRenderer
+              entity="recipient"
+              values={form.extraData}
+              onChange={(vals) => setForm({ ...form, extraData: vals })}
+            />
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => setShowAdd(false)}>{t('Cancel')}</Button>
               <Button type="submit" disabled={saving}>{saving ? t('Saving…') : `${t('Add')} ${t(config.recipientLabel)}`}</Button>
