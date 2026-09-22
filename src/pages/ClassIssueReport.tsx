@@ -12,7 +12,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Printer, ArrowLeft, Filter } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
-import { assignmentService, templateService, recipientService } from '@/services';
+import { assignmentService, templateService, recipientService, classTemplateService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +34,7 @@ export function ClassIssueReportPage() {
   const [allAssignments, setAllAssignments] = useState<Assignment[]>([]);
   const [allRecipients, setAllRecipients] = useState<Recipient[]>([]);
   const [template, setTemplate] = useState<ReceiptTemplate | null>(null);
+  const [templateGroups, setTemplateGroups] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -46,17 +47,24 @@ export function ClassIssueReportPage() {
       assignmentService.getByOrganization(currentOrg.id),
       recipientService.getByOrganization(currentOrg.id),
       templateService.getByOrganization(currentOrg.id),
-    ]).then(([asgns, recs, tpls]) => {
+      classTemplateService.getByOrganization(currentOrg.id),
+    ]).then(([asgns, recs, tpls, classTpls]) => {
       setAllAssignments(asgns);
       setAllRecipients(recs);
       // Find class_issue_report template; fall back to first template
       const classTemplate = tpls.find(t => t.type === 'class_issue_report') ?? tpls[0] ?? null;
       setTemplate(classTemplate);
+      // Collect groups from class templates
+      setTemplateGroups(classTpls.map(ct => ct.group).filter(Boolean));
     }).finally(() => setLoading(false));
   }, [currentOrg]);
 
-  // Available groups from recipients
-  const groups = Array.from(new Set(allRecipients.map(r => r.group).filter(Boolean))).sort() as string[];
+  // Available groups: merge from recipients, assignments, and class templates
+  const groups = Array.from(new Set([
+    ...allRecipients.map(r => r.group).filter(Boolean),
+    ...allAssignments.map(a => a.recipientGroup).filter(Boolean),
+    ...templateGroups,
+  ])).sort() as string[];
 
   // Filtered assignments: match group + date
   const filtered = allAssignments.filter(a => {

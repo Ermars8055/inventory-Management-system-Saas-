@@ -92,18 +92,29 @@ export function RecipientDetailPage() {
   const isDistribution = config.assignmentMode === 'distribution';
 
   async function openReceipt(fee: typeof fees[0]) {
-    try {
-      const tmpl = await classTemplateService.getById(fee.templateId || '');
-      const receiptItems = (tmpl.items || []).map((ti: { itemName: string; quantity: number; unitPrice: number; conditionIssued?: string }) => ({
-        name: ti.itemName,
-        qty: ti.quantity,
-        details: `${config.currencySymbol}${ti.unitPrice} x ${ti.quantity} = ${config.currencySymbol}${ti.unitPrice * ti.quantity}`,
-        unitPrice: ti.unitPrice,
-      }));
-      setPrintFee({ fee, items: receiptItems });
-    } catch {
-      toast({ title: t('Failed to load receipt data'), variant: 'destructive' });
+    let receiptItems: { name: string; qty: number; details?: string }[] = [];
+    if (fee.templateId) {
+      try {
+        const tmpl = await classTemplateService.getById(fee.templateId);
+        receiptItems = (tmpl.items || []).map((ti: { itemName: string; quantity: number; unitPrice: number }) => ({
+          name: ti.itemName,
+          qty: ti.quantity,
+          details: `${config.currencySymbol}${ti.unitPrice} x ${ti.quantity} = ${config.currencySymbol}${ti.unitPrice * ti.quantity}`,
+        }));
+      } catch {
+        // Template may have been deleted; show receipt without items
+      }
     }
+    // If no items from template, try to show distributed assignments
+    if (receiptItems.length === 0) {
+      const distributed = assignments.filter(a => a.status === 'distributed' && a.issueDate === fee.distributedDate);
+      receiptItems = distributed.map(a => ({
+        name: a.itemName,
+        qty: a.quantity,
+        details: a.unitPrice ? `${config.currencySymbol}${a.unitPrice} x ${a.quantity} = ${config.currencySymbol}${a.unitPrice * a.quantity}` : undefined,
+      }));
+    }
+    setPrintFee({ fee, items: receiptItems });
   }
 
   function openEditRecipient() {
@@ -593,12 +604,21 @@ export function RecipientDetailPage() {
                       <>
                         <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">{t('Paid')}</Badge>
                         <Button size="sm" onClick={async () => {
-                          await feeService.distribute(fee.id);
-                          refreshRecipient();
-                          toast({ title: t('Items distributed!') });
-                          // Auto-open receipt after distribute
-                          const updated = (await feeService.getByRecipient(id!)).find(f => f.id === fee.id);
-                          if (updated) openReceipt(updated);
+                          try {
+                            await feeService.distribute(fee.id);
+                            toast({ title: t('Items distributed!') });
+                            // Refresh to get updated assignments + fees
+                            const [updatedFees, updatedAsgns] = await Promise.all([
+                              feeService.getByRecipient(id!),
+                              recipientService.getAssignments(currentOrg!.id, id!),
+                            ]);
+                            setFees(updatedFees);
+                            setAssignments(updatedAsgns);
+                            const updated = updatedFees.find(f => f.id === fee.id);
+                            if (updated) openReceipt(updated);
+                          } catch (err: unknown) {
+                            toast({ title: t('Distribution failed'), description: err instanceof Error ? err.message : '', variant: 'destructive' });
+                          }
                         }}>
                           <Truck className="h-3.5 w-3.5 mr-1" /> {t('Distribute')}
                         </Button>
@@ -608,11 +628,20 @@ export function RecipientDetailPage() {
                       <>
                         <Badge variant="outline" className="bg-gray-100 text-gray-600">{t('Waived')}</Badge>
                         <Button size="sm" onClick={async () => {
-                          await feeService.distribute(fee.id);
-                          refreshRecipient();
-                          toast({ title: t('Items distributed!') });
-                          const updated = (await feeService.getByRecipient(id!)).find(f => f.id === fee.id);
-                          if (updated) openReceipt(updated);
+                          try {
+                            await feeService.distribute(fee.id);
+                            toast({ title: t('Items distributed!') });
+                            const [updatedFees, updatedAsgns] = await Promise.all([
+                              feeService.getByRecipient(id!),
+                              recipientService.getAssignments(currentOrg!.id, id!),
+                            ]);
+                            setFees(updatedFees);
+                            setAssignments(updatedAsgns);
+                            const updated = updatedFees.find(f => f.id === fee.id);
+                            if (updated) openReceipt(updated);
+                          } catch (err: unknown) {
+                            toast({ title: t('Distribution failed'), description: err instanceof Error ? err.message : '', variant: 'destructive' });
+                          }
                         }}>
                           <Truck className="h-3.5 w-3.5 mr-1" /> {t('Distribute')}
                         </Button>
