@@ -36,13 +36,11 @@ def run():
         # Purchase orders: link to vendor
         "ALTER TABLE purchase_orders ADD COLUMN vendor_id VARCHAR REFERENCES vendors(id)",
         
-        # Vendor Migration: Rename columns in vendor_quotes
-        "ALTER TABLE vendor_quotes RENAME COLUMN supplier_id TO vendor_id",
-        "ALTER TABLE vendor_quotes RENAME COLUMN supplier_name TO vendor_name",
-        "ALTER TABLE vendor_quotes RENAME COLUMN supplier_email TO vendor_email",
-        
-        # Vendor Migration: Rename columns in purchase_orders
-        "ALTER TABLE purchase_orders RENAME COLUMN supplier TO vendor_name",
+        # Vendor Migration: add vendor columns (for fresh DBs these already exist)
+        "ALTER TABLE vendor_quotes ADD COLUMN vendor_id VARCHAR REFERENCES vendors(id)",
+        "ALTER TABLE vendor_quotes ADD COLUMN vendor_name VARCHAR",
+        "ALTER TABLE vendor_quotes ADD COLUMN vendor_email VARCHAR",
+        "ALTER TABLE purchase_orders ADD COLUMN vendor_name VARCHAR",
     ]
 
     with engine.connect() as conn:
@@ -147,9 +145,9 @@ def run():
             CREATE TABLE IF NOT EXISTS vendor_quotes (
                 id VARCHAR PRIMARY KEY,
                 quotation_id VARCHAR NOT NULL REFERENCES quotations(id),
-                supplier_id VARCHAR REFERENCES suppliers(id),
-                supplier_name VARCHAR NOT NULL,
-                supplier_email VARCHAR,
+                vendor_id VARCHAR,
+                vendor_name VARCHAR NOT NULL,
+                vendor_email VARCHAR,
                 status VARCHAR DEFAULT 'invited',
                 quoted_at VARCHAR,
                 notes VARCHAR
@@ -168,6 +166,19 @@ def run():
             )
         """))
         conn.commit()
+
+        # Copy data from old supplier_* columns to vendor_* columns if they exist
+        for copy_sql in [
+            "UPDATE vendor_quotes SET vendor_id = supplier_id WHERE vendor_id IS NULL AND supplier_id IS NOT NULL",
+            "UPDATE vendor_quotes SET vendor_name = supplier_name WHERE vendor_name IS NULL AND supplier_name IS NOT NULL",
+            "UPDATE vendor_quotes SET vendor_email = supplier_email WHERE vendor_email IS NULL AND supplier_email IS NOT NULL",
+            "UPDATE purchase_orders SET vendor_name = supplier WHERE vendor_name IS NULL AND supplier IS NOT NULL",
+        ]:
+            try:
+                conn.execute(__import__('sqlalchemy').text(copy_sql))
+                conn.commit()
+            except Exception:
+                pass  # Old columns don't exist — fresh DB
 
         for sql in migrations:
             try:
