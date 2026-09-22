@@ -93,27 +93,37 @@ export function RecipientDetailPage() {
 
   async function openReceipt(fee: typeof fees[0]) {
     let receiptItems: { name: string; qty: number; details?: string }[] = [];
+
+    // Try 1: Load items from the class template
     if (fee.templateId) {
       try {
         const tmpl = await classTemplateService.getById(fee.templateId);
-        receiptItems = (tmpl.items || []).map((ti: { itemName: string; quantity: number; unitPrice: number }) => ({
-          name: ti.itemName,
-          qty: ti.quantity,
-          details: `${config.currencySymbol}${ti.unitPrice} x ${ti.quantity} = ${config.currencySymbol}${ti.unitPrice * ti.quantity}`,
-        }));
+        if (tmpl.items && tmpl.items.length > 0) {
+          receiptItems = tmpl.items.map(ti => ({
+            name: ti.itemName,
+            qty: ti.quantity,
+            details: `${config.currencySymbol}${ti.unitPrice} x ${ti.quantity} = ${config.currencySymbol}${ti.unitPrice * ti.quantity}`,
+          }));
+        }
       } catch {
-        // Template may have been deleted; show receipt without items
+        // Template may have been deleted
       }
     }
-    // If no items from template, try to show distributed assignments
+
+    // Try 2: Fall back to this recipient's distributed assignments
     if (receiptItems.length === 0) {
-      const distributed = assignments.filter(a => a.status === 'distributed' && a.issueDate === fee.distributedDate);
+      const distributed = assignments.filter(a =>
+        a.status === 'distributed' || a.status === 'issued'
+      );
       receiptItems = distributed.map(a => ({
         name: a.itemName,
         qty: a.quantity,
-        details: a.unitPrice ? `${config.currencySymbol}${a.unitPrice} x ${a.quantity} = ${config.currencySymbol}${a.unitPrice * a.quantity}` : undefined,
+        details: a.unitPrice
+          ? `${config.currencySymbol}${a.unitPrice} x ${a.quantity} = ${config.currencySymbol}${a.unitPrice * a.quantity}`
+          : undefined,
       }));
     }
+
     setPrintFee({ fee, items: receiptItems });
   }
 

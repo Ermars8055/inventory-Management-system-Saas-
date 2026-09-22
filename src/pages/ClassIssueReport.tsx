@@ -37,9 +37,9 @@ export function ClassIssueReportPage() {
   const [templateGroups, setTemplateGroups] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
+  // Filters — default to no date filter so ALL assignments show
   const [filterGroup, setFilterGroup] = useState(searchParams.get('group') ?? '');
-  const [filterDate, setFilterDate] = useState(searchParams.get('date') ?? new Date().toISOString().slice(0, 10));
+  const [filterDate, setFilterDate] = useState(searchParams.get('date') ?? '');
 
   useEffect(() => {
     if (!currentOrg) return;
@@ -66,10 +66,10 @@ export function ClassIssueReportPage() {
     ...templateGroups,
   ])).sort() as string[];
 
-  // Filtered assignments: match group + date
+  // Filtered assignments: match group + optional date
   const filtered = allAssignments.filter(a => {
     const groupMatch = filterGroup ? a.recipientGroup?.toLowerCase() === filterGroup.toLowerCase() : true;
-    const dateMatch = filterDate ? a.issueDate?.startsWith(filterDate) : true;
+    const dateMatch = filterDate ? a.issueDate?.startsWith(filterDate) : true; // empty = show all dates
     return groupMatch && dateMatch;
   });
 
@@ -147,12 +147,19 @@ export function ClassIssueReportPage() {
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Issue Date</Label>
-            <Input
-              type="date"
-              value={filterDate}
-              onChange={e => setFilterDate(e.target.value)}
-              className="w-40 h-8 text-sm"
-            />
+            <div className="flex gap-1">
+              <Input
+                type="date"
+                value={filterDate}
+                onChange={e => setFilterDate(e.target.value)}
+                className="w-40 h-8 text-sm"
+              />
+              {filterDate && (
+                <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => setFilterDate('')}>
+                  Clear
+                </Button>
+              )}
+            </div>
           </div>
           <div className="space-y-1 pt-5">
             <p className="text-xs text-muted-foreground">
