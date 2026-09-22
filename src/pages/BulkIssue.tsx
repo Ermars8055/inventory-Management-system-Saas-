@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Check, Users, Package, ClipboardCheck, Loader2, ChevronLeft, Printer } from 'lucide-react';
+import { ChevronRight, Check, Users, Package, ClipboardCheck, Loader2, ChevronLeft, Printer, Plus } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
 import { classTemplateService, recipientService, feeService } from '@/services';
@@ -177,6 +177,17 @@ export function BulkIssuePage() {
             </Card>
           ) : (
             <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {/* Create new template card */}
+              <Card
+                className="cursor-pointer border-dashed hover:border-primary/40 transition-all"
+                onClick={() => navigate('/settings/class-templates')}
+              >
+                <CardContent className="p-4 flex flex-col items-center justify-center gap-2 min-h-[120px] text-muted-foreground">
+                  <Plus className="h-6 w-6" />
+                  <p className="text-sm font-medium">{t('New Template')}</p>
+                  <p className="text-xs">{t('Manage templates in Settings')}</p>
+                </CardContent>
+              </Card>
               {templates.map(tmpl => (
                 <Card
                   key={tmpl.id}

@@ -6,7 +6,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import ClassTemplate, ClassTemplateItem, Recipient, Assignment, Item, User, Organization
+from ..models import ClassTemplate, ClassTemplateItem, Recipient, Assignment, Item, User, Organization, StockTransaction
 from ..schemas import (
     ClassTemplateOut, ClassTemplateCreate, ClassTemplateUpdate,
     ClassTemplateItemOut, ClassTemplateItemCreate,
@@ -200,6 +200,21 @@ def bulk_issue(template_id: str, body: BulkIssueBody, user: User = Depends(requi
             )
             db.add(a)
             created.append(a)
+
+            # Stock transaction for audit trail
+            db.add(StockTransaction(
+                id=f"tx_{ts}_{r.id[-6:]}_{idx}",
+                organization_id=user.organization_id,
+                date=body.issue_date,
+                item_id=titem.item_id,
+                item_name=titem.item_name,
+                type="issued",
+                quantity=-titem.quantity,
+                user=body.issued_by or user.name,
+                reference=f"BULK-{t.name[:12]}",
+                recipient=r.name,
+                recipient_class=r.group,
+            ))
 
             if titem.item_id:
                 inv_item = db.query(Item).filter(Item.id == titem.item_id).first()
