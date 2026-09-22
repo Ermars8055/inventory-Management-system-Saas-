@@ -185,19 +185,7 @@ export function RecipientDetailPage() {
       expectedReturn: issueForm.expectedReturn || undefined,
       issuedBy: 'Store Manager',
     });
-    await inventoryService.adjustStock(item.id, -qty);
-    await transactionService.create({
-      organizationId: currentOrg.id,
-      date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-      itemId: item.id,
-      itemName: item.name,
-      type: 'issued',
-      quantity: -qty,
-      user: 'Store Manager',
-      reference: `${config.assignmentLabel.toUpperCase()}-${Date.now()}`,
-      recipient: recipient.name,
-      recipientClass: recipient.group,
-    });
+    // Backend handles inventory update + stock transaction creation
     setAssignments((prev) => [created, ...prev]);
     setShowIssue(false);
     setIssueForm({ itemId: '', quantity: '1', conditionIssued: 'Good', expectedReturn: '' });

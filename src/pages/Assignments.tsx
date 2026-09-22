@@ -148,19 +148,7 @@ export function AssignmentsPage() {
         expectedReturn: issueForm.expectedReturn || undefined,
         notes: issueForm.notes || undefined,
       });
-      await inventoryService.adjustStock(item.id, -qty);
-      await transactionService.create({
-        organizationId: currentOrg.id,
-        date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-        itemId: item.id,
-        itemName: item.name,
-        type: 'issued',
-        quantity: -qty,
-        user: 'Store Manager',
-        reference: `ASN-${Date.now()}`,
-        recipient: selected.name,
-        recipientClass: selected.group,
-      });
+      // Backend handles inventory update + stock transaction creation
       await loadAssignments(selected);
       setIssueDialog(false);
       setIssueForm({ itemId: '', quantity: '1', conditionIssued: 'Good', expectedReturn: '', notes: '' });

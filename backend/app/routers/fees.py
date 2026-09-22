@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 from typing import Optional
 from ..database import get_db
-from ..models import FeeRecord, ClassTemplate, Recipient, Assignment, Item, Organization, User
+from ..models import FeeRecord, ClassTemplate, Recipient, Assignment, Item, Organization, User, StockTransaction
 from ..schemas import FeeRecordOut
 from ..dependencies import require, same_org
 
@@ -157,12 +157,18 @@ def distribute(
     if fee.status == "distributed":
         raise HTTPException(400, "Already distributed")
 
-    # Get template items
-    template = db.query(ClassTemplate).filter(ClassTemplate.id == fee.template_id).first()
+    # Get template items (with org check)
+    template = db.query(ClassTemplate).filter(
+        ClassTemplate.id == fee.template_id,
+        ClassTemplate.organization_id == user.organization_id,
+    ).first()
     if not template or not template.items:
         raise HTTPException(400, "Template not found or has no items")
 
-    recipient = db.query(Recipient).filter(Recipient.id == fee.recipient_id).first()
+    recipient = db.query(Recipient).filter(
+        Recipient.id == fee.recipient_id,
+        Recipient.organization_id == user.organization_id,
+    ).first()
     if not recipient:
         raise HTTPException(404, "Recipient not found")
 
@@ -174,6 +180,7 @@ def distribute(
 
     from ..routers.inventory import _compute_status
 
+    today = date.today().isoformat()
     ts = int(time.time() * 1000)
     for idx, titem in enumerate(template.items):
         a = Assignment(
@@ -187,7 +194,7 @@ def distribute(
             item_name=titem.item_name,
             quantity=titem.quantity,
             condition_issued=titem.condition_issued,
-            issue_date=date.today().isoformat(),
+            issue_date=today,
             issued_by=user.name,
             mode=mode,
             status="distributed" if is_distribution else "issued",
@@ -196,6 +203,23 @@ def distribute(
             fee_status="paid",
         )
         db.add(a)
+
+        # Create stock transaction for audit trail
+        tx = StockTransaction(
+            id=f"tx_{ts}_{idx}",
+            organization_id=user.organization_id,
+            date=today,
+            item_id=titem.item_id,
+            item_name=titem.item_name,
+            type="issued",
+            quantity=-titem.quantity,
+            user=user.name,
+            reference=f"FEE-{fee.id[-8:]}",
+            recipient=recipient.name,
+            recipient_class=recipient.group,
+            notes=f"Distributed via package: {template.name}",
+        )
+        db.add(tx)
 
         # Update inventory
         if titem.item_id:
@@ -208,10 +232,10 @@ def distribute(
                     inv_item.reserved = (inv_item.reserved or 0) + titem.quantity
                     inv_item.available = max(0, inv_item.quantity - inv_item.reserved)
                 inv_item.status = _compute_status(inv_item.available, inv_item.min_quantity or 10)
-                inv_item.last_updated = date.today().isoformat()
+                inv_item.last_updated = today
 
     fee.status = "distributed"
-    fee.distributed_date = date.today().isoformat()
+    fee.distributed_date = today
     db.commit()
     db.refresh(fee)
     return fee

@@ -385,14 +385,7 @@ export function InventoryPage() {
         issueDate: new Date().toISOString().slice(0, 10),
         expectedReturn: issueForm.expectedReturn || undefined,
       });
-      await transactionService.create({
-        organizationId: currentOrg.id,
-        date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-        itemId: issueItem.id, itemName: issueItem.name,
-        type: 'issued', quantity: -qty, user: 'Store Manager',
-        reference: `ASN-${Date.now()}`,
-        recipient: recipient.name, recipientClass: recipient.group,
-      });
+      // Backend handles inventory update + stock transaction creation
       setItems(await inventoryService.getByOrganization(currentOrg.id));
       setIssueItem(null);
       toast({ title: `${issueItem.name} issued to ${recipient.name}` });

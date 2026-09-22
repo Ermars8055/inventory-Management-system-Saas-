@@ -135,16 +135,31 @@ def create_assignment(body: AssignmentCreate, user: User = Depends(require("assi
     if item:
         same_org(item.organization_id, user)
         if is_distribution:
-            # Distribution: reduce stock permanently (sold/given, not coming back)
             item.quantity = max(0, item.quantity - body.quantity)
             item.available = max(0, item.quantity - (item.reserved or 0))
         else:
-            # Lending: reserve stock (will come back on return)
             item.reserved = (item.reserved or 0) + body.quantity
             item.available = max(0, item.quantity - item.reserved)
         from ..routers.inventory import _compute_status
         item.status = _compute_status(item.available, item.min_quantity or 10)
         item.last_updated = date.today().isoformat()
+
+    # Create stock transaction for audit trail
+    tx = StockTransaction(
+        id=f"tx_{int(time.time() * 1000)}",
+        organization_id=user.organization_id,
+        date=body.issue_date or date.today().isoformat(),
+        item_id=body.item_id,
+        item_name=body.item_name,
+        type="issued",
+        quantity=-body.quantity,
+        user=user.name,
+        reference=f"ASGN-{a.id[-8:]}",
+        recipient=body.recipient_name,
+        recipient_class=body.recipient_group,
+    )
+    db.add(tx)
+
     db.commit()
     db.refresh(a)
     return a
