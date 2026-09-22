@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Printer, X } from 'lucide-react';
+import { Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -28,52 +28,49 @@ export function PrintReceipt({
   title, fields, items, footer, notes, showSignature, date,
 }: PrintReceiptProps) {
   const printRef = useRef<HTMLDivElement>(null);
+  const BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:8000';
 
   function handlePrint() {
     if (!printRef.current) return;
     const content = printRef.current.innerHTML;
     const win = window.open('', '_blank', 'width=800,height=600');
-    if (!win) return;
-    win.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${title} — ${orgName}</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #1a1a1a; max-width: 800px; margin: 0 auto; }
-          .header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #e5e7eb; }
-          .logo { height: 48px; width: 48px; border-radius: 8px; object-fit: cover; }
-          .logo-text { height: 48px; width: 48px; border-radius: 8px; background: #1e293b; color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; }
-          .org-name { font-size: 20px; font-weight: 700; }
-          .org-address { font-size: 12px; color: #6b7280; margin-top: 2px; }
-          .title { font-size: 18px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; color: #374151; }
-          .date { font-size: 12px; color: #6b7280; margin-bottom: 16px; }
-          .fields { margin-bottom: 20px; }
-          .field { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
-          .field-label { color: #6b7280; }
-          .field-value { font-weight: 600; }
-          .items-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-          .items-table th { background: #f9fafb; padding: 10px 12px; text-align: left; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; border-bottom: 2px solid #e5e7eb; }
-          .items-table td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
-          .items-table td.qty { text-align: center; font-weight: 600; }
-          .notes { margin-top: 20px; padding: 12px; background: #f9fafb; border-radius: 8px; font-size: 12px; color: #6b7280; }
-          .signature { margin-top: 48px; display: flex; justify-content: space-between; }
-          .sig-block { text-align: center; }
-          .sig-line { width: 160px; border-top: 1px solid #d1d5db; margin-bottom: 4px; }
-          .sig-label { font-size: 11px; color: #9ca3af; }
-          .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; text-align: center; }
-          @media print { body { padding: 20px; } }
-        </style>
-      </head>
-      <body>${content}</body>
-      </html>
-    `);
+    if (!win) {
+      // Fallback: use window.print() with iframe
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.top = '-10000px';
+      document.body.appendChild(iframe);
+      const doc = iframe.contentDocument;
+      if (doc) {
+        doc.open();
+        doc.write(buildHtml(content));
+        doc.close();
+        setTimeout(() => {
+          iframe.contentWindow?.print();
+          setTimeout(() => document.body.removeChild(iframe), 1000);
+        }, 300);
+      }
+      return;
+    }
+    win.document.write(buildHtml(content));
     win.document.close();
     setTimeout(() => { win.print(); }, 300);
   }
 
-  const BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:8000';
+  function buildHtml(content: string) {
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <title>${title} — ${orgName}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #1a1a1a; max-width: 800px; margin: 0 auto; }
+    @media print { body { padding: 20px; } @page { margin: 15mm; } }
+  </style>
+</head>
+<body>${content}</body>
+</html>`;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -85,77 +82,96 @@ export function PrintReceipt({
           </Button>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto border rounded-lg p-6 bg-white" ref={printRef}>
+        <div className="flex-1 overflow-y-auto border rounded-lg p-6 bg-white text-black" ref={printRef}>
           {/* Header */}
-          <div className="header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24, paddingBottom: 16, borderBottom: '2px solid #e5e7eb' }}>
             {orgLogoUrl ? (
-              <img src={`${BASE_URL}${orgLogoUrl}`} alt="" className="logo" />
+              <img src={`${BASE_URL}${orgLogoUrl}`} alt="" style={{ height: 48, width: 48, borderRadius: 8, objectFit: 'cover' }} />
             ) : (
-              <div className="logo-text">{orgName.slice(0, 2).toUpperCase()}</div>
+              <div style={{ height: 48, width: 48, borderRadius: 8, background: '#1e293b', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16 }}>
+                {orgName.slice(0, 2).toUpperCase()}
+              </div>
             )}
             <div>
-              <div className="org-name">{orgName}</div>
-              {orgAddress && <div className="org-address">{orgAddress}</div>}
+              <div style={{ fontSize: 20, fontWeight: 700 }}>{orgName}</div>
+              {orgAddress && <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{orgAddress}</div>}
             </div>
           </div>
 
           {/* Title + Date */}
-          <div className="title">{title}</div>
-          {date && <div className="date">Date: {date}</div>}
+          <div style={{ fontSize: 18, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 20, color: '#374151' }}>{title}</div>
+          {date && <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>Date: {date}</div>}
 
           {/* Fields */}
-          <div className="fields">
+          <div style={{ marginBottom: 20 }}>
             {fields.map(f => (
-              <div key={f.label} className="field">
-                <span className="field-label">{f.label}</span>
-                <span className="field-value">{f.value}</span>
+              <div key={f.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f3f4f6', fontSize: 14 }}>
+                <span style={{ color: '#6b7280' }}>{f.label}</span>
+                <span style={{ fontWeight: 600 }}>{f.value}</span>
               </div>
             ))}
           </div>
 
           {/* Items Table */}
           {items && items.length > 0 && (
-            <table className="items-table">
+            <table style={{ width: '100%', borderCollapse: 'collapse', margin: '20px 0' }}>
               <thead>
                 <tr>
-                  <th>#</th>
-                  <th>Item</th>
-                  <th style={{ textAlign: 'center' }}>Qty</th>
-                  <th>Details</th>
+                  <th style={{ background: '#f9fafb', padding: '10px 12px', textAlign: 'left', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: '#6b7280', borderBottom: '2px solid #e5e7eb' }}>#</th>
+                  <th style={{ background: '#f9fafb', padding: '10px 12px', textAlign: 'left', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: '#6b7280', borderBottom: '2px solid #e5e7eb' }}>Item</th>
+                  <th style={{ background: '#f9fafb', padding: '10px 12px', textAlign: 'center', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: '#6b7280', borderBottom: '2px solid #e5e7eb' }}>Qty</th>
+                  <th style={{ background: '#f9fafb', padding: '10px 12px', textAlign: 'left', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: '#6b7280', borderBottom: '2px solid #e5e7eb' }}>Details</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item, idx) => (
                   <tr key={idx}>
-                    <td>{idx + 1}</td>
-                    <td>{item.name}</td>
-                    <td className="qty">{item.qty}</td>
-                    <td>{item.details || '—'}</td>
+                    <td style={{ padding: '10px 12px', borderBottom: '1px solid #f3f4f6', fontSize: 14 }}>{idx + 1}</td>
+                    <td style={{ padding: '10px 12px', borderBottom: '1px solid #f3f4f6', fontSize: 14, fontWeight: 500 }}>{item.name}</td>
+                    <td style={{ padding: '10px 12px', borderBottom: '1px solid #f3f4f6', fontSize: 14, textAlign: 'center', fontWeight: 600 }}>{item.qty}</td>
+                    <td style={{ padding: '10px 12px', borderBottom: '1px solid #f3f4f6', fontSize: 14 }}>{item.details || '—'}</td>
                   </tr>
                 ))}
               </tbody>
+              {/* Total row */}
+              <tfoot>
+                <tr>
+                  <td colSpan={3} style={{ padding: '10px 12px', fontSize: 14, fontWeight: 700, textAlign: 'right', borderTop: '2px solid #e5e7eb' }}>Total</td>
+                  <td style={{ padding: '10px 12px', fontSize: 14, fontWeight: 700, borderTop: '2px solid #e5e7eb' }}>
+                    {items.reduce((sum, i) => sum + i.qty, 0)} items
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           )}
 
           {/* Notes */}
-          {notes && <div className="notes"><strong>Notes:</strong> {notes}</div>}
+          {notes && (
+            <div style={{ marginTop: 20, padding: 12, background: '#f9fafb', borderRadius: 8, fontSize: 12, color: '#6b7280' }}>
+              <strong>Notes:</strong> {notes}
+            </div>
+          )}
 
           {/* Signature */}
           {showSignature && (
-            <div className="signature">
-              <div className="sig-block">
-                <div className="sig-line" />
-                <div className="sig-label">Issued By</div>
+            <div style={{ marginTop: 48, display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ width: 160, borderTop: '1px solid #d1d5db', marginBottom: 4 }} />
+                <div style={{ fontSize: 11, color: '#9ca3af' }}>Issued By</div>
               </div>
-              <div className="sig-block">
-                <div className="sig-line" />
-                <div className="sig-label">Received By</div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ width: 160, borderTop: '1px solid #d1d5db', marginBottom: 4 }} />
+                <div style={{ fontSize: 11, color: '#9ca3af' }}>Received By</div>
               </div>
             </div>
           )}
 
           {/* Footer */}
-          {footer && <div className="footer">{footer}</div>}
+          {footer && (
+            <div style={{ marginTop: 32, paddingTop: 16, borderTop: '1px solid #e5e7eb', fontSize: 11, color: '#9ca3af', textAlign: 'center' }}>
+              {footer}
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

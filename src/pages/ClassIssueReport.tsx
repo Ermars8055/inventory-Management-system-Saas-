@@ -7,7 +7,7 @@
  * URL: /class-report?group=Grade+5A&date=2025-09-15
  * (or reached via Bulk Issue success page → Print Report)
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Printer, ArrowLeft, Filter } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
@@ -92,8 +92,23 @@ export function ClassIssueReportPage() {
   // All unique items across filtered assignments (for the header row)
   const allItemNames = Array.from(new Set(filtered.map(a => a.itemName))).sort();
 
+  const printRef = useRef<HTMLDivElement>(null);
+
   function handlePrint() {
-    window.print();
+    if (!printRef.current) return;
+    const content = printRef.current.innerHTML;
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html><html><head>
+      <title>Class Issue Report — ${currentOrg?.name || ''}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 30px; color: #1a1a1a; }
+        @media print { body { padding: 15px; } @page { size: A4 landscape; margin: 10mm; } }
+      </style>
+    </head><body>${content}</body></html>`);
+    win.document.close();
+    setTimeout(() => { win.print(); }, 300);
   }
 
   if (!currentOrg) return null;
@@ -155,69 +170,68 @@ export function ClassIssueReportPage() {
         </p>
       ) : (
         /* ── Printable report ──────────────────────────────────────────────── */
-        <div className="print-report">
+        <div ref={printRef}>
           {/* Report header */}
-          <div className="text-center mb-4 print:mb-2">
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
             {template?.showLogo && (
-              <div className="flex justify-center mb-2 print:mb-1">
-                <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 border">
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+                <div style={{ height: 48, width: 48, borderRadius: '50%', background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#6b7280', border: '1px solid #d1d5db' }}>
                   LOGO
                 </div>
               </div>
             )}
-            <h1 className="text-lg font-bold uppercase">{template?.orgName ?? currentOrg.name}</h1>
+            <h1 style={{ fontSize: 18, fontWeight: 700, textTransform: 'uppercase' }}>{template?.orgName ?? currentOrg.name}</h1>
             {template?.orgAddress && (
-              <p className="text-xs text-gray-500 mt-0.5">{template.orgAddress}</p>
+              <p style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{template.orgAddress}</p>
             )}
-            <h2 className="text-base font-semibold mt-2 uppercase tracking-wide">
+            <h2 style={{ fontSize: 16, fontWeight: 600, marginTop: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
               {template?.title ?? 'Class Material Issue Report'}
             </h2>
-            <div className="flex justify-center gap-6 text-xs text-gray-600 mt-1">
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 24, fontSize: 12, color: '#4b5563', marginTop: 4 }}>
               {filterGroup && <span>{config.groupLabel}: <strong>{filterGroup}</strong></span>}
               {filterDate && <span>Date: <strong>{filterDate}</strong></span>}
             </div>
           </div>
 
-          <hr className="border-gray-300 mb-3 print:mb-2" />
+          <hr style={{ border: 'none', borderTop: '1px solid #d1d5db', marginBottom: 12 }} />
 
           {/* Issue register table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs border-collapse border border-gray-300">
+          <div>
+            <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', border: '1px solid #d1d5db' }}>
               <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-300 px-2 py-1.5 text-left font-semibold">S.No</th>
-                  <th className="border border-gray-300 px-2 py-1.5 text-left font-semibold">
+                <tr style={{ background: '#f3f4f6' }}>
+                  <th style={{ border: '1px solid #d1d5db', padding: '6px 8px', textAlign: 'left', fontWeight: 600 }}>S.No</th>
+                  <th style={{ border: '1px solid #d1d5db', padding: '6px 8px', textAlign: 'left', fontWeight: 600 }}>
                     {config.recipientLabel}
                   </th>
-                  <th className="border border-gray-300 px-2 py-1.5 text-left font-semibold">
+                  <th style={{ border: '1px solid #d1d5db', padding: '6px 8px', textAlign: 'left', fontWeight: 600 }}>
                     {config.identifierLabel}
                   </th>
                   {allItemNames.map(name => (
-                    <th key={name} className="border border-gray-300 px-2 py-1.5 text-center font-semibold max-w-20">
+                    <th key={name} style={{ border: '1px solid #d1d5db', padding: '6px 8px', textAlign: 'center', fontWeight: 600, maxWidth: 80 }}>
                       {name}
                     </th>
                   ))}
-                  <th className="border border-gray-300 px-2 py-1.5 text-center font-semibold">Signature</th>
+                  <th style={{ border: '1px solid #d1d5db', padding: '6px 8px', textAlign: 'center', fontWeight: 600 }}>Signature</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row, idx) => {
-                  // Build a map: itemName → quantity for this recipient
                   const itemQtyMap = new Map<string, number>();
                   for (const a of row.assignments) {
                     itemQtyMap.set(a.itemName, (itemQtyMap.get(a.itemName) ?? 0) + a.quantity);
                   }
                   return (
-                    <tr key={row.recipient.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="border border-gray-300 px-2 py-1.5 text-center">{idx + 1}</td>
-                      <td className="border border-gray-300 px-2 py-1.5 font-medium">{row.recipient.name}</td>
-                      <td className="border border-gray-300 px-2 py-1.5">{row.recipient.identifier}</td>
+                    <tr key={row.recipient.id} style={{ background: idx % 2 === 0 ? '#fff' : '#f9fafb' }}>
+                      <td style={{ border: '1px solid #d1d5db', padding: '6px 8px', textAlign: 'center' }}>{idx + 1}</td>
+                      <td style={{ border: '1px solid #d1d5db', padding: '6px 8px', fontWeight: 500 }}>{row.recipient.name}</td>
+                      <td style={{ border: '1px solid #d1d5db', padding: '6px 8px' }}>{row.recipient.identifier}</td>
                       {allItemNames.map(name => (
-                        <td key={name} className="border border-gray-300 px-2 py-1.5 text-center">
+                        <td key={name} style={{ border: '1px solid #d1d5db', padding: '6px 8px', textAlign: 'center' }}>
                           {itemQtyMap.has(name) ? itemQtyMap.get(name) : '—'}
                         </td>
                       ))}
-                      <td className="border border-gray-300 px-2 py-1.5 min-w-24"></td>
+                      <td style={{ border: '1px solid #d1d5db', padding: '6px 8px', minWidth: 96 }}></td>
                     </tr>
                   );
                 })}
@@ -226,36 +240,25 @@ export function ClassIssueReportPage() {
           </div>
 
           {/* Footer */}
-          <div className="mt-6 print:mt-4">
+          <div style={{ marginTop: 24 }}>
             {template?.showSignature && (
-              <div className="flex justify-between mt-8 text-xs text-gray-600">
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 32, fontSize: 12, color: '#4b5563' }}>
                 <div>
                   <p>Prepared by: _______________________</p>
-                  <p className="mt-1">Date: {filterDate}</p>
+                  <p style={{ marginTop: 4 }}>Date: {filterDate}</p>
                 </div>
-                <div className="text-right">
+                <div style={{ textAlign: 'right' }}>
                   <p>{template?.footer ?? 'Storekeeper Signature: _______________________'}</p>
                 </div>
               </div>
             )}
             {template?.notes && (
-              <p className="text-xs text-gray-500 italic mt-3 border-t pt-2">{template.notes}</p>
+              <p style={{ fontSize: 12, color: '#6b7280', fontStyle: 'italic', marginTop: 12, borderTop: '1px solid #e5e7eb', paddingTop: 8 }}>{template.notes}</p>
             )}
           </div>
         </div>
       )}
 
-      {/* Print CSS injected inline so it works without a separate stylesheet */}
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          .print-report, .print-report * { visibility: visible; }
-          .print-report { position: fixed; top: 0; left: 0; width: 100%; }
-          .print\\:hidden { display: none !important; }
-          @page { size: A4; margin: 15mm; }
-          table { font-size: 10px; }
-        }
-      `}</style>
     </div>
   );
 }
