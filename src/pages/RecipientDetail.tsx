@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Plus, RotateCcw, AlertTriangle, CheckCircle2, Clock,
-  XCircle, DollarSign, Package, Pencil, CreditCard, Truck,
+  XCircle, DollarSign, Package, Pencil, CreditCard, Truck, Printer,
 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
 import { recipientService, assignmentService, inventoryService, transactionService, feeService, classTemplateService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { PrintReceipt } from '@/components/shared/PrintReceipt';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -67,12 +68,13 @@ export function RecipientDetailPage() {
   const [lostForm, setLostForm] = useState({ fineAmount: '0', notes: '' });
 
   // Fee-first distribution
-  const [fees, setFees] = useState<{ id: string; recipientName: string; templateName: string; totalAmount: number; paidAmount: number; status: string; distributedDate?: string; createdAt: string }[]>([]);
+  const [fees, setFees] = useState<{ id: string; recipientName: string; templateId?: string; templateName: string; totalAmount: number; paidAmount: number; status: string; paymentDate?: string; distributedDate?: string; notes?: string; createdAt: string }[]>([]);
   const [templates, setTemplates] = useState<{ id: string; name: string; items: unknown[] }[]>([]);
   const [showAssignPackage, setShowAssignPackage] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [showPayDialog, setShowPayDialog] = useState<string | null>(null);
   const [payAmount, setPayAmount] = useState('');
+  const [printFee, setPrintFee] = useState<{ fee: typeof fees[0]; items: { name: string; qty: number; details?: string; unitPrice?: number }[] } | null>(null);
 
   function refreshRecipient() {
     if (!id || !currentOrg) return;
@@ -88,6 +90,21 @@ export function RecipientDetailPage() {
   }, [id, currentOrg]);
 
   const isDistribution = config.assignmentMode === 'distribution';
+
+  async function openReceipt(fee: typeof fees[0]) {
+    try {
+      const tmpl = await classTemplateService.getById(fee.templateId || '');
+      const receiptItems = (tmpl.items || []).map((ti: { itemName: string; quantity: number; unitPrice: number; conditionIssued?: string }) => ({
+        name: ti.itemName,
+        qty: ti.quantity,
+        details: `${config.currencySymbol}${ti.unitPrice} x ${ti.quantity} = ${config.currencySymbol}${ti.unitPrice * ti.quantity}`,
+        unitPrice: ti.unitPrice,
+      }));
+      setPrintFee({ fee, items: receiptItems });
+    } catch {
+      toast({ title: t('Failed to load receipt data'), variant: 'destructive' });
+    }
+  }
 
   function openEditRecipient() {
     if (!recipient) return;
@@ -579,6 +596,9 @@ export function RecipientDetailPage() {
                           await feeService.distribute(fee.id);
                           refreshRecipient();
                           toast({ title: t('Items distributed!') });
+                          // Auto-open receipt after distribute
+                          const updated = (await feeService.getByRecipient(id!)).find(f => f.id === fee.id);
+                          if (updated) openReceipt(updated);
                         }}>
                           <Truck className="h-3.5 w-3.5 mr-1" /> {t('Distribute')}
                         </Button>
@@ -591,13 +611,20 @@ export function RecipientDetailPage() {
                           await feeService.distribute(fee.id);
                           refreshRecipient();
                           toast({ title: t('Items distributed!') });
+                          const updated = (await feeService.getByRecipient(id!)).find(f => f.id === fee.id);
+                          if (updated) openReceipt(updated);
                         }}>
                           <Truck className="h-3.5 w-3.5 mr-1" /> {t('Distribute')}
                         </Button>
                       </>
                     )}
                     {fee.status === 'distributed' && (
-                      <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">{t('Distributed')}</Badge>
+                      <>
+                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">{t('Distributed')}</Badge>
+                        <Button size="sm" variant="outline" onClick={() => openReceipt(fee)}>
+                          <Printer className="h-3.5 w-3.5 mr-1" /> {t('Receipt')}
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -646,6 +673,34 @@ export function RecipientDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Distribution Receipt */}
+      {printFee && (
+        <PrintReceipt
+          open={!!printFee}
+          onOpenChange={(open) => !open && setPrintFee(null)}
+          orgName={currentOrg?.name || ''}
+          orgAddress={currentOrg?.address}
+          orgLogoUrl={currentOrg?.logoUrl}
+          title={t('Distribution Receipt')}
+          date={printFee.fee.distributedDate || printFee.fee.createdAt}
+          fields={[
+            { label: t(config.recipientLabel), value: recipient.name },
+            { label: t(config.identifierLabel), value: recipient.identifier || '—' },
+            { label: t(config.groupLabel), value: recipient.group || '—' },
+            { label: t('Package'), value: printFee.fee.templateName },
+            { label: t('Total Amount'), value: `${config.currencySymbol}${printFee.fee.totalAmount}` },
+            { label: t('Amount Paid'), value: `${config.currencySymbol}${printFee.fee.paidAmount}` },
+            { label: t('Payment Status'), value: printFee.fee.status === 'waived' ? t('Waived') : t('Paid') },
+            ...(printFee.fee.paymentDate ? [{ label: t('Payment Date'), value: printFee.fee.paymentDate }] : []),
+            ...(printFee.fee.distributedDate ? [{ label: t('Distribution Date'), value: printFee.fee.distributedDate }] : []),
+          ]}
+          items={printFee.items}
+          notes={printFee.fee.notes || undefined}
+          showSignature
+          footer={`${t('Total')}: ${config.currencySymbol}${printFee.fee.totalAmount} | ${t('Receipt generated by')} ${currentOrg?.name}`}
+        />
+      )}
 
       {/* Pay Fee Dialog */}
       <Dialog open={!!showPayDialog} onOpenChange={(open) => !open && setShowPayDialog(null)}>

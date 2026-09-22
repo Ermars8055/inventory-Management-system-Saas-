@@ -193,7 +193,7 @@ export const assignmentService = {
 };
 
 export const feeService = {
-  async getByRecipient(recipientId: string): Promise<{ id: string; recipientName: string; templateName: string; totalAmount: number; paidAmount: number; status: string; distributedDate?: string; createdAt: string }[]> {
+  async getByRecipient(recipientId: string): Promise<{ id: string; recipientName: string; templateId?: string; templateName: string; totalAmount: number; paidAmount: number; status: string; paymentDate?: string; distributedDate?: string; notes?: string; createdAt: string }[]> {
     return api.get(`/fees?recipient_id=${recipientId}`);
   },
   async getAll(): Promise<{ id: string; recipientName: string; templateName: string; totalAmount: number; paidAmount: number; status: string; createdAt: string }[]> {
