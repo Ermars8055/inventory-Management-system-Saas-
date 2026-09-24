@@ -759,7 +759,7 @@ export function InventoryPage() {
           })}
         </div>
 
-      ) : (
+      ) : view === 'table' ? (
 
         /* ══════════════════════════════════════
            TABLE VIEW
