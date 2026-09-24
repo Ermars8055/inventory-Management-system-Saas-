@@ -55,6 +55,47 @@ def _fee_per_student(cls: OrgClass) -> int:
     return sum((i.unit_price or 0) * (i.quantity or 1) for i in cls.items)
 
 
+def _auto_assign_fees(cls: OrgClass, db: Session, org_id: str, recipient_ids: list[str] | None = None) -> int:
+    """Create FeeRecords for enrolled students who don't have one yet.
+    If recipient_ids is given, only create for those students."""
+    if not cls.items:
+        return 0
+    total = _fee_per_student(cls)
+    students = db.query(Recipient).filter(Recipient.class_id == cls.id).all()
+    if recipient_ids is not None:
+        students = [s for s in students if s.id in set(recipient_ids)]
+    if not students:
+        return 0
+    existing = {
+        f.recipient_id
+        for f in db.query(FeeRecord).filter(
+            FeeRecord.class_id == cls.id,
+            FeeRecord.organization_id == org_id,
+        ).all()
+    }
+    ts = int(time.time() * 1000)
+    created = 0
+    for r in students:
+        if r.id in existing:
+            continue
+        db.add(FeeRecord(
+            id=f"fee_{ts}_{r.id[-6:]}",
+            organization_id=org_id,
+            recipient_id=r.id,
+            recipient_name=r.name,
+            class_id=cls.id,
+            class_name=cls.name,
+            template_name=cls.name,
+            total_amount=total,
+            paid_amount=0,
+            status="unpaid" if total > 0 else "waived",
+            created_at=date.today().isoformat(),
+        ))
+        ts += 1
+        created += 1
+    return created
+
+
 def _build_detail(cls: OrgClass, db: Session) -> dict:
     """Build full class detail dict including students list."""
     base = _build_out(cls, db)
@@ -316,9 +357,12 @@ def import_template(
             condition_issued=ti.condition_issued or "New",
             notes=ti.notes,
         ))
+    db.flush()  # ensure items are visible to _auto_assign_fees
+    db.refresh(cls)
+    _auto_assign_fees(cls, db, user.organization_id)
     db.commit()
     db.refresh(cls)
-    return _build_out(cls, db)
+    return _build_detail(cls, db)
 
 
 # ── Students ──────────────────────────────────────────────────────────────────
@@ -362,6 +406,9 @@ def enrol_student(
         )
         db.add(r)
 
+    db.flush()
+    # Auto-assign fee for the newly enrolled student (if class has items)
+    _auto_assign_fees(cls, db, user.organization_id, recipient_ids=[r.id])
     db.commit()
     db.refresh(cls)
     return _build_detail(cls, db)
@@ -407,51 +454,17 @@ def assign_fees(
         raise HTTPException(404, "Class not found")
     same_org(cls.organization_id, user)
     if not cls.items:
-        raise HTTPException(400, "Class has no items — add items before assigning fees")
+        raise HTTPException(400, "Class has no items — add items or import a template first")
 
-    total = _fee_per_student(cls)
     students = db.query(Recipient).filter(Recipient.class_id == cid).all()
     if not students:
         raise HTTPException(400, "No students enrolled in this class")
 
-    # Filter to a single student if requested
-    if body.recipient_id:
-        students = [s for s in students if s.id == body.recipient_id]
-        if not students:
-            raise HTTPException(404, "Recipient not enrolled in this class")
-
-    # Find which students already have a fee record for this class
-    existing_rids = {
-        f.recipient_id
-        for f in db.query(FeeRecord).filter(
-            FeeRecord.class_id == cid,
-            FeeRecord.organization_id == user.organization_id,
-        ).all()
-    }
-
-    ts = int(time.time() * 1000)
-    created = 0
-    for r in students:
-        if r.id in existing_rids:
-            continue
-        db.add(FeeRecord(
-            id=f"fee_{ts}_{r.id[-6:]}",
-            organization_id=user.organization_id,
-            recipient_id=r.id,
-            recipient_name=r.name,
-            class_id=cid,
-            class_name=cls.name,
-            total_amount=total,
-            paid_amount=0,
-            status="unpaid" if total > 0 else "waived",
-            notes=body.notes,
-            created_at=date.today().isoformat(),
-        ))
-        ts += 1
-        created += 1
-
+    rids = [body.recipient_id] if body.recipient_id else None
+    created = _auto_assign_fees(cls, db, user.organization_id, recipient_ids=rids)
     db.commit()
-    return {"created": created, "skipped": len(students) - created}
+    total = len(students) if not rids else len(rids)
+    return {"created": created, "skipped": total - created}
 
 
 # ── Distribute Paid ───────────────────────────────────────────────────────────

@@ -69,7 +69,16 @@ export function FeesPage() {
     setClassLoading(true);
     setStudentSearch('');
     try {
-      const cls = await classService.getById(classId);
+      let cls = await classService.getById(classId);
+      // Auto-assign fees for students who don't have them yet
+      const hasItems = cls.items.length > 0;
+      const hasNoFee = (cls.students ?? []).some(s => s.feeStatus === 'no_fee');
+      if (hasItems && hasNoFee) {
+        try {
+          await classService.assignFees(cls.id);
+          cls = await classService.getById(classId);
+        } catch { /* ignore — may fail if 0 students, which is fine */ }
+      }
       setSelectedClass(cls);
     } catch {
       toast({ title: t('Error'), description: t('Failed to load class'), variant: 'destructive' });
@@ -131,18 +140,6 @@ export function FeesPage() {
       toast({ title: t('Error'), description: t('Failed to distribute'), variant: 'destructive' });
     } finally {
       setDistributing(false);
-    }
-  }
-
-  async function handleAssignFee(student: ClassStudentRow) {
-    if (!selectedClass) return;
-    try {
-      const res = await classService.assignFees(selectedClass.id, { recipientId: student.recipientId });
-      await refreshSelectedClass();
-      if (res.created > 0) toast({ title: t('Fee assigned') });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '';
-      toast({ title: t('Error'), description: msg || t('Failed to assign fee'), variant: 'destructive' });
     }
   }
 
@@ -214,11 +211,9 @@ export function FeesPage() {
 
         {/* Flow guide */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4 px-1">
-          <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">1. Assign Fee</span>
+          <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">1. Collect Fee + Print Receipt</span>
           <span>→</span>
-          <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">2. Collect Payment + Print Receipt</span>
-          <span>→</span>
-          <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-700 font-medium">3. Distribute Items</span>
+          <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-700 font-medium">2. Distribute Items</span>
         </div>
 
         {filteredStudents.length === 0 ? (
@@ -265,15 +260,12 @@ export function FeesPage() {
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex items-center justify-end gap-1.5">
-                              {/* Step 1: Assign fee (no fee record yet) */}
-                              {s.feeStatus === 'no_fee' && selectedClass.items.length > 0 && (
-                                <Button size="sm" variant="outline" className="h-7 text-xs"
-                                  onClick={() => handleAssignFee(s)}>
-                                  {t('Assign Fee')}
-                                </Button>
+                              {/* No fee yet — fees auto-assigned on class open */}
+                              {s.feeStatus === 'no_fee' && (
+                                <span className="text-xs text-muted-foreground">{t('No items assigned')}</span>
                               )}
 
-                              {/* Step 2: Collect payment */}
+                              {/* Step 1: Collect payment */}
                               {(s.feeStatus === 'unpaid' || s.feeStatus === 'partial') && (
                                 <>
                                   <Button size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700"
@@ -290,7 +282,7 @@ export function FeesPage() {
                                 </>
                               )}
 
-                              {/* Step 3: Distribute (only after paid/waived) */}
+                              {/* Step 2: Distribute (only after paid/waived) */}
                               {(s.feeStatus === 'paid' || s.feeStatus === 'waived') && (
                                 <Button size="sm" className="h-7 text-xs"
                                   onClick={() => setDistributeTarget(s)}>
