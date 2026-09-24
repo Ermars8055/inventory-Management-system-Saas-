@@ -55,6 +55,39 @@ def _fee_per_student(cls: OrgClass) -> int:
     return sum((i.unit_price or 0) * (i.quantity or 1) for i in cls.items)
 
 
+def _build_detail(cls: OrgClass, db: Session) -> dict:
+    """Build full class detail dict including students list."""
+    base = _build_out(cls, db)
+    students_raw = (
+        db.query(Recipient)
+        .filter(Recipient.class_id == cls.id)
+        .order_by(Recipient.identifier, Recipient.name)
+        .all()
+    )
+    fees = db.query(FeeRecord).filter(
+        FeeRecord.class_id == cls.id,
+        FeeRecord.organization_id == cls.organization_id,
+    ).all()
+    fee_map = {f.recipient_id: f for f in fees}
+    students = []
+    for r in students_raw:
+        fr = fee_map.get(r.id)
+        students.append({
+            "recipientId": r.id,
+            "name": r.name,
+            "identifier": r.identifier,
+            "contact": r.contact,
+            "feeRecordId": fr.id if fr else None,
+            "feeStatus": fr.status if fr else "no_fee",
+            "paidAmount": fr.paid_amount if fr else 0,
+            "totalAmount": fr.total_amount if fr else 0,
+            "paymentDate": fr.payment_date if fr else None,
+            "distributedDate": fr.distributed_date if fr else None,
+        })
+    base["students"] = students
+    return base
+
+
 def _build_out(cls: OrgClass, db: Session) -> dict:
     """Build OrgClassOut dict with computed counts."""
     fee_per_student = _fee_per_student(cls)
@@ -145,40 +178,7 @@ def get_class(
     if not cls:
         raise HTTPException(404, "Class not found")
     same_org(cls.organization_id, user)
-
-    students_raw = (
-        db.query(Recipient)
-        .filter(Recipient.class_id == cid)
-        .order_by(Recipient.identifier, Recipient.name)
-        .all()
-    )
-    fee_map: dict[str, FeeRecord] = {}
-    fees = db.query(FeeRecord).filter(
-        FeeRecord.class_id == cid,
-        FeeRecord.organization_id == user.organization_id,
-    ).all()
-    for f in fees:
-        fee_map[f.recipient_id] = f
-
-    students = []
-    for r in students_raw:
-        fr = fee_map.get(r.id)
-        students.append({
-            "recipientId": r.id,
-            "name": r.name,
-            "identifier": r.identifier,
-            "contact": r.contact,
-            "feeRecordId": fr.id if fr else None,
-            "feeStatus": fr.status if fr else "no_fee",
-            "paidAmount": fr.paid_amount if fr else 0,
-            "totalAmount": fr.total_amount if fr else 0,
-            "paymentDate": fr.payment_date if fr else None,
-            "distributedDate": fr.distributed_date if fr else None,
-        })
-
-    base = _build_out(cls, db)
-    base["students"] = students
-    return base
+    return _build_detail(cls, db)
 
 
 @router.put("/{cid}")
@@ -364,7 +364,7 @@ def enrol_student(
 
     db.commit()
     db.refresh(cls)
-    return _build_out(cls, db)
+    return _build_detail(cls, db)
 
 
 @router.delete("/{cid}/students/{rid}")
@@ -386,7 +386,7 @@ def remove_student(
     r.class_id = None  # unenrol — do not delete the recipient
     db.commit()
     db.refresh(cls)
-    return _build_out(cls, db)
+    return _build_detail(cls, db)
 
 
 # ── Fee Assignment ────────────────────────────────────────────────────────────

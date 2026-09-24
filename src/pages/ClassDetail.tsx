@@ -94,7 +94,7 @@ export function ClassDetailPage() {
   if (loading) return <div className="p-8 text-center text-muted-foreground text-sm">{t('Loading…')}</div>;
   if (!cls) return <div className="p-8 text-center text-muted-foreground text-sm">{t('Class not found.')}</div>;
 
-  const enrolledIds = new Set(cls.students.map(s => s.recipientId));
+  const enrolledIds = new Set((cls.students ?? []).map(s => s.recipientId));
   const unenrolledRecipients = allRecipients.filter(r => !enrolledIds.has(r.id));
   const filteredRecipients = unenrolledRecipients.filter(r =>
     !enrolSearch || r.name.toLowerCase().includes(enrolSearch.toLowerCase()) ||
@@ -340,7 +340,7 @@ export function ClassDetailPage() {
                 </p>
               ) : (
                 <div className="divide-y">
-                  {cls.students.map((s, idx) => {
+                  {(cls.students ?? []).map((s, idx) => {
                     const fsCfg = FEE_STATUS[s.feeStatus] ?? FEE_STATUS.no_fee;
                     return (
                       <div key={s.recipientId} className="flex items-center gap-3 py-3">
@@ -389,7 +389,7 @@ export function ClassDetailPage() {
               ) : (
                 <>
                   <div className="divide-y">
-                    {cls.items.map((item, idx) => (
+                    {(cls.items ?? []).map((item, idx) => (
                       <div key={item.id} className="flex items-center gap-3 py-3">
                         <span className="text-sm text-muted-foreground w-6 text-right shrink-0">{idx + 1}.</span>
                         <div className="flex-1 min-w-0">
@@ -490,7 +490,7 @@ export function ClassDetailPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {cls.students.map((s, idx) => {
+                      {(cls.students ?? []).map((s, idx) => {
                         const fsCfg = FEE_STATUS[s.feeStatus] ?? FEE_STATUS.no_fee;
                         return (
                           <tr key={s.recipientId} className="hover:bg-muted/30">
@@ -782,7 +782,7 @@ export function ClassDetailPage() {
             {/* Items list */}
             <div className="rounded-lg bg-muted/40 p-3 space-y-1.5">
               <p className="text-xs font-semibold text-muted-foreground mb-2">{t('Items to be distributed')}</p>
-              {cls.items.map(item => (
+              {(cls.items ?? []).map(item => (
                 <div key={item.id} className="flex justify-between text-xs">
                   <span className="text-muted-foreground">{item.itemName} × {item.quantity}</span>
                   {item.unitPrice > 0 && <span className="font-medium">₹{item.unitPrice * item.quantity}</span>}
