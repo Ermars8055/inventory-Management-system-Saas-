@@ -48,6 +48,9 @@ def run():
         "ALTER TABLE recipients ADD COLUMN class_id VARCHAR REFERENCES org_classes(id)",
         "ALTER TABLE fee_records ADD COLUMN class_id VARCHAR REFERENCES org_classes(id)",
         "ALTER TABLE fee_records ADD COLUMN class_name VARCHAR",
+        # Variant system
+        "ALTER TABLE items ADD COLUMN variant_group_id VARCHAR REFERENCES item_variant_groups(id)",
+        "ALTER TABLE items ADD COLUMN variant_label VARCHAR",
     ]
 
     with engine.connect() as conn:
@@ -170,6 +173,19 @@ def run():
                 unit_price FLOAT,
                 lead_time_days INTEGER,
                 notes VARCHAR
+            )
+        """))
+        conn.commit()
+
+        # Variant groups table (must exist before items.variant_group_id FK)
+        conn.execute(__import__('sqlalchemy').text("""
+            CREATE TABLE IF NOT EXISTS item_variant_groups (
+                id VARCHAR PRIMARY KEY,
+                organization_id VARCHAR NOT NULL REFERENCES organizations(id),
+                name VARCHAR NOT NULL,
+                description VARCHAR,
+                category_id VARCHAR REFERENCES categories(id),
+                created_at VARCHAR
             )
         """))
         conn.commit()

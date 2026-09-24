@@ -184,6 +184,8 @@ class ItemOut(CamelModel):
     book: Optional[dict[str, Any]] = None
     medicine: Optional[dict[str, Any]] = None
     attributes: Optional[dict[str, Any]] = None
+    variant_group_id: Optional[str] = None
+    variant_label: Optional[str] = None
 
 
 class ItemCreate(CamelModel):
@@ -203,6 +205,10 @@ class ItemCreate(CamelModel):
     book: Optional[dict[str, Any]] = None
     medicine: Optional[dict[str, Any]] = None
     attributes: Optional[dict[str, Any]] = None
+    # Variant fields — both optional; provide one to attach to / create a group
+    variant_group_id: Optional[str] = None    # attach to existing group
+    variant_group_name: Optional[str] = None  # create new group with this name
+    variant_label: Optional[str] = None       # e.g. "Size 32"
 
 
 class ItemUpdate(CamelModel):
@@ -221,6 +227,49 @@ class ItemUpdate(CamelModel):
     book: Optional[dict[str, Any]] = None
     medicine: Optional[dict[str, Any]] = None
     attributes: Optional[dict[str, Any]] = None
+    variant_group_id: Optional[str] = None
+    variant_label: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Item Variant Groups
+# ---------------------------------------------------------------------------
+
+class ItemVariantGroupOut(CamelModel):
+    id: str
+    organization_id: str
+    name: str
+    description: Optional[str] = None
+    category_id: Optional[str] = None
+    created_at: Optional[str] = None
+    # Computed rollup fields (not stored — derived from variants)
+    variant_count: int = 0
+    total_qty: int = 0
+    total_available: int = 0
+    status: str = "in_stock"   # worst status across all variants
+
+
+class ItemVariantGroupCreate(CamelModel):
+    name: str
+    description: Optional[str] = None
+    category_id: Optional[str] = None
+    variants: list["VariantItemCreate"] = []
+
+
+class ItemVariantGroupUpdate(CamelModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    category_id: Optional[str] = None
+
+
+class VariantItemCreate(CamelModel):
+    """One variant item to create under a group."""
+    label: str
+    sku: str
+    quantity: int = Field(default=0, ge=0)
+    min_quantity: int = Field(default=10, ge=0)
+    reorder_qty: int = Field(default=50, ge=0)
+    location: Optional[str] = None
 
 
 class StockAdjust(CamelModel):

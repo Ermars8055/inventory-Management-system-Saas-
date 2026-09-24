@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import Item, User, compute_item_status
+from ..models import Item, ItemVariantGroup, User, compute_item_status
 from ..schemas import ItemOut, ItemCreate, ItemUpdate, StockAdjust
 from ..dependencies import require, same_org, check_limit
 from ..audit import log_action
@@ -29,6 +29,24 @@ def create_item(body: ItemCreate, user: User = Depends(require("inventory:create
     avail = body.available if body.available is not None else body.quantity
     min_qty = body.min_quantity if body.min_quantity is not None else 10
     reorder_qty = body.reorder_qty if body.reorder_qty is not None else 50
+    # Resolve variant group
+    variant_group_id = body.variant_group_id
+    if body.variant_group_name and not variant_group_id:
+        # Create a new variant group on the fly
+        ts = int(time.time() * 1000)
+        group = ItemVariantGroup(
+            id=f"vg_{ts}",
+            organization_id=user.organization_id,
+            name=body.variant_group_name,
+            created_at=date.today().isoformat(),
+        )
+        db.add(group)
+        db.flush()
+        variant_group_id = group.id
+
+    if variant_group_id and not body.variant_label:
+        raise HTTPException(422, "variant_label is required when assigning a variant group")
+
     item = Item(
         id=f"item_{int(time.time() * 1000)}",
         organization_id=user.organization_id,
@@ -49,6 +67,8 @@ def create_item(body: ItemCreate, user: User = Depends(require("inventory:create
         book=body.book,
         medicine=body.medicine,
         attributes=body.attributes,
+        variant_group_id=variant_group_id,
+        variant_label=body.variant_label,
     )
     db.add(item)
     log_action(db, user, "create", "item", item.id, f"Created item: {item.name}")

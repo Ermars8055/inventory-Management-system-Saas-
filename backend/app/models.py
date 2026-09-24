@@ -38,6 +38,22 @@ def compute_item_status(qty: int, min_qty: int = 10) -> str:
     return "in_stock"
 
 
+class ItemVariantGroup(Base):
+    """
+    A named product family whose stock lives in child Item rows.
+    e.g. "Uniform Shirt" → variants Size 28, 30, 32, 34, 36.
+    Deleting a group unlinks variants (sets variant_group_id = null); items are NOT deleted.
+    """
+    __tablename__ = "item_variant_groups"
+    __table_args__ = (UniqueConstraint('organization_id', 'name', name='uq_variantgroup_org_name'),)
+    id = Column(String, primary_key=True)
+    organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
+    name = Column(String, nullable=False)
+    description = Column(String)
+    category_id = Column(String, ForeignKey("categories.id"), nullable=True)
+    created_at = Column(String)
+
+
 class Item(Base):
     __tablename__ = "items"
     __table_args__ = (UniqueConstraint('organization_id', 'sku', name='uq_item_org_sku'),)
@@ -60,6 +76,9 @@ class Item(Base):
     book = Column(JSON)
     medicine = Column(JSON)
     attributes = Column(JSON)
+    # Variant support — null means standalone item (no change to existing behavior)
+    variant_group_id = Column(String, ForeignKey("item_variant_groups.id"), nullable=True)
+    variant_label = Column(String, nullable=True)   # e.g. "Size 32", "500mg", "Red/XL"
 
 
 class StockTransaction(Base):
