@@ -13,7 +13,8 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel, SelectSeparator } from '@/components/ui/select';
+import { Tag, Layers2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +23,24 @@ import { PrintReceipt } from '@/components/shared/PrintReceipt';
 import type { Recipient, Assignment, Item } from '@/types';
 
 const TODAY = new Date().toISOString().slice(0, 10);
+
+/** Groups items by variantGroupId, extracting group name from item naming convention. */
+function groupItemsForPicker(items: Item[]) {
+  const groups = new Map<string, { groupName: string; items: Item[] }>();
+  const standalone: Item[] = [];
+  for (const item of items) {
+    if (item.variantGroupId && item.variantLabel) {
+      const groupName = item.name.endsWith(` – ${item.variantLabel}`)
+        ? item.name.slice(0, -(` – ${item.variantLabel}`).length)
+        : item.name;
+      if (!groups.has(item.variantGroupId)) groups.set(item.variantGroupId, { groupName, items: [] });
+      groups.get(item.variantGroupId)!.items.push(item);
+    } else {
+      standalone.push(item);
+    }
+  }
+  return { groups, standalone };
+}
 
 function isOverdue(a: Assignment) {
   return a.mode === 'lending' && a.status === 'issued' && !!a.expectedReturn && a.expectedReturn < TODAY;
@@ -504,20 +523,44 @@ export function AssignmentsPage() {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>{t('Select Item')}</Label>
-              <Select
-                value={issueForm.itemId}
-                onValueChange={(v) => setIssueForm({ ...issueForm, itemId: v })}
-              >
-                <SelectTrigger><SelectValue placeholder={t('Choose an item…')} /></SelectTrigger>
-                <SelectContent>
-                  {inventoryItems.filter((i) => i.available > 0).map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.name}
-                      <span className="text-muted-foreground ml-2 text-xs">({item.available} {t('available')})</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {(() => {
+                const { groups, standalone } = groupItemsForPicker(inventoryItems.filter(i => i.available > 0));
+                return (
+                  <Select
+                    value={issueForm.itemId}
+                    onValueChange={(v) => setIssueForm({ ...issueForm, itemId: v })}
+                  >
+                    <SelectTrigger><SelectValue placeholder={t('Choose an item…')} /></SelectTrigger>
+                    <SelectContent>
+                      {/* Variant groups */}
+                      {Array.from(groups.entries()).map(([groupId, { groupName, items: varItems }]) => (
+                        <SelectGroup key={groupId}>
+                          <SelectLabel className="flex items-center gap-1.5 text-violet-700">
+                            <Layers2 className="h-3 w-3" />{groupName}
+                          </SelectLabel>
+                          {varItems.map(item => (
+                            <SelectItem key={item.id} value={item.id} className="pl-6">
+                              <span className="flex items-center gap-1.5">
+                                <Tag className="h-3 w-3 text-violet-400" />
+                                {item.variantLabel}
+                                <span className="text-muted-foreground text-xs">({item.available} {t('avail')})</span>
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ))}
+                      {/* Standalone items */}
+                      {groups.size > 0 && standalone.length > 0 && <SelectSeparator />}
+                      {standalone.map(item => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name}
+                          <span className="text-muted-foreground ml-2 text-xs">({item.available} {t('avail')})</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                );
+              })()}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

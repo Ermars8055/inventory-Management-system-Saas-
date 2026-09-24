@@ -100,9 +100,11 @@ export function ClassDetailPage() {
     !enrolSearch || r.name.toLowerCase().includes(enrolSearch.toLowerCase()) ||
     (r.identifier ?? '').toLowerCase().includes(enrolSearch.toLowerCase())
   );
-  const filteredInventory = inventoryItems.filter(i =>
-    !itemSearch || i.name.toLowerCase().includes(itemSearch.toLowerCase())
-  );
+  const filteredInventory = inventoryItems.filter(i => {
+    if (!itemSearch) return true;
+    const q = itemSearch.toLowerCase();
+    return i.name.toLowerCase().includes(q) || (i.variantLabel ?? '').toLowerCase().includes(q);
+  });
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -650,16 +652,25 @@ export function ClassDetailPage() {
                 />
                 {itemSearch && (
                   <div className="max-h-36 overflow-y-auto border rounded-lg divide-y">
-                    {filteredInventory.slice(0, 8).map(item => (
-                      <button
-                        key={item.id}
-                        className={`w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors ${itemForm.itemId === item.id ? 'bg-primary/10' : ''}`}
-                        onClick={() => setItemForm({ ...itemForm, itemId: item.id, itemName: item.name })}
-                      >
-                        <span className="font-medium">{item.name}</span>
-                        <span className="text-muted-foreground ml-2">{item.sku}</span>
-                      </button>
-                    ))}
+                    {filteredInventory.slice(0, 8).map(item => {
+                      const isVariant = !!(item.variantGroupId && item.variantLabel);
+                      const groupName = isVariant && item.name.endsWith(` – ${item.variantLabel}`)
+                        ? item.name.slice(0, -(` – ${item.variantLabel}`).length)
+                        : null;
+                      return (
+                        <button
+                          key={item.id}
+                          className={`w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors ${itemForm.itemId === item.id ? 'bg-primary/10' : ''}`}
+                          onClick={() => setItemForm({ ...itemForm, itemId: item.id, itemName: item.name })}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <span className="font-medium">{isVariant ? item.variantLabel : item.name}</span>
+                            {isVariant && groupName && <span className="text-violet-500 text-[10px]">· {groupName}</span>}
+                            <span className="text-muted-foreground">{item.sku}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
                 {itemForm.itemId && (

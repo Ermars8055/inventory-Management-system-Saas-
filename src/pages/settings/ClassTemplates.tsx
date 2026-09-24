@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, ChevronRight, Package, GripVertical } from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronRight, Package, GripVertical, Tag, Layers2 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { classTemplateService, inventoryService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -352,21 +352,33 @@ export function ClassTemplatesPage() {
               />
               {showItemDropdown && filteredItems.length > 0 && (
                 <div className="absolute z-10 left-0 right-0 top-full mt-1 bg-white border rounded-md shadow-lg max-h-44 overflow-y-auto">
-                  {filteredItems.map(inv => (
-                    <button
-                      key={inv.id}
-                      type="button"
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex justify-between"
-                      onClick={() => {
-                        setIForm(f => ({ ...f, itemId: inv.id, itemName: inv.name }));
-                        setItemSearch(inv.name);
-                        setShowItemDropdown(false);
-                      }}
-                    >
-                      <span>{inv.name}</span>
-                      <span className="text-muted-foreground text-xs">{inv.available} {t('avail')}</span>
-                    </button>
-                  ))}
+                  {filteredItems.map(inv => {
+                    const isVariant = !!(inv.variantGroupId && inv.variantLabel);
+                    const groupName = isVariant
+                      ? inv.name.endsWith(` – ${inv.variantLabel}`)
+                        ? inv.name.slice(0, -(` – ${inv.variantLabel}`).length)
+                        : inv.name
+                      : null;
+                    return (
+                      <button
+                        key={inv.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center justify-between gap-2"
+                        onClick={() => {
+                          setIForm(f => ({ ...f, itemId: inv.id, itemName: inv.name }));
+                          setItemSearch(inv.name);
+                          setShowItemDropdown(false);
+                        }}
+                      >
+                        <span className="flex items-center gap-1.5 min-w-0">
+                          {isVariant ? <Tag className="h-3 w-3 text-violet-400 shrink-0" /> : <Package className="h-3 w-3 text-gray-400 shrink-0" />}
+                          <span className="truncate">{isVariant ? inv.variantLabel : inv.name}</span>
+                          {isVariant && <span className="text-[10px] text-violet-500 shrink-0 flex items-center gap-0.5"><Layers2 className="h-2.5 w-2.5" />{groupName}</span>}
+                        </span>
+                        <span className="text-muted-foreground text-xs shrink-0">{inv.available} {t('avail')}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>

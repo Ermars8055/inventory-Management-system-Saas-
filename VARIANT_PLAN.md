@@ -92,16 +92,13 @@ Backward compatible: all existing items have both as null → standalone → zer
 
 ---
 
-## Phase 4 — Variant Picker in Issuance Flows
+## Phase 4 — Variant Picker in Issuance Flows ✅
 > Risk: Medium — touches several flows
 
-- [ ] Assignment / Issuance create form
-  - Item picker: shows groups collapsed; selecting a group shows second "Variant" dropdown
-  - Standalone items: no variant picker (exactly as today)
-  - Assignment stored to specific variant item ID — zero schema change
-- [ ] Bulk Issue page — variant-aware item selection
-- [ ] Class Templates — variant-aware item rows (template line item stores specific variant item ID)
-- [ ] Class Detail / distribute flow — if template items have variants, show label in distribute summary
+- [x] Assignments.tsx — issue dialog item Select now groups variant items under SelectGroup headers with Layers2 icon, shows variantLabel as item text with Tag icon; standalone items appear below separator
+- [x] ClassTemplates.tsx — search dropdown shows variantLabel as primary text + group name context + Tag/Layers2 icons
+- [x] ClassDetail.tsx — same search dropdown enhancement; filteredInventory also searches by variantLabel
+- [x] BulkIssue.tsx — template item displays now visually separate "Group Name" and variant label badge in step 3 summary and step 1 template badges
 
 ---
 
@@ -189,3 +186,4 @@ Free-form string — user decides the dimension:
 | 2026-09-24 | Phase 1 | Full Phase 1 complete: ItemVariantGroup model + migration + schemas + CRUD router (7 endpoints) + POST /inventory variant fields + router registered in main.py |
 | 2026-09-24 | Phase 2 | Full Phase 2 complete: GET /inventory/grouped endpoint + ItemVariantGroup/GroupedInventoryRow types + variantGroupService + Inventory grouped view (collapsible groups, rollup, expand/collapse, status badges, + Add Variant) |
 | 2026-09-24 | Phase 3 | Full Phase 3 complete: Create dialog variant mode (product + rows table), Add Variant to group dialog, ItemDetail group breadcrumb, Variants tab with siblings, variantLabel edit field |
+| 2026-09-24 | Phase 4 | Full Phase 4 complete: Assignments grouped Select, ClassTemplates/ClassDetail variant-aware search dropdowns, BulkIssue variant label display in summaries |

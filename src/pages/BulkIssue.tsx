@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Check, Users, Package, ClipboardCheck, Loader2, ChevronLeft, Printer, Plus } from 'lucide-react';
+import { ChevronRight, Check, Users, Package, ClipboardCheck, Loader2, ChevronLeft, Printer, Plus, Tag } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
 import { classTemplateService, recipientService, feeService, classService } from '@/services';
@@ -237,9 +237,11 @@ export function BulkIssuePage() {
                       )}
                     </div>
                     <div className="flex gap-1 flex-wrap mt-2">
-                      {tmpl.items.slice(0, 4).map(li => (
-                        <Badge key={li.id} variant="secondary" className="text-[10px]">{li.itemName}</Badge>
-                      ))}
+                      {tmpl.items.slice(0, 4).map(li => {
+                        const sepIdx = li.itemName.indexOf(' – ');
+                        const label = sepIdx !== -1 ? `${li.itemName.slice(0, sepIdx)} (${li.itemName.slice(sepIdx + 3)})` : li.itemName;
+                        return <Badge key={li.id} variant="secondary" className="text-[10px]">{label}</Badge>;
+                      })}
                       {tmpl.items.length > 4 && (
                         <Badge variant="outline" className="text-[10px]">+{tmpl.items.length - 4} {t('more')}</Badge>
                       )}
@@ -325,12 +327,22 @@ export function BulkIssuePage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {selectedTemplate.items.map(li => (
-                <div key={li.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/40 text-sm">
-                  <span className="font-medium">{li.itemName}</span>
-                  <span className="text-muted-foreground text-xs">×{li.quantity} · {li.conditionIssued}</span>
-                </div>
-              ))}
+              {selectedTemplate.items.map(li => {
+                const sepIdx = li.itemName.indexOf(' – ');
+                const isVariant = sepIdx !== -1;
+                const displayName = isVariant ? li.itemName.slice(0, sepIdx) : li.itemName;
+                const variantLabel = isVariant ? li.itemName.slice(sepIdx + 3) : null;
+                return (
+                  <div key={li.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/40 text-sm">
+                    <span className="flex items-center gap-1.5">
+                      {isVariant ? <Tag className="h-3 w-3 text-violet-400 shrink-0" /> : <Package className="h-3 w-3 text-gray-400 shrink-0" />}
+                      <span className="font-medium">{displayName}</span>
+                      {variantLabel && <span className="text-[11px] text-violet-600 bg-violet-50 px-1.5 rounded">{variantLabel}</span>}
+                    </span>
+                    <span className="text-muted-foreground text-xs">×{li.quantity} · {li.conditionIssued}</span>
+                  </div>
+                );
+              })}
               <div className="pt-3 border-t text-xs text-muted-foreground space-y-1">
                 <p>{t('Selected')}: <strong>{selectedRecipientIds.size}</strong> {config.recipientPluralLabel.toLowerCase()}</p>
                 <p>{t('Will create')}: <strong>{totalAssignments}</strong> {t('assignments')}</p>
