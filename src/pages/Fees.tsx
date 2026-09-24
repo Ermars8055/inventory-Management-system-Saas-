@@ -132,7 +132,7 @@ export function FeesPage() {
 
       {/* KPI strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <Card className="cursor-pointer" onClick={() => setStatusFilter(statusFilter === 'unpaid' ? '' : 'unpaid')}>
+        <Card className={`cursor-pointer transition-colors ${statusFilter === 'unpaid' ? 'ring-2 ring-amber-400 bg-amber-50' : ''}`} onClick={() => setStatusFilter(statusFilter === 'unpaid' ? '' : 'unpaid')}>
           <CardContent className="p-4 flex items-center gap-3">
             <Clock className="h-5 w-5 text-amber-500 shrink-0" />
             <div>
@@ -141,7 +141,7 @@ export function FeesPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer" onClick={() => setStatusFilter(statusFilter === 'partial' ? '' : 'partial')}>
+        <Card className={`cursor-pointer transition-colors ${statusFilter === 'partial' ? 'ring-2 ring-blue-400 bg-blue-50' : ''}`} onClick={() => setStatusFilter(statusFilter === 'partial' ? '' : 'partial')}>
           <CardContent className="p-4 flex items-center gap-3">
             <Wallet className="h-5 w-5 text-blue-500 shrink-0" />
             <div>
@@ -150,7 +150,7 @@ export function FeesPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer" onClick={() => setStatusFilter(statusFilter === 'paid' ? '' : 'paid')}>
+        <Card className={`cursor-pointer transition-colors ${statusFilter === 'paid' ? 'ring-2 ring-emerald-400 bg-emerald-50' : ''}`} onClick={() => setStatusFilter(statusFilter === 'paid' ? '' : 'paid')}>
           <CardContent className="p-4 flex items-center gap-3">
             <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
             <div>
@@ -159,7 +159,7 @@ export function FeesPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer" onClick={() => setStatusFilter(statusFilter === 'distributed' ? '' : 'distributed')}>
+        <Card className={`cursor-pointer transition-colors ${statusFilter === 'distributed' ? 'ring-2 ring-primary bg-primary/5' : ''}`} onClick={() => setStatusFilter(statusFilter === 'distributed' ? '' : 'distributed')}>
           <CardContent className="p-4 flex items-center gap-3">
             <Package className="h-5 w-5 text-primary shrink-0" />
             <div>
@@ -214,6 +214,13 @@ export function FeesPage() {
 
       {loading ? (
         <p className="text-sm text-muted-foreground">{t('Loading…')}</p>
+      ) : filtered.length === 0 && fees.length > 0 ? (
+        <EmptyState
+          icon={Wallet}
+          title={t('No records match filters')}
+          description={t('Try clearing the filters to see all fee records.')}
+          action={<Button variant="outline" onClick={() => { setStatusFilter(''); setClassFilter(''); setSearch(''); }}>{t('Clear filters')}</Button>}
+        />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Wallet}

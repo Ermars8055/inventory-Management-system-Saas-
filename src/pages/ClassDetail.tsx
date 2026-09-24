@@ -211,9 +211,12 @@ export function ClassDetailPage() {
       await load();
       if (res.created > 0) {
         toast({ title: `${res.created} ${t('fee record(s) created')}` });
+      } else {
+        toast({ title: t('All fees already assigned') });
       }
-    } catch {
-      toast({ title: t('Error'), description: t('Failed to assign fees'), variant: 'destructive' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      toast({ title: t('Error'), description: msg || t('Failed to assign fees'), variant: 'destructive' });
     }
   }
 
@@ -284,8 +287,8 @@ export function ClassDetailPage() {
 
   // ── Derived stats ─────────────────────────────────────────────────────────
 
-  const anyNoFee = cls.students.some(s => s.feeStatus === 'no_fee');
-  const anyPaid  = cls.students.some(s => s.feeStatus === 'paid' || s.feeStatus === 'waived');
+  const anyNoFee = (cls.students ?? []).some(s => s.feeStatus === 'no_fee');
+  const anyPaid  = (cls.students ?? []).some(s => s.feeStatus === 'paid' || s.feeStatus === 'waived');
 
   // ── Render ────────────────────────────────────────────────────────────────
 
