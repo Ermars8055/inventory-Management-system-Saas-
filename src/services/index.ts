@@ -478,7 +478,7 @@ export const recordsService = {
     if (params.dateFrom) p.set('date_from', params.dateFrom);
     if (params.dateTo) p.set('date_to', params.dateTo);
     if (params.entityType) p.set('entity_type', params.entityType);
-    p.set('limit', String(params.limit ?? 500));
+    p.set('limit', String(params.limit ?? 1000));
     return api.get(`/audit-log?${p.toString()}`);
   },
 };
