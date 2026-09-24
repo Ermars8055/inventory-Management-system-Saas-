@@ -715,7 +715,7 @@ export function RecipientDetailPage() {
             { label: t(config.recipientLabel), value: recipient.name },
             { label: t(config.identifierLabel), value: recipient.identifier || '—' },
             { label: t(config.groupLabel), value: recipient.group || '—' },
-            { label: t('Package'), value: printFee.fee.templateName },
+            { label: t('Package'), value: printFee.fee.templateName ?? '—' },
             { label: t('Total Amount'), value: `${config.currencySymbol}${printFee.fee.totalAmount}` },
             { label: t('Amount Paid'), value: `${config.currencySymbol}${printFee.fee.paidAmount}` },
             { label: t('Payment Status'), value: printFee.fee.status === 'waived' ? t('Waived') : t('Paid') },
