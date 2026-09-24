@@ -405,7 +405,7 @@ export function BulkIssuePage() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => navigate(`/class-report?group=${encodeURIComponent(selectedTemplate?.group ?? '')}&date=${issueDate}`)}
+                onClick={() => navigate(`/class-report?group=${encodeURIComponent(selectedTemplate?.name ?? '')}&date=${issueDate}`)}
               >
                 <Printer className="h-4 w-4 mr-1" /> {t('Print Report')}
               </Button>

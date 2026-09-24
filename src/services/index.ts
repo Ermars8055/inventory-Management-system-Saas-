@@ -8,7 +8,7 @@ import type {
   Organization, ModuleId, OrgConfig, Item, Category, StockTransaction,
   Vendor, User, Recipient, Assignment, Batch, ReceiptTemplate, CustomField, Subscription,
   PurchaseOrder, POLineItem, MaintenanceTicket, Asset, ClassTemplate, ClassTemplateItem,
-  Quotation,
+  Quotation, FeeRecord, OrgClass, OrgClassDetail, OrgClassItem,
 } from '@/types';
 
 export const organizationService = {
@@ -192,27 +192,6 @@ export const assignmentService = {
   },
 };
 
-export const feeService = {
-  async getByRecipient(recipientId: string): Promise<{ id: string; recipientName: string; templateId?: string; templateName: string; totalAmount: number; paidAmount: number; status: string; paymentDate?: string; distributedDate?: string; notes?: string; createdAt: string }[]> {
-    return api.get(`/fees?recipient_id=${recipientId}`);
-  },
-  async getAll(): Promise<{ id: string; recipientName: string; templateName: string; totalAmount: number; paidAmount: number; status: string; createdAt: string }[]> {
-    return api.get('/fees');
-  },
-  async assignPackage(recipientId: string, templateId: string, notes?: string): Promise<unknown> {
-    return api.post('/fees', { recipientId, templateId, notes });
-  },
-  async pay(feeId: string, amount: number, notes?: string): Promise<unknown> {
-    return api.patch(`/fees/${feeId}/pay`, { amount, notes });
-  },
-  async waive(feeId: string): Promise<unknown> {
-    return api.patch(`/fees/${feeId}/waive`, {});
-  },
-  async distribute(feeId: string): Promise<unknown> {
-    return api.post(`/fees/${feeId}/distribute`, {});
-  },
-};
-
 // Keep legacy alias
 export const studentService = {
   getByOrganization: (orgId: string) => recipientService.getByOrganization(orgId),
@@ -367,6 +346,74 @@ export const assetService = {
   },
   async delete(id: string): Promise<void> {
     return api.delete(`/assets/${id}`);
+  },
+};
+
+// ─── Fee service ─────────────────────────────────────────────────────────────
+
+export const feeService = {
+  async getAll(recipientId?: string): Promise<FeeRecord[]> {
+    const qs = recipientId ? `?recipient_id=${recipientId}` : '';
+    return api.get(`/fees${qs}`);
+  },
+  async getByRecipient(recipientId: string): Promise<FeeRecord[]> {
+    return api.get(`/fees?recipient_id=${recipientId}`);
+  },
+  async assignPackage(recipientId: string, templateId: string, notes?: string): Promise<FeeRecord> {
+    return api.post('/fees', { recipientId, templateId, notes });
+  },
+  async pay(feeId: string, amount: number, notes?: string): Promise<FeeRecord> {
+    return api.patch(`/fees/${feeId}/pay`, { amount, notes });
+  },
+  async waive(feeId: string): Promise<FeeRecord> {
+    return api.patch(`/fees/${feeId}/waive`, {});
+  },
+  async distribute(feeId: string): Promise<FeeRecord> {
+    return api.post(`/fees/${feeId}/distribute`, {});
+  },
+};
+
+// ─── Class service ────────────────────────────────────────────────────────────
+
+export const classService = {
+  async getAll(): Promise<OrgClass[]> {
+    return api.get('/classes');
+  },
+  async getById(id: string): Promise<OrgClassDetail> {
+    return api.get(`/classes/${id}`);
+  },
+  async create(data: { name: string; academicYear?: string; notes?: string }): Promise<OrgClass> {
+    return api.post('/classes', data);
+  },
+  async update(id: string, data: { name?: string; academicYear?: string; notes?: string; status?: string }): Promise<OrgClass> {
+    return api.put(`/classes/${id}`, data);
+  },
+  async delete(id: string): Promise<void> {
+    return api.delete(`/classes/${id}`);
+  },
+  async addItem(id: string, data: { itemId?: string; itemName: string; quantity: number; unitPrice: number; conditionIssued?: string; notes?: string }): Promise<OrgClassDetail> {
+    return api.post(`/classes/${id}/items`, data);
+  },
+  async updateItem(id: string, itemId: string, data: { itemName?: string; quantity?: number; unitPrice?: number; conditionIssued?: string; notes?: string }): Promise<OrgClassDetail> {
+    return api.put(`/classes/${id}/items/${itemId}`, data);
+  },
+  async removeItem(id: string, itemId: string): Promise<OrgClassDetail> {
+    return api.delete(`/classes/${id}/items/${itemId}`);
+  },
+  async importTemplate(id: string, templateId: string): Promise<OrgClassDetail> {
+    return api.post(`/classes/${id}/import-template`, { templateId });
+  },
+  async enrolStudent(id: string, data: { recipientId?: string; name?: string; identifier?: string; contact?: string }): Promise<OrgClassDetail> {
+    return api.post(`/classes/${id}/students`, data);
+  },
+  async removeStudent(id: string, recipientId: string): Promise<OrgClassDetail> {
+    return api.delete(`/classes/${id}/students/${recipientId}`);
+  },
+  async assignFees(id: string, data?: { recipientId?: string; notes?: string }): Promise<{ created: number; skipped: number }> {
+    return api.post(`/classes/${id}/assign-fees`, data ?? {});
+  },
+  async distributePaid(id: string): Promise<{ distributed: number }> {
+    return api.post(`/classes/${id}/distribute-paid`, {});
   },
 };
 

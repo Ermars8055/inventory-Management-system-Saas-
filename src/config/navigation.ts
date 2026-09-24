@@ -27,6 +27,8 @@ import {
   Store,
   MessageCircle,
   ScrollText,
+  School,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -69,9 +71,11 @@ export function getNavSections(config?: OrgConfig): NavSection[] {
         { label: 'Uniforms', path: '/uniforms', icon: Shirt, module: 'uniforms' },
         { label: 'Books', path: '/books', icon: BookOpen, module: 'books' },
         // Config-driven labels — "Students" or "Patients" or "Employees" etc.
+        { label: 'Classes', path: '/classes', icon: School },
         { label: c.recipientPluralLabel, path: '/recipients', icon: Users2 },
         { label: `${c.assignmentLabel}s`, path: '/assignments', icon: UserCheck },
         { label: 'Bulk Issue', path: '/bulk-issue', icon: ClipboardList },
+        { label: 'Fee Collection', path: '/fees', icon: Wallet },
         { label: 'Class Report', path: '/class-report', icon: FileChartColumn },
         { label: 'Medicines', path: '/medicines', icon: Pill, module: 'pharmacy' },
         { label: 'Batches', path: '/batches', icon: Layers, module: 'batches' },

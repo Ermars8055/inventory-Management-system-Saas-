@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, UserCircle2, ChevronRight, Settings2 } from 'lucide-react';
+import { Search, Plus, UserCircle2, ChevronRight, Settings2, School } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
 import { useTranslation } from '@/hooks/useTranslation';
-import { recipientService } from '@/services';
+import { recipientService, classService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { CustomFieldsSheet } from '@/components/shared/CustomFieldsSheet';
@@ -15,7 +15,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import type { Recipient } from '@/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { Recipient, OrgClass } from '@/types';
 
 export function RecipientsPage() {
   const { currentOrg } = useOrganization();
@@ -23,27 +24,35 @@ export function RecipientsPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [classes, setClasses] = useState<OrgClass[]>([]);
   const [search, setSearch] = useState('');
+  const [classFilter, setClassFilter] = useState('');
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ name: '', identifier: '', group: '', contact: '', extraData: {} as Record<string, string | number | boolean> });
+  const [form, setForm] = useState({ name: '', identifier: '', group: '', contact: '', classId: '', extraData: {} as Record<string, string | number | boolean> });
   const [saving, setSaving] = useState(false);
   const [fieldsSheetOpen, setFieldsSheetOpen] = useState(false);
 
   useEffect(() => {
     if (!currentOrg) return;
     recipientService.getByOrganization(currentOrg.id).then(setRecipients);
+    classService.getAll().then(setClasses);
   }, [currentOrg]);
 
+  const classMap = useMemo(() => new Map(classes.map(c => [c.id, c])), [classes]);
+
   const filtered = useMemo(() => {
-    if (!search) return recipients;
-    const q = search.toLowerCase();
-    return recipients.filter(
-      (r) =>
+    let list = recipients;
+    if (classFilter) list = list.filter(r => r.classId === classFilter);
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(r =>
         r.name.toLowerCase().includes(q) ||
         r.identifier?.toLowerCase().includes(q) ||
         r.group?.toLowerCase().includes(q),
-    );
-  }, [recipients, search]);
+      );
+    }
+    return list;
+  }, [recipients, search, classFilter]);
 
   // Group by group field
   const grouped = useMemo(() => {
@@ -61,19 +70,22 @@ export function RecipientsPage() {
     if (!currentOrg) return;
     setSaving(true);
     try {
+      // When a class is selected, sync group to class name
+      const selectedClass = form.classId ? classMap.get(form.classId) : null;
       const created = await recipientService.create({
         organizationId: currentOrg.id,
         name: form.name,
         identifier: form.identifier,
-        group: form.group,
+        group: selectedClass?.name ?? form.group,
         contact: form.contact || undefined,
+        classId: form.classId || undefined,
         extraData: Object.keys(form.extraData).length > 0
           ? Object.fromEntries(Object.entries(form.extraData).map(([k, v]) => [k, String(v)]))
           : undefined,
       });
       setRecipients((prev) => [...prev, created]);
       setShowAdd(false);
-      setForm({ name: '', identifier: '', group: '', contact: '', extraData: {} });
+      setForm({ name: '', identifier: '', group: '', contact: '', classId: '', extraData: {} });
     } finally {
       setSaving(false);
     }
@@ -106,15 +118,29 @@ export function RecipientsPage() {
         }
       />
 
-      {/* Search */}
-      <div className="relative mb-6 max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder={`${t('Search by name or')} ${t(config.identifierLabel).toLowerCase()}…`}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      {/* Search + Class filter */}
+      <div className="flex flex-wrap gap-3 mb-6">
+        <div className="relative max-w-sm flex-1 min-w-48">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={`${t('Search by name or')} ${t(config.identifierLabel).toLowerCase()}…`}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        {classes.length > 0 && (
+          <Select value={classFilter || '__all__'} onValueChange={v => setClassFilter(v === '__all__' ? '' : v)}>
+            <SelectTrigger className="w-48 h-10">
+              <School className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+              <SelectValue placeholder={t('All Classes')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">{t('All Classes')}</SelectItem>
+              {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}{c.academicYear ? ` (${c.academicYear})` : ''}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {filtered.length === 0 ? (
@@ -155,6 +181,11 @@ export function RecipientsPage() {
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {t(config.identifierLabel)}: {r.identifier || '—'}
                         </p>
+                        {r.classId && classMap.get(r.classId) && (
+                          <p className="text-xs text-primary/70 truncate flex items-center gap-1 mt-0.5">
+                            <School className="h-3 w-3" />{classMap.get(r.classId)!.name}
+                          </p>
+                        )}
                         {r.contact && (
                           <p className="text-xs text-muted-foreground truncate">{r.contact}</p>
                         )}
@@ -185,10 +216,23 @@ export function RecipientsPage() {
                 <Label>{t(config.identifierLabel)}</Label>
                 <Input value={form.identifier} onChange={(e) => setForm({ ...form, identifier: e.target.value })} placeholder={t('e.g. STU-001')} />
               </div>
-              <div className="space-y-1.5">
-                <Label>{t(config.groupLabel)}</Label>
-                <Input value={form.group} onChange={(e) => setForm({ ...form, group: e.target.value })} placeholder={t('e.g. Grade 5-A')} />
-              </div>
+              {classes.length > 0 ? (
+                <div className="space-y-1.5">
+                  <Label>{t('Class')}</Label>
+                  <Select value={form.classId || '__none__'} onValueChange={v => setForm({ ...form, classId: v === '__none__' ? '' : v, group: v !== '__none__' ? (classMap.get(v)?.name ?? form.group) : form.group })}>
+                    <SelectTrigger><SelectValue placeholder={t('Select class')} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">{t('No class')}</SelectItem>
+                      {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}{c.academicYear ? ` (${c.academicYear})` : ''}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Label>{t(config.groupLabel)}</Label>
+                  <Input value={form.group} onChange={(e) => setForm({ ...form, group: e.target.value })} placeholder={t('e.g. Grade 5-A')} />
+                </div>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>{t('Contact')} ({t('optional')})</Label>

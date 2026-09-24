@@ -239,6 +239,77 @@ export interface Recipient {
   group: string;        // Class / Ward / Department
   contact?: string;
   extraData?: Record<string, string>;
+  classId?: string;     // FK to OrgClass (school-style orgs)
+}
+
+// ─── Fee Record ───────────────────────────────────────────────────────────────
+
+export type FeeStatus = 'unpaid' | 'partial' | 'paid' | 'distributed' | 'waived';
+
+export interface FeeRecord {
+  id: string;
+  organizationId: string;
+  recipientId: string;
+  recipientName?: string;
+  classId?: string;
+  className?: string;
+  templateId?: string;
+  templateName?: string;
+  totalAmount: number;
+  paidAmount: number;
+  status: FeeStatus;
+  paymentDate?: string;
+  distributedDate?: string;
+  notes?: string;
+  createdAt?: string;
+}
+
+// ─── OrgClass — class-based fee flow ─────────────────────────────────────────
+
+export interface OrgClassItem {
+  id: string;
+  classId: string;
+  itemId?: string;
+  itemName: string;
+  quantity: number;
+  unitPrice: number;
+  conditionIssued: string;
+  notes?: string;
+}
+
+export type ClassFeeStatus = 'no_fee' | 'unpaid' | 'partial' | 'paid' | 'distributed' | 'waived';
+
+export interface ClassStudentRow {
+  recipientId: string;
+  name: string;
+  identifier?: string;
+  contact?: string;
+  feeRecordId?: string;
+  feeStatus: ClassFeeStatus;
+  paidAmount: number;
+  totalAmount: number;
+  paymentDate?: string;
+  distributedDate?: string;
+}
+
+export interface OrgClass {
+  id: string;
+  organizationId: string;
+  name: string;
+  academicYear?: string;
+  notes?: string;
+  status: 'active' | 'closed';
+  createdAt?: string;
+  items: OrgClassItem[];
+  totalFeePerStudent: number;
+  studentCount: number;
+  paidCount: number;
+  distributedCount: number;
+  unpaidCount: number;
+}
+
+export interface OrgClassDetail extends OrgClass {
+  students: ClassStudentRow[];
 }
 
 // ─── Assignment ──────────────────────────────────────────────────────────────
@@ -281,6 +352,8 @@ export interface Assignment {
   damageNotes?: string;
   fineAmount: number;
   finePaid: boolean;
+  templateId?: string;
+  templateName?: string;
   issuedBy?: string;
   receivedBy?: string;
   notes?: string;
@@ -380,6 +453,7 @@ export interface PurchaseOrder {
   raisedBy?: string;
   notes?: string;
   createdAt?: string;
+  quotationId?: string;
   lineItems?: POLineItem[];
 }
 

@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 from typing import Optional
 from ..database import get_db
-from ..models import FeeRecord, ClassTemplate, Recipient, Assignment, Item, Organization, User, StockTransaction
+from ..models import FeeRecord, ClassTemplate, OrgClass, OrgClassItem, Recipient, Assignment, Item, Organization, User, StockTransaction
 from ..schemas import FeeRecordOut
 from ..dependencies import require, same_org
 
@@ -157,20 +157,52 @@ def distribute(
     if fee.status == "distributed":
         raise HTTPException(400, "Already distributed")
 
-    # Get template items (with org check)
-    template = db.query(ClassTemplate).filter(
-        ClassTemplate.id == fee.template_id,
-        ClassTemplate.organization_id == user.organization_id,
-    ).first()
-    if not template or not template.items:
-        raise HTTPException(400, "Template not found or has no items")
-
     recipient = db.query(Recipient).filter(
         Recipient.id == fee.recipient_id,
         Recipient.organization_id == user.organization_id,
     ).first()
     if not recipient:
         raise HTTPException(404, "Recipient not found")
+
+    # Resolve item list: prefer class-based flow, fall back to template flow
+    if fee.class_id:
+        cls = db.query(OrgClass).filter(
+            OrgClass.id == fee.class_id,
+            OrgClass.organization_id == user.organization_id,
+        ).first()
+        if not cls or not cls.items:
+            raise HTTPException(400, "Class not found or has no items")
+        items_to_distribute = [
+            {
+                "item_id": ci.item_id,
+                "item_name": ci.item_name,
+                "quantity": ci.quantity,
+                "condition_issued": ci.condition_issued or "New",
+                "unit_price": ci.unit_price or 0,
+                "source_name": cls.name,
+                "source_id": None,
+            }
+            for ci in cls.items
+        ]
+    else:
+        template = db.query(ClassTemplate).filter(
+            ClassTemplate.id == fee.template_id,
+            ClassTemplate.organization_id == user.organization_id,
+        ).first()
+        if not template or not template.items:
+            raise HTTPException(400, "Template not found or has no items")
+        items_to_distribute = [
+            {
+                "item_id": ti.item_id,
+                "item_name": ti.item_name,
+                "quantity": ti.quantity,
+                "condition_issued": ti.condition_issued or "New",
+                "unit_price": ti.unit_price or 0,
+                "source_name": template.name,
+                "source_id": template.id,
+            }
+            for ti in template.items
+        ]
 
     # Determine mode
     org = db.query(Organization).filter(Organization.id == user.organization_id).first()
@@ -182,54 +214,54 @@ def distribute(
 
     today = date.today().isoformat()
     ts = int(time.time() * 1000)
-    for idx, titem in enumerate(template.items):
-        a = Assignment(
+    for idx, item in enumerate(items_to_distribute):
+        db.add(Assignment(
             id=f"asgn_{ts}_{idx}",
             organization_id=user.organization_id,
             recipient_id=recipient.id,
             recipient_name=recipient.name,
             recipient_identifier=recipient.identifier,
             recipient_group=recipient.group,
-            item_id=titem.item_id,
-            item_name=titem.item_name,
-            quantity=titem.quantity,
-            condition_issued=titem.condition_issued,
+            item_id=item["item_id"],
+            item_name=item["item_name"],
+            quantity=item["quantity"],
+            condition_issued=item["condition_issued"],
             issue_date=today,
             issued_by=user.name,
             mode=mode,
             status="distributed" if is_distribution else "issued",
-            unit_price=titem.unit_price or 0,
-            fee_amount=(titem.unit_price or 0) * (titem.quantity or 1),
+            template_id=item["source_id"],
+            template_name=item["source_name"],
+            unit_price=item["unit_price"],
+            fee_amount=item["unit_price"] * item["quantity"],
             fee_status="paid",
-        )
-        db.add(a)
+        ))
 
-        # Create stock transaction for audit trail
-        tx = StockTransaction(
+        # Always create stock transaction
+        db.add(StockTransaction(
             id=f"tx_{ts}_{idx}",
             organization_id=user.organization_id,
             date=today,
-            item_id=titem.item_id,
-            item_name=titem.item_name,
+            item_id=item["item_id"],
+            item_name=item["item_name"],
             type="issued",
-            quantity=-titem.quantity,
+            quantity=-item["quantity"],
             user=user.name,
             reference=f"FEE-{fee.id[-8:]}",
             recipient=recipient.name,
             recipient_class=recipient.group,
-            notes=f"Distributed via package: {template.name}",
-        )
-        db.add(tx)
+            notes=f"Distributed: {item['source_name']}",
+        ))
 
-        # Update inventory
-        if titem.item_id:
-            inv_item = db.query(Item).filter(Item.id == titem.item_id).first()
+        # Always reduce inventory (when item is linked)
+        if item["item_id"]:
+            inv_item = db.query(Item).filter(Item.id == item["item_id"]).first()
             if inv_item:
                 if is_distribution:
-                    inv_item.quantity = max(0, inv_item.quantity - titem.quantity)
+                    inv_item.quantity = max(0, inv_item.quantity - item["quantity"])
                     inv_item.available = max(0, inv_item.quantity - (inv_item.reserved or 0))
                 else:
-                    inv_item.reserved = (inv_item.reserved or 0) + titem.quantity
+                    inv_item.reserved = (inv_item.reserved or 0) + item["quantity"]
                     inv_item.available = max(0, inv_item.quantity - inv_item.reserved)
                 inv_item.status = _compute_status(inv_item.available, inv_item.min_quantity or 10)
                 inv_item.last_updated = today

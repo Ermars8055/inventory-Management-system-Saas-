@@ -12,13 +12,14 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Printer, ArrowLeft, Filter } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
-import { assignmentService, templateService, recipientService } from '@/services';
+import { useTranslation } from '@/hooks/useTranslation';
+import { assignmentService, templateService, recipientService, classService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { Assignment, Recipient, ReceiptTemplate } from '@/types';
+import type { Assignment, Recipient, ReceiptTemplate, OrgClass } from '@/types';
 
 interface ReportRow {
   recipient: Recipient;
@@ -30,14 +31,17 @@ export function ClassIssueReportPage() {
   const config = useOrgConfig();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { t } = useTranslation();
 
   const [allAssignments, setAllAssignments] = useState<Assignment[]>([]);
   const [allRecipients, setAllRecipients] = useState<Recipient[]>([]);
-  const [template, setTemplate] = useState<ReceiptTemplate | null>(null);
+  const [receiptTemplate, setReceiptTemplate] = useState<ReceiptTemplate | null>(null);
+  const [classes, setClasses] = useState<OrgClass[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters — default to no date filter so ALL assignments show
-  const [filterGroup, setFilterGroup] = useState(searchParams.get('group') ?? '');
+  // Filters — filter by class, template name, optional date
+  const [filterClass, setFilterClass] = useState(searchParams.get('class') ?? '');
+  const [filterTemplate, setFilterTemplate] = useState(searchParams.get('group') ?? '');
   const [filterDate, setFilterDate] = useState(searchParams.get('date') ?? '');
 
   useEffect(() => {
@@ -46,25 +50,33 @@ export function ClassIssueReportPage() {
       assignmentService.getByOrganization(currentOrg.id),
       recipientService.getByOrganization(currentOrg.id),
       templateService.getByOrganization(currentOrg.id),
-    ]).then(([asgns, recs, tpls]) => {
+      classService.getAll(),
+    ]).then(([asgns, recs, tpls, clss]) => {
       setAllAssignments(asgns);
       setAllRecipients(recs);
+      setClasses(clss);
       const classTemplate = tpls.find(t => t.type === 'class_issue_report') ?? tpls[0] ?? null;
-      setTemplate(classTemplate);
+      setReceiptTemplate(classTemplate);
     }).finally(() => setLoading(false));
   }, [currentOrg]);
 
-  // Groups from actual data: recipient groups + assignment groups
-  const groups = Array.from(new Set([
-    ...allRecipients.map(r => r.group).filter(Boolean),
-    ...allAssignments.map(a => a.recipientGroup).filter(Boolean),
-  ])).sort() as string[];
+  // Template names from assignment data
+  const templateNames = Array.from(new Set(
+    allAssignments.map(a => a.templateName).filter(Boolean)
+  )).sort() as string[];
 
-  // Filtered assignments: match group + optional date
+  // Recipient → classId map
+  const recipientClassMap = new Map(allRecipients.map(r => [r.id, r.classId]));
+  const classIdMap = new Map(classes.map(c => [c.id, c.name]));
+
+  // Filtered assignments: match class + template + optional date
   const filtered = allAssignments.filter(a => {
-    const groupMatch = filterGroup ? a.recipientGroup?.toLowerCase() === filterGroup.toLowerCase() : true;
-    const dateMatch = filterDate ? a.issueDate?.startsWith(filterDate) : true; // empty = show all dates
-    return groupMatch && dateMatch;
+    const classMatch = filterClass
+      ? (a.recipientId ? recipientClassMap.get(a.recipientId) === filterClass : false)
+      : true;
+    const templateMatch = filterTemplate ? a.templateName === filterTemplate : true;
+    const dateMatch = filterDate ? a.issueDate?.startsWith(filterDate) : true;
+    return classMatch && templateMatch && dateMatch;
   });
 
   // Group by recipient
@@ -127,15 +139,29 @@ export function ClassIssueReportPage() {
         {/* Filters */}
         <div className="flex flex-wrap gap-4 mb-6 p-4 bg-muted/40 rounded-xl border">
           <Filter className="h-4 w-4 mt-2 text-muted-foreground shrink-0" />
+          {classes.length > 0 && (
+            <div className="space-y-1">
+              <Label className="text-xs">{t('Class')}</Label>
+              <Select value={filterClass || '__all__'} onValueChange={v => setFilterClass(v === '__all__' ? '' : v)}>
+                <SelectTrigger className="w-44 h-8 text-sm">
+                  <SelectValue placeholder={t('All classes')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">{t('All classes')}</SelectItem>
+                  {classes.map(c => <SelectItem key={c.id} value={c.id}>{c.name}{c.academicYear ? ` (${c.academicYear})` : ''}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-1">
-            <Label className="text-xs">{config.groupLabel}</Label>
-            <Select value={filterGroup || '__all__'} onValueChange={v => setFilterGroup(v === '__all__' ? '' : v)}>
-              <SelectTrigger className="w-44 h-8 text-sm">
-                <SelectValue placeholder="All classes" />
+            <Label className="text-xs">{t('Template')}</Label>
+            <Select value={filterTemplate || '__all__'} onValueChange={v => setFilterTemplate(v === '__all__' ? '' : v)}>
+              <SelectTrigger className="w-52 h-8 text-sm">
+                <SelectValue placeholder={t('All templates')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__all__">All classes</SelectItem>
-                {groups.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                <SelectItem value="__all__">{t('All templates')}</SelectItem>
+                {templateNames.map(name => <SelectItem key={name} value={name}>{name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -174,22 +200,23 @@ export function ClassIssueReportPage() {
         <div ref={printRef}>
           {/* Report header */}
           <div style={{ textAlign: 'center', marginBottom: 16 }}>
-            {template?.showLogo && (
+            {receiptTemplate?.showLogo && (
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
                 <div style={{ height: 48, width: 48, borderRadius: '50%', background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#6b7280', border: '1px solid #d1d5db' }}>
                   LOGO
                 </div>
               </div>
             )}
-            <h1 style={{ fontSize: 18, fontWeight: 700, textTransform: 'uppercase' }}>{template?.orgName ?? currentOrg.name}</h1>
-            {template?.orgAddress && (
-              <p style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{template.orgAddress}</p>
+            <h1 style={{ fontSize: 18, fontWeight: 700, textTransform: 'uppercase' }}>{receiptTemplate?.orgName ?? currentOrg.name}</h1>
+            {receiptTemplate?.orgAddress && (
+              <p style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{receiptTemplate.orgAddress}</p>
             )}
             <h2 style={{ fontSize: 16, fontWeight: 600, marginTop: 8, textTransform: 'uppercase', letterSpacing: 1 }}>
-              {template?.title ?? 'Class Material Issue Report'}
+              {receiptTemplate?.title ?? 'Class Material Issue Report'}
             </h2>
             <div style={{ display: 'flex', justifyContent: 'center', gap: 24, fontSize: 12, color: '#4b5563', marginTop: 4 }}>
-              {filterGroup && <span>{config.groupLabel}: <strong>{filterGroup}</strong></span>}
+              {filterClass && <span>{t('Class')}: <strong>{classIdMap.get(filterClass) ?? filterClass}</strong></span>}
+              {filterTemplate && <span>{t('Template')}: <strong>{filterTemplate}</strong></span>}
               {filterDate && <span>Date: <strong>{filterDate}</strong></span>}
             </div>
           </div>
@@ -242,19 +269,19 @@ export function ClassIssueReportPage() {
 
           {/* Footer */}
           <div style={{ marginTop: 24 }}>
-            {template?.showSignature && (
+            {receiptTemplate?.showSignature && (
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 32, fontSize: 12, color: '#4b5563' }}>
                 <div>
                   <p>Prepared by: _______________________</p>
                   <p style={{ marginTop: 4 }}>Date: {filterDate}</p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <p>{template?.footer ?? 'Storekeeper Signature: _______________________'}</p>
+                  <p>{receiptTemplate?.footer ?? 'Storekeeper Signature: _______________________'}</p>
                 </div>
               </div>
             )}
-            {template?.notes && (
-              <p style={{ fontSize: 12, color: '#6b7280', fontStyle: 'italic', marginTop: 12, borderTop: '1px solid #e5e7eb', paddingTop: 8 }}>{template.notes}</p>
+            {receiptTemplate?.notes && (
+              <p style={{ fontSize: 12, color: '#6b7280', fontStyle: 'italic', marginTop: 12, borderTop: '1px solid #e5e7eb', paddingTop: 8 }}>{receiptTemplate.notes}</p>
             )}
           </div>
         </div>

@@ -36,11 +36,18 @@ def run():
         # Purchase orders: link to vendor
         "ALTER TABLE purchase_orders ADD COLUMN vendor_id VARCHAR REFERENCES vendors(id)",
         
+        # Assignments: template reference for report filtering
+        "ALTER TABLE assignments ADD COLUMN template_id VARCHAR",
+        "ALTER TABLE assignments ADD COLUMN template_name VARCHAR",
         # Vendor Migration: add vendor columns (for fresh DBs these already exist)
         "ALTER TABLE vendor_quotes ADD COLUMN vendor_id VARCHAR REFERENCES vendors(id)",
         "ALTER TABLE vendor_quotes ADD COLUMN vendor_name VARCHAR",
         "ALTER TABLE vendor_quotes ADD COLUMN vendor_email VARCHAR",
         "ALTER TABLE purchase_orders ADD COLUMN vendor_name VARCHAR",
+        # Class-based fee flow
+        "ALTER TABLE recipients ADD COLUMN class_id VARCHAR REFERENCES org_classes(id)",
+        "ALTER TABLE fee_records ADD COLUMN class_id VARCHAR REFERENCES org_classes(id)",
+        "ALTER TABLE fee_records ADD COLUMN class_name VARCHAR",
     ]
 
     with engine.connect() as conn:
@@ -162,6 +169,34 @@ def run():
                 quotation_item_id VARCHAR NOT NULL REFERENCES quotation_items(id),
                 unit_price FLOAT,
                 lead_time_days INTEGER,
+                notes VARCHAR
+            )
+        """))
+        conn.commit()
+
+        # OrgClass tables (class-based fee flow)
+        conn.execute(__import__('sqlalchemy').text("""
+            CREATE TABLE IF NOT EXISTS org_classes (
+                id VARCHAR PRIMARY KEY,
+                organization_id VARCHAR NOT NULL REFERENCES organizations(id),
+                name VARCHAR NOT NULL,
+                academic_year VARCHAR,
+                notes TEXT,
+                status VARCHAR DEFAULT 'active',
+                created_at VARCHAR
+            )
+        """))
+        conn.commit()
+
+        conn.execute(__import__('sqlalchemy').text("""
+            CREATE TABLE IF NOT EXISTS org_class_items (
+                id VARCHAR PRIMARY KEY,
+                class_id VARCHAR NOT NULL REFERENCES org_classes(id),
+                item_id VARCHAR REFERENCES items(id),
+                item_name VARCHAR NOT NULL,
+                quantity INTEGER DEFAULT 1,
+                unit_price INTEGER DEFAULT 0,
+                condition_issued VARCHAR DEFAULT 'New',
                 notes VARCHAR
             )
         """))

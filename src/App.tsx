@@ -42,8 +42,11 @@ import { SubscriptionPage } from '@/pages/settings/Subscription';
 import { ClassTemplatesPage } from '@/pages/settings/ClassTemplates';
 import { BulkIssuePage } from '@/pages/BulkIssue';
 import { ClassIssueReportPage } from '@/pages/ClassIssueReport';
+import { ClassesPage } from '@/pages/Classes';
+import { ClassDetailPage } from '@/pages/ClassDetail';
 import { QuotationsPage } from '@/pages/Quotations';
 import { QuotationDetailPage } from '@/pages/QuotationDetail';
+import { FeesPage } from '@/pages/Fees';
 import { SupportPage } from '@/pages/Support';
 import { ActivityLogPage } from '@/pages/ActivityLog';
 import { ProfilePage } from '@/pages/Profile';
@@ -165,8 +168,11 @@ export default function App() {
                   <Route path="settings/document-templates" element={<DocumentTemplatesPage />} />
                   <Route path="settings/subscription" element={<SubscriptionPage />} />
                   <Route path="settings/class-templates" element={<ClassTemplatesPage />} />
+                  <Route path="classes" element={<ClassesPage />} />
+                  <Route path="classes/:id" element={<ClassDetailPage />} />
                   <Route path="bulk-issue" element={<BulkIssuePage />} />
                   <Route path="class-report" element={<ClassIssueReportPage />} />
+                  <Route path="fees" element={<FeesPage />} />
                   <Route path="quotations" element={<QuotationsPage />} />
                   <Route path="quotations/:id" element={<QuotationDetailPage />} />
                   <Route path="support" element={<SupportPage />} />

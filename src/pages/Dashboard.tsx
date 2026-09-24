@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
-  Package, AlertTriangle, XCircle, UserCheck, Truck, CalendarClock, Pill, ShoppingCart,
+  Package, AlertTriangle, XCircle, UserCheck, Truck, CalendarClock, Pill, ShoppingCart, Wallet,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -10,14 +10,14 @@ import {
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import { useOrganization } from '@/context/OrganizationContext';
-import { inventoryService, transactionService, vendorService, batchService } from '@/services';
+import { inventoryService, transactionService, vendorService, batchService, feeService } from '@/services';
 import { KPICard } from '@/components/shared/KPICard';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { INDUSTRY_LABELS } from '@/data/modules';
-import type { Item, StockTransaction, Vendor, Batch } from '@/types';
+import type { Item, StockTransaction, Vendor, Batch, FeeRecord } from '@/types';
 
 const TRANSACTION_LABEL_KEYS: Record<string, string> = {
   received: 'Stock Received',
@@ -36,12 +36,14 @@ export function DashboardPage() {
   const [transactions, setTransactions] = useState<StockTransaction[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
+  const [fees, setFees] = useState<FeeRecord[]>([]);
 
   useEffect(() => {
     if (!currentOrg) return;
     inventoryService.getByOrganization(currentOrg.id).then(setItems);
     transactionService.getByOrganization(currentOrg.id).then(setTransactions);
     vendorService.getByOrganization(currentOrg.id).then(setVendors);
+    feeService.getAll().then(setFees).catch(() => {});
     if (currentOrg.industry === 'pharmacy') {
       batchService.getByOrganization(currentOrg.id).then(setBatches);
     }
@@ -54,6 +56,7 @@ export function DashboardPage() {
   const issuedCount = transactions.filter((t) => t.type === 'issued').reduce((sum, t) => sum + Math.abs(t.quantity), 0);
   const expiringSoon = batches.filter((b) => b.status === 'expiring_soon');
   const expired = batches.filter((b) => b.status === 'expired');
+  const pendingFees = fees.filter((f) => f.status === 'unpaid' || f.status === 'partial').length;
 
   // KPIs based on industry
   const isPharmacy = currentOrg.industry === 'pharmacy';
@@ -71,7 +74,7 @@ export function DashboardPage() {
         { label: t('Low Stock'), value: lowStockItems.length, icon: AlertTriangle, variant: 'warning' },
         { label: t('Out of Stock'), value: outOfStockItems.length, icon: XCircle, variant: 'danger' },
         { label: t('Items Issued'), value: issuedCount, icon: UserCheck, variant: 'success' },
-        { label: t('Vendors'), value: vendors.length, icon: Truck, variant: 'default' },
+        { label: t('Fees Pending'), value: pendingFees, icon: Wallet, variant: pendingFees > 0 ? 'warning' : 'default' },
       ];
 
   // Category chart data

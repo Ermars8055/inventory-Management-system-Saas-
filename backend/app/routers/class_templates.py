@@ -197,6 +197,8 @@ def bulk_issue(template_id: str, body: BulkIssueBody, user: User = Depends(requi
                 notes=body.notes,
                 mode=mode,
                 status="distributed" if is_distribution else "issued",
+                template_id=t.id,
+                template_name=t.name,
             )
             db.add(a)
             created.append(a)

@@ -174,12 +174,49 @@ class Role(Base):
     permissions = Column(JSON, default=list)
 
 
+class OrgClass(Base):
+    """
+    A concrete class/group entity (e.g. "Grade 5A — 2025-26").
+    Students (Recipients) enrol in a class; items define what each student will receive.
+    Fee-first flow: assign fees for class → student pays → items distributed.
+    """
+    __tablename__ = "org_classes"
+    id = Column(String, primary_key=True)
+    organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
+    name = Column(String, nullable=False)       # "Grade 5A"
+    academic_year = Column(String)              # "2025-26"
+    notes = Column(Text)
+    status = Column(String, default="active")   # active | closed
+    created_at = Column(String)
+    items = relationship(
+        "OrgClassItem",
+        back_populates="org_class",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+
+class OrgClassItem(Base):
+    """One item every student in an OrgClass will receive."""
+    __tablename__ = "org_class_items"
+    id = Column(String, primary_key=True)
+    class_id = Column(String, ForeignKey("org_classes.id"), nullable=False)
+    item_id = Column(String, ForeignKey("items.id"), nullable=True)
+    item_name = Column(String, nullable=False)
+    quantity = Column(Integer, default=1)
+    unit_price = Column(Integer, default=0)
+    condition_issued = Column(String, default="New")
+    notes = Column(String)
+    org_class = relationship("OrgClass", back_populates="items")
+
+
 class Recipient(Base):
     """
     Generic entity that receives/borrows items.
     Org config controls what this is called: Student / Patient / Employee / Member / Customer.
     identifier = Roll Number / Patient ID / Employee ID
     group      = Class / Ward / Department / Branch
+    class_id   = FK to OrgClass (optional — only set for school-style orgs)
     """
     __tablename__ = "recipients"
     id = Column(String, primary_key=True)
@@ -189,6 +226,7 @@ class Recipient(Base):
     group = Column(String)
     contact = Column(String)
     extra_data = Column(JSON)        # Org-defined custom fields as key-value
+    class_id = Column(String, ForeignKey("org_classes.id"), nullable=True)
 
 
 class Assignment(Base):
@@ -237,6 +275,10 @@ class Assignment(Base):
     damage_notes = Column(String)
     fine_amount = Column(Integer, default=0)
     fine_paid = Column(Boolean, default=False)
+
+    # Template reference (for report filtering)
+    template_id = Column(String, ForeignKey("class_templates.id"), nullable=True)
+    template_name = Column(String)
 
     # Audit
     issued_by = Column(String)
@@ -382,12 +424,16 @@ class FeeRecord(Base):
     """
     Fee-first distribution: student owes fee for a package.
     Flow: created (unpaid) → paid → distributed
+    class_id links to OrgClass when using the new class-based flow.
+    template_id kept for backward-compat with the old ClassTemplate flow.
     """
     __tablename__ = "fee_records"
     id = Column(String, primary_key=True)
     organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
     recipient_id = Column(String, ForeignKey("recipients.id"), nullable=False)
     recipient_name = Column(String)
+    class_id = Column(String, ForeignKey("org_classes.id"), nullable=True)
+    class_name = Column(String)
     template_id = Column(String, ForeignKey("class_templates.id"), nullable=True)
     template_name = Column(String)
     total_amount = Column(Integer, default=0)      # total fee in smallest currency unit

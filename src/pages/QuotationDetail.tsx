@@ -117,7 +117,7 @@ export function QuotationDetailPage() {
     // If already converted, load POs
     if (quotation.status === 'converted') {
       const allPOs = await procurementService.getByOrganization(currentOrg.id);
-      setGeneratedPOs(allPOs.filter(po => (po as any).quotationId === id));
+      setGeneratedPOs(allPOs.filter(po => po.quotationId === id));
     }
     setLoading(false);
   }, [id, currentOrg]);

@@ -283,6 +283,7 @@ class RecipientOut(CamelModel):
     group: Optional[str] = None
     contact: Optional[str] = None
     extra_data: Optional[dict[str, Any]] = None
+    class_id: Optional[str] = None
 
 
 class RecipientCreate(CamelModel):
@@ -292,6 +293,7 @@ class RecipientCreate(CamelModel):
     group: Optional[str] = None
     contact: Optional[str] = None
     extra_data: Optional[dict[str, Any]] = None
+    class_id: Optional[str] = None
 
 
 class RecipientUpdate(CamelModel):
@@ -300,6 +302,7 @@ class RecipientUpdate(CamelModel):
     group: Optional[str] = None
     contact: Optional[str] = None
     extra_data: Optional[dict[str, Any]] = None
+    class_id: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -330,6 +333,8 @@ class AssignmentOut(CamelModel):
     damage_notes: Optional[str] = None
     fine_amount: int = 0
     fine_paid: bool = False
+    template_id: Optional[str] = None
+    template_name: Optional[str] = None
     issued_by: Optional[str] = None
     received_by: Optional[str] = None
     notes: Optional[str] = None
@@ -516,6 +521,7 @@ class PurchaseOrderOut(CamelModel):
     raised_by: Optional[str] = None
     notes: Optional[str] = None
     created_at: Optional[str] = None
+    quotation_id: Optional[str] = None
     line_items: list[POLineItemOut] = []
 
 
@@ -670,6 +676,8 @@ class FeeRecordOut(CamelModel):
     organization_id: str
     recipient_id: str
     recipient_name: Optional[str] = None
+    class_id: Optional[str] = None
+    class_name: Optional[str] = None
     template_id: Optional[str] = None
     template_name: Optional[str] = None
     total_amount: int = 0
@@ -829,3 +837,104 @@ class GeneratePOsBody(CamelModel):
     expected_date: Optional[str] = None
     raised_by: Optional[str] = None
     notes: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Class-based Fee Flow (OrgClass)
+# ---------------------------------------------------------------------------
+
+class OrgClassItemOut(CamelModel):
+    id: str
+    class_id: str
+    item_id: Optional[str] = None
+    item_name: str
+    quantity: int = 1
+    unit_price: int = 0
+    condition_issued: str = "New"
+    notes: Optional[str] = None
+
+
+class OrgClassItemCreate(CamelModel):
+    item_id: Optional[str] = None
+    item_name: str
+    quantity: int = 1
+    unit_price: int = 0
+    condition_issued: str = "New"
+    notes: Optional[str] = None
+
+
+class OrgClassItemUpdate(CamelModel):
+    item_name: Optional[str] = None
+    quantity: Optional[int] = None
+    unit_price: Optional[int] = None
+    condition_issued: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class ClassStudentRow(CamelModel):
+    """A student enrolled in a class, with their live fee status."""
+    recipient_id: str
+    name: str
+    identifier: Optional[str] = None
+    contact: Optional[str] = None
+    fee_record_id: Optional[str] = None
+    fee_status: str = "no_fee"       # no_fee | unpaid | partial | paid | distributed | waived
+    paid_amount: int = 0
+    total_amount: int = 0
+    payment_date: Optional[str] = None
+    distributed_date: Optional[str] = None
+
+
+class OrgClassOut(CamelModel):
+    id: str
+    organization_id: str
+    name: str
+    academic_year: Optional[str] = None
+    notes: Optional[str] = None
+    status: str = "active"
+    created_at: Optional[str] = None
+    items: list[OrgClassItemOut] = []
+    total_fee_per_student: int = 0   # computed: sum of item prices
+    student_count: int = 0           # computed
+    paid_count: int = 0              # computed
+    distributed_count: int = 0       # computed
+    unpaid_count: int = 0            # computed
+
+
+class OrgClassDetail(OrgClassOut):
+    students: list[ClassStudentRow] = []
+
+
+class OrgClassCreate(CamelModel):
+    name: str
+    academic_year: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class OrgClassUpdate(CamelModel):
+    name: Optional[str] = None
+    academic_year: Optional[str] = None
+    notes: Optional[str] = None
+    status: Optional[str] = None
+
+
+class ImportClassTemplateBody(CamelModel):
+    template_id: str
+
+
+class AssignClassFeesBody(CamelModel):
+    """Create FeeRecords for enrolled students who don't have one yet.
+    Pass recipient_id to assign only that student; omit for all."""
+    recipient_id: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class EnrolStudentBody(CamelModel):
+    """Enrol an existing recipient into the class, or create a new one."""
+    # Provide recipient_id to link an existing student
+    recipient_id: Optional[str] = None
+    # Or provide details to create a new student on the spot
+    name: Optional[str] = None
+    identifier: Optional[str] = None
+    contact: Optional[str] = None
+    extra_data: Optional[dict[str, Any]] = None
