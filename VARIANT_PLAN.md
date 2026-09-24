@@ -60,20 +60,20 @@ Backward compatible: all existing items have both as null → standalone → zer
 
 ---
 
-## Phase 2 — Grouped Inventory Endpoint + List UI
+## Phase 2 — Grouped Inventory Endpoint + List UI ✅
 > Risk: Low — new UI path alongside existing
 
-- [ ] `GET /inventory/grouped` backend endpoint
+- [x] `GET /inventory/grouped` backend endpoint
   - Returns: `[{ type: "standalone", item }, { type: "group", group: { rollup totals }, variants: [...] }]`
   - Group rollup: `totalQty`, `totalAvailable`, `variantCount`, `status` (worst of all variants)
-- [ ] Add `variantGroupService` to `src/services/index.ts`
-- [ ] Add `ItemVariantGroup` + `GroupedInventoryRow` types to `src/types/index.ts`
-- [ ] Inventory list page — grouped view (default)
+- [x] Add `variantGroupService` to `src/services/index.ts`
+- [x] Add `ItemVariantGroup` + `GroupedInventoryRow` types to `src/types/index.ts`
+- [x] Inventory list page — grouped view (auto-selected when groups exist)
   - Collapsible group rows showing rollup (total qty, available, worst status)
-  - Expanded view: table of variant items with individual stock + actions
-  - "Flat view" toggle restores current behavior
-  - "Low Stock" badge on group if any variant is low
-  - "+ Add Variant" button inside expanded group
+  - Expanded view: variant items with individual stock + actions
+  - Grid / Table / Grouped (Layers2 icon) three-way view toggle
+  - Status badge on group reflects worst variant status
+  - "+ Add Variant" button inside group header
 
 ---
 
@@ -187,3 +187,4 @@ Free-form string — user decides the dimension:
 |---|---|---|
 | — | — | Plan created |
 | 2026-09-24 | Phase 1 | Full Phase 1 complete: ItemVariantGroup model + migration + schemas + CRUD router (7 endpoints) + POST /inventory variant fields + router registered in main.py |
+| 2026-09-24 | Phase 2 | Full Phase 2 complete: GET /inventory/grouped endpoint + ItemVariantGroup/GroupedInventoryRow types + variantGroupService + Inventory grouped view (collapsible groups, rollup, expand/collapse, status badges, + Add Variant) |

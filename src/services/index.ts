@@ -9,6 +9,7 @@ import type {
   Vendor, User, Recipient, Assignment, Batch, ReceiptTemplate, CustomField, Subscription,
   PurchaseOrder, POLineItem, MaintenanceTicket, Asset, ClassTemplate, ClassTemplateItem,
   Quotation, FeeRecord, OrgClass, OrgClassDetail, OrgClassItem,
+  ItemVariantGroup, VariantItemCreate, GroupedInventoryRow,
 } from '@/types';
 
 export const organizationService = {
@@ -48,6 +49,33 @@ export const inventoryService = {
   },
   async delete(id: string): Promise<void> {
     return api.delete(`/inventory/${id}`);
+  },
+};
+
+export const variantGroupService = {
+  async list(): Promise<ItemVariantGroup[]> {
+    return api.get('/item-variant-groups');
+  },
+  async create(data: { name: string; description?: string; categoryId?: string; variants?: VariantItemCreate[] }): Promise<ItemVariantGroup> {
+    return api.post('/item-variant-groups', data);
+  },
+  async update(id: string, data: { name?: string; description?: string; categoryId?: string }): Promise<ItemVariantGroup> {
+    return api.put(`/item-variant-groups/${id}`, data);
+  },
+  async delete(id: string): Promise<void> {
+    return api.delete(`/item-variant-groups/${id}`);
+  },
+  async getVariants(id: string): Promise<Item[]> {
+    return api.get(`/item-variant-groups/${id}/variants`);
+  },
+  async addVariant(groupId: string, data: VariantItemCreate): Promise<Item> {
+    return api.post(`/item-variant-groups/${groupId}/variants`, data);
+  },
+  async removeVariant(groupId: string, itemId: string): Promise<void> {
+    return api.delete(`/item-variant-groups/${groupId}/variants/${itemId}`);
+  },
+  async listGrouped(): Promise<GroupedInventoryRow[]> {
+    return api.get('/inventory/grouped');
   },
 };
 

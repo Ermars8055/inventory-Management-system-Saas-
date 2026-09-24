@@ -4,10 +4,11 @@ import { useTranslation } from '@/hooks/useTranslation';
 import {
   Plus, Search, Package, MoreHorizontal, Eye, ArrowRightLeft,
   ShieldAlert, LayoutGrid, List, MapPin, PackagePlus, Pencil, Trash2, Settings2,
+  Layers2, ChevronRight, ChevronDown, Tag,
 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
-import { inventoryService, categoryService, recipientService, assignmentService, transactionService } from '@/services';
+import { inventoryService, categoryService, recipientService, assignmentService, transactionService, variantGroupService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -24,7 +25,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import type { Item, Category, Recipient } from '@/types';
+import type { Item, Category, Recipient, GroupedInventoryRow } from '@/types';
 
 const EMPTY_FORM = { name: '', sku: '', categoryId: '', categoryName: '', module: 'general', quantity: '', location: '', minQuantity: '10', reorderQty: '50', attributes: {} as Record<string, string | number | boolean>, uniform: null as { size: string; gender: string } | null, book: null as { isbn: string; subject: string } | null, medicine: null as { batchNumber: string; expiryDate: string } | null };
 
@@ -163,7 +164,9 @@ export function InventoryPage() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [locationFilter, setLocationFilter] = useState('all');
-  const [view, setView] = useState<'grid' | 'table'>('grid');
+  const [view, setView] = useState<'grid' | 'table' | 'grouped'>('grid');
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [groupedRows, setGroupedRows] = useState<GroupedInventoryRow[]>([]);
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editItem, setEditItem] = useState<Item | null>(null);
@@ -189,6 +192,11 @@ export function InventoryPage() {
     inventoryService.getByOrganization(currentOrg.id).then(setItems);
     categoryService.getByOrganization(currentOrg.id).then(setCategories);
     recipientService.getByOrganization(currentOrg.id).then(setRecipients);
+    variantGroupService.listGrouped().then(rows => {
+      setGroupedRows(rows);
+      // Auto-switch to grouped view if there are any variant groups
+      if (rows.some(r => r.type === 'group')) setView('grouped');
+    });
   }, [currentOrg]);
 
   // Auto-open add dialog when navigated with ?module= query param
@@ -208,6 +216,39 @@ export function InventoryPage() {
   }, [searchParams, setSearchParams]);
 
   const locations = useMemo(() => Array.from(new Set(items.map(i => i.location))), [items]);
+
+  async function reloadAll() {
+    if (!currentOrg) return;
+    const [freshItems, freshGrouped] = await Promise.all([
+      inventoryService.getByOrganization(currentOrg.id),
+      variantGroupService.listGrouped(),
+    ]);
+    setItems(freshItems);
+    setGroupedRows(freshGrouped);
+  }
+
+  const filteredGroupedRows = useMemo<GroupedInventoryRow[]>(() => {
+    return groupedRows.filter(row => {
+      if (row.type === 'standalone') {
+        const item = row.item;
+        if (search && !item.name.toLowerCase().includes(search.toLowerCase()) && !item.sku.toLowerCase().includes(search.toLowerCase())) return false;
+        if (categoryFilter !== 'all' && item.categoryName !== categoryFilter) return false;
+        if (statusFilter !== 'all' && item.status !== statusFilter) return false;
+        if (locationFilter !== 'all' && item.location !== locationFilter) return false;
+        return true;
+      } else {
+        const { group, variants } = row;
+        if (search) {
+          const q = search.toLowerCase();
+          if (!group.name.toLowerCase().includes(q) && !variants.some(v => v.name.toLowerCase().includes(q) || v.sku.toLowerCase().includes(q))) return false;
+        }
+        if (statusFilter !== 'all' && group.status !== statusFilter) return false;
+        if (categoryFilter !== 'all' && !variants.some(v => v.categoryName === categoryFilter)) return false;
+        if (locationFilter !== 'all' && !variants.some(v => v.location === locationFilter)) return false;
+        return true;
+      }
+    });
+  }, [groupedRows, search, categoryFilter, statusFilter, locationFilter]);
 
   const filtered = useMemo(() => items.filter(item => {
     if (search && !item.name.toLowerCase().includes(search.toLowerCase()) && !item.sku.toLowerCase().includes(search.toLowerCase())) return false;
@@ -257,6 +298,7 @@ export function InventoryPage() {
     try {
       await inventoryService.delete(item.id);
       setItems(prev => prev.filter(i => i.id !== item.id));
+      variantGroupService.listGrouped().then(setGroupedRows);
       toast({ title: `${item.name} ${t('deleted')}` });
     } catch {
       toast({ title: t('Error'), description: t('Failed to delete item'), variant: 'destructive' });
@@ -281,6 +323,7 @@ export function InventoryPage() {
           attributes: form.attributes,
         });
         setItems(prev => prev.map(i => i.id === editItem.id ? updated : i));
+        variantGroupService.listGrouped().then(setGroupedRows);
       } else {
         const created = await inventoryService.create({
           organizationId: currentOrg.id,
@@ -297,6 +340,7 @@ export function InventoryPage() {
           attributes: form.attributes,
         });
         setItems(prev => [...prev, created]);
+        variantGroupService.listGrouped().then(setGroupedRows);
       }
       setShowAddDialog(false);
       setEditItem(null);
@@ -327,7 +371,7 @@ export function InventoryPage() {
         reference: `DMG-${Date.now()}`,
         notes: `${damageForm.source}${damageForm.notes ? ': ' + damageForm.notes : ''}`,
       });
-      setItems(await inventoryService.getByOrganization(currentOrg.id));
+      await reloadAll();
       setDamageItem(null);
       toast({ title: `${qty} unit${qty > 1 ? 's' : ''} of ${damageItem.name} written off`, description: damageForm.source });
     } finally { setDamageSaving(false); }
@@ -355,7 +399,7 @@ export function InventoryPage() {
         reference: restockForm.reference || `RCV-${Date.now()}`,
         notes: restockForm.notes,
       });
-      setItems(await inventoryService.getByOrganization(currentOrg.id));
+      await reloadAll();
       setRestockItem(null);
       toast({ title: `${qty} unit${qty > 1 ? 's' : ''} added to ${restockItem.name}` });
     } finally { setRestockSaving(false); }
@@ -386,7 +430,7 @@ export function InventoryPage() {
         expectedReturn: issueForm.expectedReturn || undefined,
       });
       // Backend handles inventory update + stock transaction creation
-      setItems(await inventoryService.getByOrganization(currentOrg.id));
+      await reloadAll();
       setIssueItem(null);
       toast({ title: `${issueItem.name} issued to ${recipient.name}` });
     } finally { setIssueSaving(false); }
@@ -486,19 +530,32 @@ export function InventoryPage() {
             >
               <List className="h-3.5 w-3.5" />
             </button>
+            <button
+              onClick={() => setView('grouped')}
+              title={t('Grouped view')}
+              className={`h-7 w-7 flex items-center justify-center rounded-md transition-all ${view === 'grouped' ? 'bg-white shadow-sm text-violet-600' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              <Layers2 className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
       </div>
 
-      {filtered.length > 0 && (
+      {(view === 'grouped' ? filteredGroupedRows.length > 0 : filtered.length > 0) && (
         <p className="text-[12px] text-gray-400 mb-3 px-1">
-          {t('Showing')} <span className="font-semibold text-gray-600">{filtered.length}</span> {filtered.length !== 1 ? t('items') : t('item')}
+          {view === 'grouped' ? (
+            <>
+              {t('Showing')} <span className="font-semibold text-gray-600">{filteredGroupedRows.filter(r => r.type === 'group').length}</span> {t('groups')} + <span className="font-semibold text-gray-600">{filteredGroupedRows.filter(r => r.type === 'standalone').length}</span> {t('standalone items')}
+            </>
+          ) : (
+            <>{t('Showing')} <span className="font-semibold text-gray-600">{filtered.length}</span> {filtered.length !== 1 ? t('items') : t('item')}</>
+          )}
           {(search || categoryFilter !== 'all' || statusFilter !== 'all' || locationFilter !== 'all') ? ` (${t('filtered')})` : ''}
         </p>
       )}
 
       {/* ── Empty ── */}
-      {filtered.length === 0 ? (
+      {(view === 'grouped' ? filteredGroupedRows.length === 0 : filtered.length === 0) ? (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
           <EmptyState
             icon={Package}
@@ -743,7 +800,166 @@ export function InventoryPage() {
             </Table>
           </CardContent>
         </Card>
-      )}
+
+      ) : view === 'grouped' ? (
+
+        /* ══════════════════════════════════════
+           GROUPED VIEW
+        ══════════════════════════════════════ */
+        <div className="space-y-2">
+          {filteredGroupedRows.map(row => {
+            if (row.type === 'standalone') {
+              const item = row.item;
+              const color = catColor(item.categoryName);
+              const pct = item.quantity > 0 ? Math.round((item.available / item.quantity) * 100) : 0;
+              const barColor = STATUS_BAR[item.status] ?? '#9ca3af';
+              return (
+                <div
+                  key={item.id}
+                  className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3 hover:border-gray-200 cursor-pointer transition-colors"
+                  onClick={() => navigate(`/inventory/${item.id}`)}
+                >
+                  <RowThumb categoryName={item.categoryName} itemId={item.id} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold text-gray-900 truncate">{item.name}</p>
+                    <p className="text-[11px] font-mono text-gray-400">{item.sku}</p>
+                  </div>
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-md hidden sm:inline" style={{ background: color + '14', color }}>{item.categoryName}</span>
+                  <div className="text-right hidden md:block">
+                    <p className="text-[12px] text-gray-400 mb-1">{item.available}/{item.quantity}</p>
+                    <div className="h-1.5 bg-gray-100 rounded-full w-16 overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: barColor }} />
+                    </div>
+                  </div>
+                  <StatusBadge status={item.status} />
+                  <div onClick={e => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => navigate(`/inventory/${item.id}`)}><Eye className="h-4 w-4 mr-2" />{t('View Details')}</DropdownMenuItem>
+                        <DropdownMenuItem onClick={e => openEdit(item, e)}><Pencil className="h-4 w-4 mr-2" />{t('Edit Item')}</DropdownMenuItem>
+                        <DropdownMenuItem onClick={e => openRestock(item, e)}><PackagePlus className="h-4 w-4 mr-2" />{t('Add Stock')}</DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={e => handleDeleteItem(item, e)}><Trash2 className="h-4 w-4 mr-2" />{t('Delete Item')}</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              );
+            }
+
+            // ── Group row ────────────────────────────────────────────
+            const { group, variants } = row;
+            const isExpanded = expandedGroups.has(group.id);
+            const barColor = STATUS_BAR[group.status] ?? '#9ca3af';
+            const groupPct = group.totalQty > 0 ? Math.round((group.totalAvailable / group.totalQty) * 100) : 0;
+
+            return (
+              <div key={group.id} className="rounded-xl border border-violet-100 shadow-sm overflow-hidden">
+                {/* Group header */}
+                <div
+                  className="bg-violet-50 px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-violet-100/60 transition-colors"
+                  onClick={() => setExpandedGroups(prev => {
+                    const next = new Set(prev);
+                    if (next.has(group.id)) next.delete(group.id); else next.add(group.id);
+                    return next;
+                  })}
+                >
+                  <button className="text-violet-400 shrink-0">
+                    {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </button>
+                  <div className="h-8 w-8 rounded-lg bg-violet-100 flex items-center justify-center shrink-0">
+                    <Layers2 className="h-4 w-4 text-violet-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[13px] font-bold text-gray-900">{group.name}</p>
+                      <span className="text-[10px] font-semibold bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-md">
+                        {group.variantCount} {t('variants')}
+                      </span>
+                    </div>
+                    {group.description && <p className="text-[11px] text-gray-400 truncate">{group.description}</p>}
+                  </div>
+                  <div className="text-right hidden md:block mr-4">
+                    <p className="text-[11px] text-gray-400 mb-1">{group.totalAvailable}/{group.totalQty} {t('total')}</p>
+                    <div className="h-1.5 bg-violet-100 rounded-full w-20 overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${groupPct}%`, background: barColor }} />
+                    </div>
+                  </div>
+                  <StatusBadge status={group.status} />
+                  <div onClick={e => e.stopPropagation()}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs border-violet-200 text-violet-700 hover:bg-violet-50"
+                      onClick={() => {
+                        setForm({ ...EMPTY_FORM, name: `${group.name} – ` });
+                        setShowAddDialog(true);
+                      }}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />{t('Add Variant')}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Variant rows */}
+                {isExpanded && (
+                  <div className="divide-y divide-gray-50">
+                    {variants.length === 0 ? (
+                      <p className="text-[12px] text-gray-400 px-14 py-3">{t('No variants yet.')}</p>
+                    ) : variants.map(variant => {
+                      const pct = variant.quantity > 0 ? Math.round((variant.available / variant.quantity) * 100) : 0;
+                      const vBarColor = STATUS_BAR[variant.status] ?? '#9ca3af';
+                      return (
+                        <div
+                          key={variant.id}
+                          className="bg-white px-4 py-2.5 flex items-center gap-3 pl-14 hover:bg-gray-50/60 cursor-pointer transition-colors"
+                          onClick={() => navigate(`/inventory/${variant.id}`)}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <Tag className="h-3 w-3 text-violet-400 shrink-0" />
+                              <p className="text-[13px] font-medium text-gray-800 truncate">
+                                {variant.variantLabel || variant.name}
+                              </p>
+                              <span className="text-[10px] font-mono text-gray-400">{variant.sku}</span>
+                            </div>
+                          </div>
+                          <div className="text-right hidden md:block mr-4">
+                            <p className="text-[11px] text-gray-400 mb-1">{variant.available}/{variant.quantity}</p>
+                            <div className="h-1.5 bg-gray-100 rounded-full w-16 overflow-hidden">
+                              <div className="h-full rounded-full" style={{ width: `${pct}%`, background: vBarColor }} />
+                            </div>
+                          </div>
+                          {variant.location && (
+                            <span className="text-[11px] text-gray-400 hidden lg:flex items-center gap-1"><MapPin className="h-3 w-3" />{variant.location}</span>
+                          )}
+                          <StatusBadge status={variant.status} />
+                          <div onClick={e => e.stopPropagation()}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => navigate(`/inventory/${variant.id}`)}><Eye className="h-4 w-4 mr-2" />{t('View Details')}</DropdownMenuItem>
+                                <DropdownMenuItem onClick={e => openEdit(variant, e)}><Pencil className="h-4 w-4 mr-2" />{t('Edit')}</DropdownMenuItem>
+                                <DropdownMenuItem onClick={e => openRestock(variant, e)}><PackagePlus className="h-4 w-4 mr-2" />{t('Add Stock')}</DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={e => handleDeleteItem(variant, e)}><Trash2 className="h-4 w-4 mr-2" />{t('Delete')}</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+      ) : null}
 
       {/* ══════════════════════════════════════════════════════════
           DIALOGS

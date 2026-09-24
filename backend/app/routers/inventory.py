@@ -77,6 +77,116 @@ def create_item(body: ItemCreate, user: User = Depends(require("inventory:create
     return item
 
 
+@router.get("/grouped")
+def list_grouped(
+    user: User = Depends(require("inventory:read")),
+    db: Session = Depends(get_db),
+):
+    """
+    Returns inventory in grouped form:
+    [
+      { "type": "group",      "group": {...rollup}, "variants": [...items] },
+      { "type": "standalone", "item": {...} },
+    ]
+    Groups are sorted by name; standalone items sorted by name too.
+    """
+    items = db.query(Item).filter(Item.organization_id == user.organization_id).all()
+    groups = (
+        db.query(ItemVariantGroup)
+        .filter(ItemVariantGroup.organization_id == user.organization_id)
+        .order_by(ItemVariantGroup.name)
+        .all()
+    )
+
+    # Build a lookup: group_id → variants
+    from collections import defaultdict
+    grouped_map: dict = defaultdict(list)
+    standalone = []
+    for item in items:
+        if item.variant_group_id:
+            grouped_map[item.variant_group_id].append(item)
+        else:
+            standalone.append(item)
+
+    result = []
+    for group in groups:
+        variants = grouped_map.get(group.id, [])
+        total_qty = sum(v.quantity for v in variants)
+        total_available = sum(v.available for v in variants)
+        statuses = [v.status for v in variants]
+        if "out_of_stock" in statuses:
+            rollup_status = "out_of_stock"
+        elif "low_stock" in statuses:
+            rollup_status = "low_stock"
+        else:
+            rollup_status = "in_stock" if variants else "out_of_stock"
+        result.append({
+            "type": "group",
+            "group": {
+                "id": group.id,
+                "organizationId": group.organization_id,
+                "name": group.name,
+                "description": group.description,
+                "categoryId": group.category_id,
+                "createdAt": group.created_at,
+                "variantCount": len(variants),
+                "totalQty": total_qty,
+                "totalAvailable": total_available,
+                "status": rollup_status,
+            },
+            "variants": [
+                {
+                    "id": v.id,
+                    "organizationId": v.organization_id,
+                    "name": v.name,
+                    "sku": v.sku,
+                    "categoryId": v.category_id or "",
+                    "categoryName": v.category_name or "",
+                    "module": v.module or "general",
+                    "quantity": v.quantity,
+                    "available": v.available,
+                    "reserved": v.reserved,
+                    "minQuantity": v.min_quantity,
+                    "reorderQty": v.reorder_qty,
+                    "location": v.location or "",
+                    "status": v.status,
+                    "lastUpdated": v.last_updated,
+                    "variantGroupId": v.variant_group_id,
+                    "variantLabel": v.variant_label,
+                }
+                for v in variants
+            ],
+        })
+
+    # Standalone items sorted by name
+    standalone.sort(key=lambda i: i.name.lower())
+    for item in standalone:
+        result.append({
+            "type": "standalone",
+            "item": {
+                "id": item.id,
+                "organizationId": item.organization_id,
+                "name": item.name,
+                "sku": item.sku,
+                "categoryId": item.category_id or "",
+                "categoryName": item.category_name or "",
+                "module": item.module or "general",
+                "quantity": item.quantity,
+                "available": item.available,
+                "reserved": item.reserved,
+                "minQuantity": item.min_quantity,
+                "reorderQty": item.reorder_qty,
+                "location": item.location or "",
+                "status": item.status,
+                "lastUpdated": item.last_updated,
+                "variantGroupId": item.variant_group_id,
+                "variantLabel": item.variant_label,
+            },
+        })
+
+    return result
+
+
 @router.get("/{item_id}", response_model=ItemOut)
 def get_item(item_id: str, user: User = Depends(require("inventory:read")), db: Session = Depends(get_db)):
     item = db.query(Item).filter(Item.id == item_id).first()

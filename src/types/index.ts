@@ -128,6 +128,8 @@ export interface Item {
   location: string;
   status: StockStatus;
   lastUpdated: string;
+  variantGroupId?: string;
+  variantLabel?: string;
   attributes?: Record<string, string | number | boolean>;
   uniform?: {
     classGrade: string;
@@ -155,6 +157,34 @@ export interface Item {
     prescriptionRequired: boolean;
   };
 }
+
+// --- Variant Groups ---
+
+export interface ItemVariantGroup {
+  id: string;
+  organizationId: string;
+  name: string;
+  description?: string;
+  categoryId?: string;
+  createdAt?: string;
+  variantCount: number;
+  totalQty: number;
+  totalAvailable: number;
+  status: StockStatus;
+}
+
+export interface VariantItemCreate {
+  label: string;
+  sku: string;
+  quantity: number;
+  minQuantity?: number;
+  reorderQty?: number;
+  location?: string;
+}
+
+export type GroupedInventoryRow =
+  | { type: 'standalone'; item: Item }
+  | { type: 'group'; group: ItemVariantGroup; variants: Item[] };
 
 // --- Transactions ---
 
