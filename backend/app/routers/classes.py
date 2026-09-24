@@ -55,6 +55,25 @@ def _fee_per_student(cls: OrgClass) -> int:
     return sum((i.unit_price or 0) * (i.quantity or 1) for i in cls.items)
 
 
+def _recalculate_fees(cls: OrgClass, db: Session):
+    """Update fee amounts for unpaid/partial/waived students when class items change."""
+    total = _fee_per_student(cls)
+    stale = db.query(FeeRecord).filter(
+        FeeRecord.class_id == cls.id,
+        FeeRecord.status.in_(["unpaid", "partial", "waived"]),
+    ).all()
+    for fee in stale:
+        fee.total_amount = total
+        if total == 0:
+            fee.status = "waived"
+        elif fee.paid_amount >= total:
+            fee.status = "paid"
+        elif fee.paid_amount > 0:
+            fee.status = "partial"
+        else:
+            fee.status = "unpaid"
+
+
 def _auto_assign_fees(cls: OrgClass, db: Session, org_id: str, recipient_ids: list[str] | None = None) -> int:
     """Create FeeRecords for enrolled students who don't have one yet.
     If recipient_ids is given, only create for those students."""
@@ -278,6 +297,10 @@ def add_class_item(
         notes=body.notes,
     )
     db.add(item)
+    db.flush()
+    db.refresh(cls)
+    _recalculate_fees(cls, db)
+    _auto_assign_fees(cls, db, user.organization_id)
     db.commit()
     db.refresh(cls)
     return _build_out(cls, db)
@@ -302,6 +325,9 @@ def update_class_item(
         raise HTTPException(404, "Item not found")
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(item, field, value)
+    db.flush()
+    db.refresh(cls)
+    _recalculate_fees(cls, db)
     db.commit()
     db.refresh(cls)
     return _build_out(cls, db)
@@ -324,6 +350,9 @@ def remove_class_item(
     if not item:
         raise HTTPException(404, "Item not found")
     db.delete(item)
+    db.flush()
+    db.refresh(cls)
+    _recalculate_fees(cls, db)
     db.commit()
     db.refresh(cls)
     return _build_out(cls, db)
@@ -357,8 +386,9 @@ def import_template(
             condition_issued=ti.condition_issued or "New",
             notes=ti.notes,
         ))
-    db.flush()  # ensure items are visible to _auto_assign_fees
+    db.flush()  # ensure items are visible to fee helpers
     db.refresh(cls)
+    _recalculate_fees(cls, db)
     _auto_assign_fees(cls, db, user.organization_id)
     db.commit()
     db.refresh(cls)

@@ -617,49 +617,11 @@ export function RecipientDetailPage() {
                     {fee.status === 'paid' && (
                       <>
                         <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">{t('Paid')}</Badge>
-                        <Button size="sm" onClick={async () => {
-                          try {
-                            await feeService.distribute(fee.id);
-                            toast({ title: t('Items distributed!') });
-                            // Refresh to get updated assignments + fees
-                            const [updatedFees, updatedAsgns] = await Promise.all([
-                              feeService.getByRecipient(id!),
-                              recipientService.getAssignments(currentOrg!.id, id!),
-                            ]);
-                            setFees(updatedFees);
-                            setAssignments(updatedAsgns);
-                            const updated = updatedFees.find(f => f.id === fee.id);
-                            if (updated) openReceipt(updated);
-                          } catch (err: unknown) {
-                            toast({ title: t('Distribution failed'), description: err instanceof Error ? err.message : '', variant: 'destructive' });
-                          }
-                        }}>
-                          <Truck className="h-3.5 w-3.5 mr-1" /> {t('Distribute')}
-                        </Button>
+                        <span className="text-xs text-muted-foreground">{t('Distribute via Fee Collection')}</span>
                       </>
                     )}
                     {fee.status === 'waived' && !fee.distributedDate && (
-                      <>
-                        <Badge variant="outline" className="bg-gray-100 text-gray-600">{t('Waived')}</Badge>
-                        <Button size="sm" onClick={async () => {
-                          try {
-                            await feeService.distribute(fee.id);
-                            toast({ title: t('Items distributed!') });
-                            const [updatedFees, updatedAsgns] = await Promise.all([
-                              feeService.getByRecipient(id!),
-                              recipientService.getAssignments(currentOrg!.id, id!),
-                            ]);
-                            setFees(updatedFees);
-                            setAssignments(updatedAsgns);
-                            const updated = updatedFees.find(f => f.id === fee.id);
-                            if (updated) openReceipt(updated);
-                          } catch (err: unknown) {
-                            toast({ title: t('Distribution failed'), description: err instanceof Error ? err.message : '', variant: 'destructive' });
-                          }
-                        }}>
-                          <Truck className="h-3.5 w-3.5 mr-1" /> {t('Distribute')}
-                        </Button>
-                      </>
+                      <Badge variant="outline" className="bg-gray-100 text-gray-600">{t('Waived')}</Badge>
                     )}
                     {fee.status === 'distributed' && (
                       <>

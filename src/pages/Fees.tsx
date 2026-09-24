@@ -242,10 +242,7 @@ export function FeesPage() {
                       return (
                         <tr key={s.recipientId} className="hover:bg-muted/30">
                           <td className="px-4 py-3 text-muted-foreground">{idx + 1}</td>
-                          <td
-                            className="px-4 py-3 font-medium cursor-pointer hover:underline"
-                            onClick={() => navigate(`/recipients/${s.recipientId}`)}
-                          >
+                          <td className="px-4 py-3 font-medium">
                             {s.name}
                           </td>
                           <td className="px-4 py-3 text-muted-foreground">{s.identifier ?? '—'}</td>
