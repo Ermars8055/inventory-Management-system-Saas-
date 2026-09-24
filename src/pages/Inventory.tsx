@@ -25,7 +25,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import type { Item, Category, Recipient, GroupedInventoryRow } from '@/types';
+import type { Item, Category, Recipient, GroupedInventoryRow, ItemVariantGroup } from '@/types';
 
 const EMPTY_FORM = { name: '', sku: '', categoryId: '', categoryName: '', module: 'general', quantity: '', location: '', minQuantity: '10', reorderQty: '50', attributes: {} as Record<string, string | number | boolean>, uniform: null as { size: string; gender: string } | null, book: null as { isbn: string; subject: string } | null, medicine: null as { batchNumber: string; expiryDate: string } | null };
 
@@ -37,6 +37,8 @@ const MODULE_OPTIONS = [
   { value: 'assets', label: 'Assets' },
 ];
 const EMPTY_ISSUE = { recipientId: '', quantity: '1', conditionIssued: 'Good', expectedReturn: '' };
+type VRow = { label: string; sku: string; quantity: string; minQuantity: string; location: string };
+const EMPTY_VROW: VRow = { label: '', sku: '', quantity: '0', minQuantity: '10', location: '' };
 
 // ── Colour helpers ─────────────────────────────────────────────────────────────
 const CAT_PALETTE = [
@@ -186,6 +188,16 @@ export function InventoryPage() {
   const [restockForm, setRestockForm] = useState({ quantity: '', reference: '', notes: '' });
   const [restockSaving, setRestockSaving] = useState(false);
   const [fieldsSheetOpen, setFieldsSheetOpen] = useState(false);
+
+  // Variant create mode
+  const [itemMode, setItemMode] = useState<'single' | 'variant'>('single');
+  const [variantProductForm, setVariantProductForm] = useState({ name: '', description: '', categoryId: '' });
+  const [variantRows, setVariantRows] = useState<VRow[]>([{ ...EMPTY_VROW }]);
+
+  // Add variant to existing group dialog
+  const [addVariantGroup, setAddVariantGroup] = useState<ItemVariantGroup | null>(null);
+  const [addVariantRow, setAddVariantRow] = useState<VRow>({ ...EMPTY_VROW });
+  const [addVariantSaving, setAddVariantSaving] = useState(false);
 
   useEffect(() => {
     if (!currentOrg) return;
@@ -403,6 +415,59 @@ export function InventoryPage() {
       setRestockItem(null);
       toast({ title: `${qty} unit${qty > 1 ? 's' : ''} added to ${restockItem.name}` });
     } finally { setRestockSaving(false); }
+  }
+
+  async function handleCreateVariantGroup(e: React.FormEvent) {
+    e.preventDefault();
+    if (!currentOrg || !variantProductForm.name.trim()) return;
+    if (variantRows.some(r => !r.label.trim() || !r.sku.trim())) {
+      toast({ title: t('Each variant needs a label and SKU'), variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    try {
+      await variantGroupService.create({
+        name: variantProductForm.name.trim(),
+        description: variantProductForm.description || undefined,
+        categoryId: variantProductForm.categoryId || undefined,
+        variants: variantRows.map(r => ({
+          label: r.label.trim(),
+          sku: r.sku.trim(),
+          quantity: Number(r.quantity),
+          minQuantity: Number(r.minQuantity),
+          location: r.location || undefined,
+        })),
+      });
+      await reloadAll();
+      setShowAddDialog(false);
+      setItemMode('single');
+      setVariantProductForm({ name: '', description: '', categoryId: '' });
+      setVariantRows([{ ...EMPTY_VROW }]);
+      toast({ title: t('Variant group created') });
+    } catch (err: unknown) {
+      toast({ title: t('Error'), description: err instanceof Error ? err.message : t('Failed to create'), variant: 'destructive' });
+    } finally { setSaving(false); }
+  }
+
+  async function handleAddVariantToGroup(e: React.FormEvent) {
+    e.preventDefault();
+    if (!addVariantGroup) return;
+    setAddVariantSaving(true);
+    try {
+      await variantGroupService.addVariant(addVariantGroup.id, {
+        label: addVariantRow.label.trim(),
+        sku: addVariantRow.sku.trim(),
+        quantity: Number(addVariantRow.quantity),
+        minQuantity: Number(addVariantRow.minQuantity),
+        location: addVariantRow.location || undefined,
+      });
+      await reloadAll();
+      setAddVariantGroup(null);
+      setAddVariantRow({ ...EMPTY_VROW });
+      toast({ title: t('Variant added') });
+    } catch (err: unknown) {
+      toast({ title: t('Error'), description: err instanceof Error ? err.message : t('Failed to add variant'), variant: 'destructive' });
+    } finally { setAddVariantSaving(false); }
   }
 
   function openIssue(item: Item, e: React.MouseEvent) {
@@ -894,8 +959,8 @@ export function InventoryPage() {
                       size="sm"
                       className="h-7 text-xs border-violet-200 text-violet-700 hover:bg-violet-50"
                       onClick={() => {
-                        setForm({ ...EMPTY_FORM, name: `${group.name} – ` });
-                        setShowAddDialog(true);
+                        setAddVariantRow({ ...EMPTY_VROW });
+                        setAddVariantGroup(group);
                       }}
                     >
                       <Plus className="h-3 w-3 mr-1" />{t('Add Variant')}
@@ -966,9 +1031,114 @@ export function InventoryPage() {
       ══════════════════════════════════════════════════════════ */}
 
       {/* Add / Edit Item */}
-      <Dialog open={showAddDialog} onOpenChange={(open) => { setShowAddDialog(open); if (!open) { setEditItem(null); setForm(EMPTY_FORM); } }}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={showAddDialog} onOpenChange={(open) => { setShowAddDialog(open); if (!open) { setEditItem(null); setForm(EMPTY_FORM); setItemMode('single'); setVariantProductForm({ name: '', description: '', categoryId: '' }); setVariantRows([{ ...EMPTY_VROW }]); } }}>
+        <DialogContent className={itemMode === 'variant' && !editItem ? 'sm:max-w-3xl' : 'sm:max-w-md'}>
           <DialogHeader><DialogTitle>{editItem ? t('Edit Item') : t('Add New Item')}</DialogTitle></DialogHeader>
+
+          {/* Mode toggle — only in create mode */}
+          {!editItem && (
+            <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg w-fit">
+              <button
+                type="button"
+                onClick={() => setItemMode('single')}
+                className={`px-3 py-1.5 text-[12px] font-medium rounded-md transition-all ${itemMode === 'single' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                <Package className="h-3.5 w-3.5 inline mr-1.5" />{t('Single Item')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setItemMode('variant')}
+                className={`px-3 py-1.5 text-[12px] font-medium rounded-md transition-all ${itemMode === 'variant' ? 'bg-white shadow-sm text-violet-700' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                <Layers2 className="h-3.5 w-3.5 inline mr-1.5" />{t('Product with Variants')}
+              </button>
+            </div>
+          )}
+
+          {/* ── Variant group create form ── */}
+          {itemMode === 'variant' && !editItem ? (
+            <form onSubmit={handleCreateVariantGroup} className="space-y-4 py-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5 col-span-2">
+                  <Label>{t('Product Name')} *</Label>
+                  <Input
+                    placeholder={t('e.g. Uniform Shirt, Paracetamol')}
+                    required
+                    value={variantProductForm.name}
+                    onChange={e => setVariantProductForm(f => ({ ...f, name: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5 col-span-2">
+                  <Label>{t('Description')}</Label>
+                  <Input
+                    placeholder={t('Optional description')}
+                    value={variantProductForm.description}
+                    onChange={e => setVariantProductForm(f => ({ ...f, description: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5 col-span-2">
+                  <Label>{t('Category')}</Label>
+                  <Select value={variantProductForm.categoryId} onValueChange={val => setVariantProductForm(f => ({ ...f, categoryId: val }))}>
+                    <SelectTrigger><SelectValue placeholder={t('Select category (optional)')} /></SelectTrigger>
+                    <SelectContent>
+                      {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Variant rows */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="flex items-center gap-1.5"><Tag className="h-3.5 w-3.5 text-violet-500" />{t('Variants')}</Label>
+                  <Button type="button" variant="outline" size="sm" className="h-7 text-xs"
+                    onClick={() => setVariantRows(r => [...r, { ...EMPTY_VROW }])}>
+                    <Plus className="h-3 w-3 mr-1" />{t('Add Row')}
+                  </Button>
+                </div>
+                <div className="border border-gray-100 rounded-xl overflow-hidden">
+                  <div className="grid grid-cols-12 gap-0 bg-gray-50 px-3 py-2 text-[11px] font-semibold text-gray-500 border-b border-gray-100">
+                    <span className="col-span-3">{t('Label')} *</span>
+                    <span className="col-span-3">{t('SKU')} *</span>
+                    <span className="col-span-2">{t('Qty')}</span>
+                    <span className="col-span-2">{t('Min Qty')}</span>
+                    <span className="col-span-2">{t('Location')}</span>
+                  </div>
+                  <div className="divide-y divide-gray-50 max-h-56 overflow-y-auto">
+                    {variantRows.map((row, i) => (
+                      <div key={i} className="grid grid-cols-12 gap-1 px-2 py-1.5 items-center">
+                        <Input className="col-span-3 h-8 text-[12px]" placeholder="Size 32" required
+                          value={row.label} onChange={e => setVariantRows(r => r.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
+                        <Input className="col-span-3 h-8 text-[12px] font-mono" placeholder="SKU-001" required
+                          value={row.sku} onChange={e => setVariantRows(r => r.map((x, j) => j === i ? { ...x, sku: e.target.value } : x))} />
+                        <Input className="col-span-2 h-8 text-[12px]" type="number" min="0" placeholder="0"
+                          value={row.quantity} onChange={e => setVariantRows(r => r.map((x, j) => j === i ? { ...x, quantity: e.target.value } : x))} />
+                        <Input className="col-span-2 h-8 text-[12px]" type="number" min="0" placeholder="10"
+                          value={row.minQuantity} onChange={e => setVariantRows(r => r.map((x, j) => j === i ? { ...x, minQuantity: e.target.value } : x))} />
+                        <div className="col-span-2 flex items-center gap-1">
+                          <Input className="h-8 text-[12px] min-w-0" placeholder="Store"
+                            value={row.location} onChange={e => setVariantRows(r => r.map((x, j) => j === i ? { ...x, location: e.target.value } : x))} />
+                          {variantRows.length > 1 && (
+                            <button type="button" className="text-gray-300 hover:text-red-400 shrink-0 transition-colors"
+                              onClick={() => setVariantRows(r => r.filter((_, j) => j !== i))}>
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="pt-2">
+                <Button type="button" variant="outline" onClick={() => { setShowAddDialog(false); setItemMode('single'); }}>{t('Cancel')}</Button>
+                <Button type="submit" disabled={saving}>{saving ? t('Creating…') : t('Create Group')}</Button>
+              </DialogFooter>
+            </form>
+
+          ) : (
+          /* ── Single item form ── */
           <form onSubmit={handleAddItem} className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label htmlFor="item-name">{t('Item Name')} *</Label>
@@ -1062,6 +1232,55 @@ export function InventoryPage() {
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => { setShowAddDialog(false); setEditItem(null); setForm(EMPTY_FORM); }}>{t('Cancel')}</Button>
               <Button type="submit" disabled={saving}>{saving ? t('Saving…') : editItem ? t('Save Changes') : t('Add Item')}</Button>
+            </DialogFooter>
+          </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Variant to existing group */}
+      <Dialog open={!!addVariantGroup} onOpenChange={open => !open && setAddVariantGroup(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Layers2 className="h-4 w-4 text-violet-600" />
+              {t('Add Variant')} — {addVariantGroup?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddVariantToGroup} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>{t('Variant Label')} *</Label>
+              <Input placeholder={t('e.g. Size 36, 650mg, Blue/XL')} required
+                value={addVariantRow.label}
+                onChange={e => setAddVariantRow(r => ({ ...r, label: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('SKU')} *</Label>
+              <Input placeholder={t('e.g. UNI-SH-036')} required
+                value={addVariantRow.sku}
+                onChange={e => setAddVariantRow(r => ({ ...r, sku: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>{t('Initial Quantity')}</Label>
+                <Input type="number" min="0" value={addVariantRow.quantity}
+                  onChange={e => setAddVariantRow(r => ({ ...r, quantity: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t('Low Stock Threshold')}</Label>
+                <Input type="number" min="0" value={addVariantRow.minQuantity}
+                  onChange={e => setAddVariantRow(r => ({ ...r, minQuantity: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('Location')}</Label>
+              <Input placeholder={t('e.g. Main Store')}
+                value={addVariantRow.location}
+                onChange={e => setAddVariantRow(r => ({ ...r, location: e.target.value }))} />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setAddVariantGroup(null)}>{t('Cancel')}</Button>
+              <Button type="submit" disabled={addVariantSaving}>{addVariantSaving ? t('Adding…') : t('Add Variant')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

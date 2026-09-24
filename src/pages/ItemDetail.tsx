@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Package, MapPin, Calendar, TrendingUp, Pencil } from 'lucide-react';
-import { inventoryService, transactionService } from '@/services';
+import { ArrowLeft, Package, MapPin, Calendar, TrendingUp, Pencil, Layers2, Tag, ChevronRight } from 'lucide-react';
+import { inventoryService, transactionService, variantGroupService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useToast } from '@/hooks/use-toast';
 import { getModuleDef } from '@/data/modules';
 import { useTranslation } from '@/hooks/useTranslation';
-import type { Item, StockTransaction } from '@/types';
+import type { Item, StockTransaction, ItemVariantGroup } from '@/types';
 
 const TRANSACTION_LABELS: Record<string, string> = {
   received: 'Received', issued: 'Issued', returned: 'Returned', adjusted: 'Adjusted', damaged: 'Damaged', transferred: 'Transferred',
@@ -27,10 +27,12 @@ export function ItemDetailPage() {
   const { toast } = useToast();
   const [item, setItem] = useState<Item | null>(null);
   const [transactions, setTransactions] = useState<StockTransaction[]>([]);
+  const [siblings, setSiblings] = useState<Item[]>([]);
+  const [groupInfo, setGroupInfo] = useState<ItemVariantGroup | null>(null);
 
   // Edit dialog state
   const [showEdit, setShowEdit] = useState(false);
-  const [editForm, setEditForm] = useState({ name: '', sku: '', location: '', minQuantity: '', reorderQty: '' });
+  const [editForm, setEditForm] = useState({ name: '', sku: '', location: '', minQuantity: '', reorderQty: '', variantLabel: '' });
   const [editSaving, setEditSaving] = useState(false);
 
   function refreshItem() {
@@ -43,6 +45,18 @@ export function ItemDetailPage() {
     refreshItem();
   }, [id]);
 
+  useEffect(() => {
+    if (item?.variantGroupId) {
+      variantGroupService.getVariants(item.variantGroupId).then(setSiblings);
+      variantGroupService.list().then(groups => {
+        setGroupInfo(groups.find(g => g.id === item.variantGroupId) ?? null);
+      });
+    } else {
+      setSiblings([]);
+      setGroupInfo(null);
+    }
+  }, [item?.variantGroupId]);
+
   function openEdit() {
     if (!item) return;
     setEditForm({
@@ -51,6 +65,7 @@ export function ItemDetailPage() {
       location: item.location,
       minQuantity: item.minQuantity != null ? String(item.minQuantity) : '',
       reorderQty: item.reorderQty != null ? String(item.reorderQty) : '',
+      variantLabel: item.variantLabel ?? '',
     });
     setShowEdit(true);
   }
@@ -66,6 +81,7 @@ export function ItemDetailPage() {
         location: editForm.location,
         minQuantity: editForm.minQuantity ? parseInt(editForm.minQuantity) : undefined,
         reorderQty: editForm.reorderQty ? parseInt(editForm.reorderQty) : undefined,
+        variantLabel: editForm.variantLabel || undefined,
       });
       toast({ title: t('Item updated successfully') });
       setShowEdit(false);
@@ -87,6 +103,28 @@ export function ItemDetailPage() {
       <Button variant="ghost" size="sm" onClick={() => navigate('/inventory')} className="mb-4">
         <ArrowLeft className="h-4 w-4 mr-1" /> {t('Back to Inventory')}
       </Button>
+
+      {/* Variant group breadcrumb */}
+      {groupInfo && (
+        <div className="flex items-center gap-2 mb-3 px-1">
+          <div className="flex items-center gap-1.5 text-[12px] text-violet-600 bg-violet-50 border border-violet-100 rounded-lg px-3 py-1.5">
+            <Layers2 className="h-3.5 w-3.5" />
+            <span className="text-gray-400">{t('Part of')}</span>
+            <button
+              className="font-semibold hover:underline"
+              onClick={() => navigate('/inventory')}
+            >
+              {groupInfo.name}
+            </button>
+            <ChevronRight className="h-3 w-3 text-gray-300" />
+            <span className="flex items-center gap-1 text-violet-700">
+              <Tag className="h-3 w-3" />
+              {item.variantLabel}
+            </span>
+          </div>
+          <span className="text-[11px] text-gray-400">{groupInfo.variantCount} {t('variants in group')}</span>
+        </div>
+      )}
 
       <PageHeader
         title={item.name}
@@ -133,6 +171,12 @@ export function ItemDetailPage() {
           <TabsTrigger value="overview">{t('Overview')}</TabsTrigger>
           <TabsTrigger value="stock">{t('Stock')}</TabsTrigger>
           <TabsTrigger value="transactions">{t('Transactions')}</TabsTrigger>
+          {item.variantGroupId && (
+            <TabsTrigger value="variants" className="gap-1.5">
+              <Layers2 className="h-3.5 w-3.5" />{t('Variants')}
+              <span className="ml-1 text-[10px] bg-violet-100 text-violet-700 rounded px-1">{siblings.length}</span>
+            </TabsTrigger>
+          )}
           {item.module === 'uniforms' && <TabsTrigger value="issue-history">{t('Issue History')}</TabsTrigger>}
         </TabsList>
 
@@ -289,6 +333,64 @@ export function ItemDetailPage() {
           </Card>
         </TabsContent>
 
+        {/* Variants Tab */}
+        {item.variantGroupId && (
+          <TabsContent value="variants">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Layers2 className="h-4 w-4 text-violet-600" />
+                  {groupInfo?.name ?? t('Variant Group')}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50/60">
+                      <TableHead className="pl-4">{t('Variant')}</TableHead>
+                      <TableHead>{t('SKU')}</TableHead>
+                      <TableHead className="text-right">{t('Stock')}</TableHead>
+                      <TableHead className="text-right">{t('Available')}</TableHead>
+                      <TableHead>{t('Status')}</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {siblings.map(s => (
+                      <TableRow
+                        key={s.id}
+                        className={`cursor-pointer transition-colors ${s.id === item.id ? 'bg-violet-50' : 'hover:bg-gray-50/70'}`}
+                        onClick={() => s.id !== item.id && navigate(`/inventory/${s.id}`)}
+                      >
+                        <TableCell className="pl-4">
+                          <div className="flex items-center gap-2">
+                            <Tag className="h-3.5 w-3.5 text-violet-400 shrink-0" />
+                            <span className={`text-[13px] font-medium ${s.id === item.id ? 'text-violet-700' : 'text-gray-900'}`}>
+                              {s.variantLabel || s.name}
+                            </span>
+                            {s.id === item.id && <span className="text-[10px] bg-violet-100 text-violet-600 rounded px-1.5 py-0.5">{t('this item')}</span>}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-mono text-[11px] text-gray-400">{s.sku}</TableCell>
+                        <TableCell className="text-right font-semibold">{s.quantity}</TableCell>
+                        <TableCell className="text-right text-emerald-600 font-semibold">{s.available}</TableCell>
+                        <TableCell><StatusBadge status={s.status} /></TableCell>
+                        <TableCell>
+                          {s.id !== item.id && (
+                            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate(`/inventory/${s.id}`)}>
+                              {t('View')} <ChevronRight className="h-3 w-3 ml-1" />
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
         {item.module === 'uniforms' && (
           <TabsContent value="issue-history">
             <Card>
@@ -343,6 +445,16 @@ export function ItemDetailPage() {
               <Label>{t('Location')}</Label>
               <Input value={editForm.location} onChange={(e) => setEditForm({ ...editForm, location: e.target.value })} />
             </div>
+            {item.variantGroupId && (
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5"><Tag className="h-3.5 w-3.5 text-violet-500" />{t('Variant Label')}</Label>
+                <Input
+                  placeholder={t('e.g. Size 32, 500mg, Red/XL')}
+                  value={editForm.variantLabel}
+                  onChange={(e) => setEditForm({ ...editForm, variantLabel: e.target.value })}
+                />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>{t('Min Quantity')}</Label>

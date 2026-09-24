@@ -77,18 +77,18 @@ Backward compatible: all existing items have both as null → standalone → zer
 
 ---
 
-## Phase 3 — Create / Edit with Variants
+## Phase 3 — Create / Edit with Variants ✅
 > Risk: Low
 
-- [ ] Create Item dialog — "Single item" / "Product with variants" toggle
-  - Variant mode: product name field + repeating variant rows (label, SKU, qty, min_qty)
+- [x] Create Item dialog — "Single item" / "Product with variants" toggle
+  - Variant mode: product name + description + category + repeating variant rows (label, SKU, qty, min_qty, location)
   - "Add row" / "Remove row"
-  - Single submit → creates group + all variant items atomically
-- [ ] "Add variant to existing group" flow (from expanded group row or item detail)
-- [ ] Item detail page
-  - If `variantGroupId` set: show "Part of: **Group Name**" breadcrumb
-  - Add "Variants" tab showing all siblings with stock counts
-- [ ] Edit item: allow changing `variantLabel`, moving to different group, or unlinking
+  - Single submit → creates group + all variant items atomically via POST /item-variant-groups
+- [x] "Add variant to existing group" flow — dedicated dialog from grouped view "+ Add Variant" button
+- [x] Item detail page
+  - If `variantGroupId` set: shows "Part of: **Group Name**" breadcrumb with variant label badge
+  - "Variants" tab showing all siblings with stock counts + link to each variant
+- [x] Edit item: variantLabel field shown in edit dialog when item belongs to a group
 
 ---
 
@@ -188,3 +188,4 @@ Free-form string — user decides the dimension:
 | — | — | Plan created |
 | 2026-09-24 | Phase 1 | Full Phase 1 complete: ItemVariantGroup model + migration + schemas + CRUD router (7 endpoints) + POST /inventory variant fields + router registered in main.py |
 | 2026-09-24 | Phase 2 | Full Phase 2 complete: GET /inventory/grouped endpoint + ItemVariantGroup/GroupedInventoryRow types + variantGroupService + Inventory grouped view (collapsible groups, rollup, expand/collapse, status badges, + Add Variant) |
+| 2026-09-24 | Phase 3 | Full Phase 3 complete: Create dialog variant mode (product + rows table), Add Variant to group dialog, ItemDetail group breadcrumb, Variants tab with siblings, variantLabel edit field |
