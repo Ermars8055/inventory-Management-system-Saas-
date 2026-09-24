@@ -74,7 +74,7 @@ export function getNavSections(config?: OrgConfig): NavSection[] {
         { label: 'Classes', path: '/classes', icon: School },
         { label: c.recipientPluralLabel, path: '/recipients', icon: Users2 },
         { label: `${c.assignmentLabel}s`, path: '/assignments', icon: UserCheck },
-        { label: 'Bulk Issue', path: '/bulk-issue', icon: ClipboardList },
+        { label: 'Bulk Issue', path: '/bulk-issue', icon: ClipboardList, module: 'bulk_issue' },
         { label: 'Fee Collection', path: '/fees', icon: Wallet },
         { label: 'Class Report', path: '/class-report', icon: FileChartColumn },
         { label: 'Medicines', path: '/medicines', icon: Pill, module: 'pharmacy' },

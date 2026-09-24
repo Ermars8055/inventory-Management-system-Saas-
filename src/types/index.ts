@@ -18,7 +18,8 @@ export type ModuleId =
   | 'assets'
   | 'procurement'
   | 'maintenance'
-  | 'employee_assets';
+  | 'employee_assets'
+  | 'bulk_issue';
 
 export interface ModuleDefinition {
   id: ModuleId;

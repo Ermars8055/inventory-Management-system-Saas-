@@ -15,6 +15,7 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
   { id: 'procurement', name: 'Procurement', description: 'Manage purchase orders, approvals, and vendor procurement.', icon: 'ShoppingCart', core: false },
   { id: 'maintenance', name: 'Maintenance', description: 'Schedule and track maintenance for assets and equipment.', icon: 'Wrench', core: false },
   { id: 'employee_assets', name: 'Employee Asset Allocation', description: 'Allocate assets to employees and track assignments.', icon: 'Users', core: false },
+  { id: 'bulk_issue', name: 'Bulk Issue', description: 'Issue class templates to multiple recipients in one shot.', icon: 'ClipboardList', core: false },
 ];
 
 export function getModuleDef(id: ModuleId): ModuleDefinition | undefined {
