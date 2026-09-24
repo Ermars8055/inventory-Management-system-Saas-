@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Wallet, CheckCircle2, Clock, Package, ArrowLeft, School, Users } from 'lucide-react';
+import { Search, Wallet, CheckCircle2, Clock, Package, ArrowLeft, School, Users, Printer } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -13,17 +13,23 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { PrintReceipt } from '@/components/shared/PrintReceipt';
 import { useToast } from '@/hooks/use-toast';
-import type { OrgClass, OrgClassDetail, ClassStudentRow } from '@/types';
+import type { OrgClass, OrgClassDetail, ClassStudentRow, FeeRecord } from '@/types';
 
 const FEE_STATUS: Record<string, { label: string; color: string }> = {
-  no_fee:      { label: 'No Fee',     color: 'text-gray-500 border-gray-200' },
-  unpaid:      { label: 'Pending',    color: 'text-amber-600 border-amber-200 bg-amber-50' },
-  partial:     { label: 'Partial',    color: 'text-blue-600 border-blue-200 bg-blue-50' },
-  paid:        { label: 'Paid',       color: 'text-emerald-600 border-emerald-200 bg-emerald-50' },
-  waived:      { label: 'Waived',     color: 'text-gray-500 border-gray-200' },
+  no_fee:      { label: 'No Fee',      color: 'text-gray-500 border-gray-200' },
+  unpaid:      { label: 'Pending',     color: 'text-amber-600 border-amber-200 bg-amber-50' },
+  partial:     { label: 'Partial',     color: 'text-blue-600 border-blue-200 bg-blue-50' },
+  paid:        { label: 'Paid',        color: 'text-emerald-600 border-emerald-200 bg-emerald-50' },
+  waived:      { label: 'Waived',      color: 'text-gray-500 border-gray-200' },
   distributed: { label: 'Distributed', color: 'text-purple-600 border-purple-200 bg-purple-50' },
 };
+
+interface ReceiptState {
+  fee: FeeRecord;
+  student: ClassStudentRow;
+}
 
 export function FeesPage() {
   const { currentOrg } = useOrganization();
@@ -43,6 +49,13 @@ export function FeesPage() {
   const [collectAmount, setCollectAmount] = useState('');
   const [collectNotes, setCollectNotes] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Receipt after payment
+  const [receiptState, setReceiptState] = useState<ReceiptState | null>(null);
+
+  // Distribute confirmation
+  const [distributeTarget, setDistributeTarget] = useState<ClassStudentRow | null>(null);
+  const [distributing, setDistributing] = useState(false);
 
   useEffect(() => {
     if (!currentOrg) return;
@@ -71,14 +84,17 @@ export function FeesPage() {
     setSelectedClass(cls);
   }
 
+  // Step 1: Record payment → show receipt
   async function handleCollect() {
     if (!collectTarget?.feeRecordId) return;
     const amt = parseFloat(collectAmount);
     if (isNaN(amt) || amt <= 0) return;
     setSaving(true);
     try {
-      await feeService.pay(collectTarget.feeRecordId, amt, collectNotes || undefined);
+      const updatedFee = await feeService.pay(collectTarget.feeRecordId, amt, collectNotes || undefined);
       await refreshSelectedClass();
+      // Show receipt immediately after payment
+      setReceiptState({ fee: updatedFee, student: collectTarget });
       setCollectTarget(null);
       setCollectAmount('');
       setCollectNotes('');
@@ -102,14 +118,19 @@ export function FeesPage() {
     }
   }
 
-  async function handleDistribute(student: ClassStudentRow) {
-    if (!student.feeRecordId) return;
+  // Step 2: Distribute — requires confirmation
+  async function handleDistributeConfirm() {
+    if (!distributeTarget?.feeRecordId) return;
+    setDistributing(true);
     try {
-      await feeService.distribute(student.feeRecordId);
+      await feeService.distribute(distributeTarget.feeRecordId);
       await refreshSelectedClass();
+      setDistributeTarget(null);
       toast({ title: t('Items distributed') });
     } catch {
       toast({ title: t('Error'), description: t('Failed to distribute'), variant: 'destructive' });
+    } finally {
+      setDistributing(false);
     }
   }
 
@@ -136,6 +157,15 @@ export function FeesPage() {
   }, [selectedClass, studentSearch]);
 
   if (!currentOrg) return null;
+
+  // Receipt items from current class
+  const receiptItems = selectedClass?.items.map(ci => ({
+    name: ci.itemName,
+    qty: ci.quantity,
+    details: ci.unitPrice > 0
+      ? `${config.currencySymbol}${ci.unitPrice} × ${ci.quantity} = ${config.currencySymbol}${ci.unitPrice * ci.quantity}`
+      : undefined,
+  })) ?? [];
 
   // ── Student view (class selected) ─────────────────────────────────────────
   if (selectedClass) {
@@ -182,6 +212,15 @@ export function FeesPage() {
           />
         </div>
 
+        {/* Flow guide */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4 px-1">
+          <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">1. Assign Fee</span>
+          <span>→</span>
+          <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">2. Collect Payment + Print Receipt</span>
+          <span>→</span>
+          <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-700 font-medium">3. Distribute Items</span>
+        </div>
+
         {filteredStudents.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">
             {studentSearch ? t('No students match the search.') : t('No students enrolled.')}
@@ -199,7 +238,7 @@ export function FeesPage() {
                       <th className="text-center px-4 py-2.5 text-xs font-semibold">{t('Status')}</th>
                       <th className="text-right px-4 py-2.5 text-xs font-semibold">{t('Total')}</th>
                       <th className="text-right px-4 py-2.5 text-xs font-semibold">{t('Paid')}</th>
-                      <th className="text-right px-4 py-2.5 text-xs font-semibold">{t('Actions')}</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-semibold">{t('Action')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -208,7 +247,10 @@ export function FeesPage() {
                       return (
                         <tr key={s.recipientId} className="hover:bg-muted/30">
                           <td className="px-4 py-3 text-muted-foreground">{idx + 1}</td>
-                          <td className="px-4 py-3 font-medium cursor-pointer hover:underline" onClick={() => navigate(`/recipients/${s.recipientId}`)}>
+                          <td
+                            className="px-4 py-3 font-medium cursor-pointer hover:underline"
+                            onClick={() => navigate(`/recipients/${s.recipientId}`)}
+                          >
                             {s.name}
                           </td>
                           <td className="px-4 py-3 text-muted-foreground">{s.identifier ?? '—'}</td>
@@ -219,24 +261,27 @@ export function FeesPage() {
                             {s.totalAmount > 0 ? `${config.currencySymbol}${s.totalAmount}` : '—'}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            {s.totalAmount > 0 ? `${config.currencySymbol}${s.paidAmount}` : '—'}
+                            {s.paidAmount > 0 ? `${config.currencySymbol}${s.paidAmount}` : '—'}
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex items-center justify-end gap-1.5">
+                              {/* Step 1: Assign fee (no fee record yet) */}
                               {s.feeStatus === 'no_fee' && selectedClass.items.length > 0 && (
                                 <Button size="sm" variant="outline" className="h-7 text-xs"
                                   onClick={() => handleAssignFee(s)}>
                                   {t('Assign Fee')}
                                 </Button>
                               )}
+
+                              {/* Step 2: Collect payment */}
                               {(s.feeStatus === 'unpaid' || s.feeStatus === 'partial') && (
                                 <>
-                                  <Button size="sm" className="h-7 text-xs"
+                                  <Button size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700"
                                     onClick={() => {
                                       setCollectTarget(s);
                                       setCollectAmount(String(s.totalAmount - s.paidAmount));
                                     }}>
-                                    {t('Collect')}
+                                    {t('Collect Fee')}
                                   </Button>
                                   <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground"
                                     onClick={() => handleWaive(s)}>
@@ -244,12 +289,15 @@ export function FeesPage() {
                                   </Button>
                                 </>
                               )}
+
+                              {/* Step 3: Distribute (only after paid/waived) */}
                               {(s.feeStatus === 'paid' || s.feeStatus === 'waived') && (
-                                <Button size="sm" variant="outline" className="h-7 text-xs"
-                                  onClick={() => handleDistribute(s)}>
-                                  <Package className="h-3 w-3 mr-1" /> {t('Distribute')}
+                                <Button size="sm" className="h-7 text-xs"
+                                  onClick={() => setDistributeTarget(s)}>
+                                  <Package className="h-3 w-3 mr-1" /> {t('Distribute Items')}
                                 </Button>
                               )}
+
                               {s.feeStatus === 'distributed' && (
                                 <span className="text-xs text-purple-600 font-medium flex items-center gap-1">
                                   <CheckCircle2 className="h-3.5 w-3.5" /> {t('Done')}
@@ -267,24 +315,27 @@ export function FeesPage() {
           </Card>
         )}
 
-        {/* Collect Fee Dialog */}
+        {/* ── Step 2 Dialog: Collect Fee ──────────────────────────────────── */}
         <Dialog open={!!collectTarget} onOpenChange={open => !open && setCollectTarget(null)}>
           <DialogContent className="sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>{t('Collect Fee')} — {collectTarget?.name}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-2">
-              <div className="text-sm text-muted-foreground space-y-1">
-                <p>{t('Total')}: <strong>{config.currencySymbol}{collectTarget?.totalAmount}</strong> · {t('Paid')}: <strong>{config.currencySymbol}{collectTarget?.paidAmount}</strong></p>
-                <p>{t('Balance')}: <strong className="text-amber-600">{config.currencySymbol}{(collectTarget?.totalAmount ?? 0) - (collectTarget?.paidAmount ?? 0)}</strong></p>
+              <div className="text-sm text-muted-foreground space-y-1 p-3 bg-muted/40 rounded-lg">
+                <p>{t('Class')}: <strong>{selectedClass.name}</strong></p>
+                <p>{t('Total')}: <strong>{config.currencySymbol}{collectTarget?.totalAmount}</strong></p>
+                <p>{t('Already Paid')}: <strong>{config.currencySymbol}{collectTarget?.paidAmount}</strong></p>
+                <p>{t('Balance Due')}: <strong className="text-amber-600">{config.currencySymbol}{(collectTarget?.totalAmount ?? 0) - (collectTarget?.paidAmount ?? 0)}</strong></p>
               </div>
               <div className="space-y-1.5">
-                <Label>{t('Amount Paid')} *</Label>
+                <Label>{t('Amount Received')} *</Label>
                 <Input
                   type="number" min={1}
                   value={collectAmount}
                   onChange={e => setCollectAmount(e.target.value)}
                   placeholder="0"
+                  autoFocus
                 />
               </div>
               <div className="space-y-1.5">
@@ -292,13 +343,78 @@ export function FeesPage() {
                 <Input
                   value={collectNotes}
                   onChange={e => setCollectNotes(e.target.value)}
-                  placeholder={t('e.g. Cash payment')}
+                  placeholder={t('e.g. Cash payment, Cheque no.')}
                 />
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setCollectTarget(null)}>{t('Cancel')}</Button>
-              <Button onClick={handleCollect} disabled={saving}>{saving ? t('Saving…') : t('Record Payment')}</Button>
+              <Button onClick={handleCollect} disabled={saving}>
+                {saving ? t('Saving…') : t('Record & Print Receipt')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ── Receipt after payment ────────────────────────────────────────── */}
+        {receiptState && (
+          <PrintReceipt
+            open={!!receiptState}
+            onOpenChange={(open) => !open && setReceiptState(null)}
+            orgName={currentOrg.name}
+            orgAddress={currentOrg.address}
+            orgLogoUrl={currentOrg.logoUrl}
+            title={t('Fee Payment Receipt')}
+            date={receiptState.fee.paymentDate ?? new Date().toISOString().split('T')[0]}
+            fields={[
+              { label: t('Student'), value: receiptState.student.name },
+              { label: t('Roll No'), value: receiptState.student.identifier ?? '—' },
+              { label: t('Class'), value: selectedClass.name },
+              ...(selectedClass.academicYear ? [{ label: t('Academic Year'), value: selectedClass.academicYear }] : []),
+              { label: t('Total Fee'), value: `${config.currencySymbol}${receiptState.fee.totalAmount}` },
+              { label: t('Amount Paid'), value: `${config.currencySymbol}${receiptState.fee.paidAmount}` },
+              { label: t('Balance'), value: `${config.currencySymbol}${receiptState.fee.totalAmount - receiptState.fee.paidAmount}` },
+              { label: t('Status'), value: receiptState.fee.status === 'paid' ? t('Paid in Full') : t('Partial Payment') },
+              ...(receiptState.fee.notes ? [{ label: t('Notes'), value: receiptState.fee.notes }] : []),
+            ]}
+            items={receiptItems}
+            showSignature
+            footer={`${t('Thank you')} | ${currentOrg.name}`}
+          />
+        )}
+
+        {/* ── Step 3 Dialog: Distribute confirmation ───────────────────────── */}
+        <Dialog open={!!distributeTarget} onOpenChange={open => !open && setDistributeTarget(null)}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>{t('Distribute Items')} — {distributeTarget?.name}</DialogTitle>
+            </DialogHeader>
+            <div className="py-2 space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {t('Confirm that the following items will be physically given to')} <strong>{distributeTarget?.name}</strong>:
+              </p>
+              {selectedClass.items.length > 0 ? (
+                <div className="border rounded-lg divide-y text-sm">
+                  {selectedClass.items.map(ci => (
+                    <div key={ci.id} className="flex justify-between items-center px-3 py-2">
+                      <span className="font-medium">{ci.itemName}</span>
+                      <span className="text-muted-foreground">{ci.quantity} {t('units')}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">{t('No items configured for this class.')}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {t('This will reduce inventory stock and mark the student as Distributed.')}
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDistributeTarget(null)}>{t('Cancel')}</Button>
+              <Button onClick={handleDistributeConfirm} disabled={distributing}>
+                <Package className="h-3.5 w-3.5 mr-1.5" />
+                {distributing ? t('Distributing…') : t('Confirm Distribution')}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -325,62 +441,58 @@ export function FeesPage() {
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {classes.map(cls => {
-            const totalStudents = cls.studentCount;
-            const pending = cls.unpaidCount;
-            const paid = cls.paidCount;
-            const dist = cls.distributedCount;
-            return (
-              <Card
-                key={cls.id}
-                className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => selectClass(cls.id)}
-              >
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p className="font-semibold text-base">{cls.name}</p>
-                      {cls.academicYear && (
-                        <p className="text-xs text-muted-foreground mt-0.5">{cls.academicYear}</p>
-                      )}
-                    </div>
-                    <Badge variant={cls.status === 'active' ? 'default' : 'secondary'} className="text-xs shrink-0">
-                      {t(cls.status === 'active' ? 'Active' : 'Closed')}
-                    </Badge>
+          {classes.map(cls => (
+            <Card
+              key={cls.id}
+              className="cursor-pointer hover:shadow-md transition-shadow"
+              onClick={() => selectClass(cls.id)}
+            >
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <p className="font-semibold text-base">{cls.name}</p>
+                    {cls.academicYear && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{cls.academicYear}</p>
+                    )}
                   </div>
+                  <Badge variant={cls.status === 'active' ? 'default' : 'secondary'} className="text-xs shrink-0">
+                    {t(cls.status === 'active' ? 'Active' : 'Closed')}
+                  </Badge>
+                </div>
 
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground mb-3">
-                    <Users className="h-3.5 w-3.5" />
-                    <span>{totalStudents} {t('students')}</span>
-                    {cls.totalFeePerStudent > 0 && (
-                      <span className="ml-2 font-medium text-foreground">{config.currencySymbol}{cls.totalFeePerStudent} {t('per student')}</span>
-                    )}
-                  </div>
+                <div className="flex items-center gap-1 text-sm text-muted-foreground mb-3">
+                  <Users className="h-3.5 w-3.5" />
+                  <span>{cls.studentCount} {t('students')}</span>
+                  {cls.totalFeePerStudent > 0 && (
+                    <span className="ml-2 font-medium text-foreground">
+                      {config.currencySymbol}{cls.totalFeePerStudent} {t('per student')}
+                    </span>
+                  )}
+                </div>
 
-                  <div className="flex gap-2 flex-wrap">
-                    {pending > 0 && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                        {pending} {t('pending')}
-                      </span>
-                    )}
-                    {paid > 0 && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        {paid} {t('paid')}
-                      </span>
-                    )}
-                    {dist > 0 && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
-                        {dist} {t('distributed')}
-                      </span>
-                    )}
-                    {pending === 0 && paid === 0 && dist === 0 && (
-                      <span className="text-xs text-muted-foreground">{t('No fees assigned yet')}</span>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                <div className="flex gap-2 flex-wrap">
+                  {cls.unpaidCount > 0 && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                      {cls.unpaidCount} {t('pending')}
+                    </span>
+                  )}
+                  {cls.paidCount > 0 && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      {cls.paidCount} {t('paid')}
+                    </span>
+                  )}
+                  {cls.distributedCount > 0 && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                      {cls.distributedCount} {t('distributed')}
+                    </span>
+                  )}
+                  {cls.unpaidCount === 0 && cls.paidCount === 0 && cls.distributedCount === 0 && (
+                    <span className="text-xs text-muted-foreground">{t('No fees assigned yet')}</span>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 
