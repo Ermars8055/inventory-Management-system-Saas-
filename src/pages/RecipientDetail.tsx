@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/hooks/useTranslation';
-import type { Recipient, Assignment, Item } from '@/types';
+import type { Recipient, Assignment, Item, FeeRecord } from '@/types';
 
 const STATUS_BADGE: Record<string, { label: string; class: string }> = {
   issued:           { label: 'Active',          class: 'bg-blue-50 text-blue-700 border-blue-200' },
@@ -68,7 +68,7 @@ export function RecipientDetailPage() {
   const [lostForm, setLostForm] = useState({ fineAmount: '0', notes: '' });
 
   // Fee-first distribution
-  const [fees, setFees] = useState<{ id: string; recipientName: string; templateId?: string; templateName: string; totalAmount: number; paidAmount: number; status: string; paymentDate?: string; distributedDate?: string; notes?: string; createdAt: string }[]>([]);
+  const [fees, setFees] = useState<FeeRecord[]>([]);
   const [templates, setTemplates] = useState<{ id: string; name: string; items: unknown[] }[]>([]);
   const [showAssignPackage, setShowAssignPackage] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('');

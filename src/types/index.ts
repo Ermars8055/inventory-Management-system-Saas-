@@ -326,7 +326,6 @@ export type AssignmentStatus =
   | 'closed';
 
 export type AssignmentMode = 'distribution' | 'lending';
-export type FeeStatus = 'unpaid' | 'partial' | 'paid' | 'waived';
 
 export interface Assignment {
   id: string;

@@ -5,7 +5,7 @@ import {
   CheckCircle2, Clock, XCircle, Download, UserPlus,
 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
-import { classService, feeService, inventoryService, templateService, recipientService } from '@/services';
+import { classService, feeService, inventoryService, classTemplateService, recipientService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -79,7 +79,7 @@ export function ClassDetailPage() {
       classService.getById(id),
       inventoryService.getByOrganization(currentOrg.id),
       recipientService.getByOrganization(currentOrg.id),
-      templateService.getByOrganization(currentOrg.id),
+      classTemplateService.getByOrganization(currentOrg.id),
     ]);
     setCls(detail);
     setInventoryItems(inv);
