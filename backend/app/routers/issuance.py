@@ -135,8 +135,7 @@ def create_assignment(body: AssignmentCreate, user: User = Depends(require("assi
     if item:
         same_org(item.organization_id, user)
         if is_distribution:
-            item.quantity = max(0, item.quantity - body.quantity)
-            item.available = max(0, item.quantity - (item.reserved or 0))
+            item.available = max(0, item.available - body.quantity)
         else:
             item.reserved = (item.reserved or 0) + body.quantity
             item.available = max(0, item.quantity - item.reserved)

@@ -545,15 +545,10 @@ def distribute_paid(
                 inv_item = db.query(Item).filter(Item.id == ci.item_id).first()
                 if inv_item:
                     if is_distribution:
-                        inv_item.quantity = max(0, inv_item.quantity - ci.quantity)
-                        inv_item.available = max(
-                            0, inv_item.quantity - (inv_item.reserved or 0)
-                        )
+                        inv_item.available = max(0, inv_item.available - ci.quantity)
                     else:
                         inv_item.reserved = (inv_item.reserved or 0) + ci.quantity
-                        inv_item.available = max(
-                            0, inv_item.quantity - inv_item.reserved
-                        )
+                        inv_item.available = max(0, inv_item.quantity - inv_item.reserved)
                     inv_item.status = _compute_status(
                         inv_item.available, inv_item.min_quantity or 10
                     )

@@ -258,8 +258,7 @@ def distribute(
             inv_item = db.query(Item).filter(Item.id == item["item_id"]).first()
             if inv_item:
                 if is_distribution:
-                    inv_item.quantity = max(0, inv_item.quantity - item["quantity"])
-                    inv_item.available = max(0, inv_item.quantity - (inv_item.reserved or 0))
+                    inv_item.available = max(0, inv_item.available - item["quantity"])
                 else:
                     inv_item.reserved = (inv_item.reserved or 0) + item["quantity"]
                     inv_item.available = max(0, inv_item.quantity - inv_item.reserved)

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
-import { recipientService, assignmentService, inventoryService, transactionService, feeService, classTemplateService } from '@/services';
+import { recipientService, assignmentService, inventoryService, transactionService, feeService, classTemplateService, classService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { PrintReceipt } from '@/components/shared/PrintReceipt';
 import { Button } from '@/components/ui/button';
@@ -110,7 +110,23 @@ export function RecipientDetailPage() {
       }
     }
 
-    // Try 2: Fall back to this recipient's distributed assignments
+    // Try 2: Load items from the OrgClass (class-based fee flow)
+    if (receiptItems.length === 0 && fee.classId) {
+      try {
+        const cls = await classService.getById(fee.classId);
+        if (cls.items && cls.items.length > 0) {
+          receiptItems = cls.items.map(ci => ({
+            name: ci.itemName,
+            qty: ci.quantity,
+            details: ci.unitPrice > 0
+              ? `${config.currencySymbol}${ci.unitPrice} × ${ci.quantity} = ${config.currencySymbol}${ci.unitPrice * ci.quantity}`
+              : undefined,
+          }));
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Try 3: Fall back to this recipient's distributed assignments
     if (receiptItems.length === 0) {
       const distributed = assignments.filter(a =>
         a.status === 'distributed' || a.status === 'issued'

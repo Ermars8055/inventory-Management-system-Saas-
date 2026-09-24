@@ -121,8 +121,8 @@ def receive_order(po_id: str, body: ReceivePOBody, user: User = Depends(require(
             item = db.query(Item).filter(Item.id == line.item_id).first()
             if item:
                 item.quantity = max(0, item.quantity + receive_line.quantity_received)
-                item.available = max(0, item.quantity - item.reserved)
-                item.status = _compute_status(item.quantity, item.min_quantity or 10)
+                item.available = max(0, item.available + receive_line.quantity_received)
+                item.status = _compute_status(item.available, item.min_quantity or 10)
                 item.last_updated = date.today().isoformat()
 
         tx = StockTransaction(

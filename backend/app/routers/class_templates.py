@@ -222,8 +222,7 @@ def bulk_issue(template_id: str, body: BulkIssueBody, user: User = Depends(requi
                 inv_item = db.query(Item).filter(Item.id == titem.item_id).first()
                 if inv_item:
                     if is_distribution:
-                        inv_item.quantity = max(0, inv_item.quantity - titem.quantity)
-                        inv_item.available = max(0, inv_item.quantity - (inv_item.reserved or 0))
+                        inv_item.available = max(0, inv_item.available - titem.quantity)
                     else:
                         inv_item.reserved = (inv_item.reserved or 0) + titem.quantity
                         inv_item.available = max(0, inv_item.quantity - inv_item.reserved)

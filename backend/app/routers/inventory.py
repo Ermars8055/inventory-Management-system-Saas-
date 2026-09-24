@@ -101,8 +101,8 @@ def adjust_stock(item_id: str, body: StockAdjust, user: User = Depends(require("
         raise HTTPException(404, "Item not found")
     same_org(item.organization_id, user)
     item.quantity = max(0, item.quantity + body.delta)
-    item.available = max(0, item.quantity - item.reserved)
-    item.status = _compute_status(item.quantity, item.min_quantity or 10)
+    item.available = max(0, item.available + body.delta)
+    item.status = _compute_status(item.available, item.min_quantity or 10)
     item.last_updated = date.today().isoformat()
     # Low stock notification
     if item.status in ("low_stock", "out_of_stock"):
