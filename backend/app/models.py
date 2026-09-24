@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Boolean, JSON, ForeignKey, Text, Float
+from sqlalchemy import Column, String, Integer, Boolean, JSON, ForeignKey, Text, Float, UniqueConstraint
 from sqlalchemy.orm import relationship
 from .database import Base
 
@@ -23,14 +23,24 @@ class Organization(Base):
 
 class Category(Base):
     __tablename__ = "categories"
+    __table_args__ = (UniqueConstraint('organization_id', 'name', name='uq_category_org_name'),)
     id = Column(String, primary_key=True)
     organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
     name = Column(String, nullable=False)
     color = Column(String)
 
 
+def compute_item_status(qty: int, min_qty: int = 10) -> str:
+    if qty == 0:
+        return "out_of_stock"
+    if qty <= min_qty:
+        return "low_stock"
+    return "in_stock"
+
+
 class Item(Base):
     __tablename__ = "items"
+    __table_args__ = (UniqueConstraint('organization_id', 'sku', name='uq_item_org_sku'),)
     id = Column(String, primary_key=True)
     organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
     name = Column(String, nullable=False)
@@ -70,6 +80,7 @@ class StockTransaction(Base):
 
 class Vendor(Base):
     __tablename__ = "vendors"
+    __table_args__ = (UniqueConstraint('organization_id', 'name', name='uq_vendor_org_name'),)
     id = Column(String, primary_key=True)
     organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
     name = Column(String, nullable=False)
@@ -86,6 +97,7 @@ class Vendor(Base):
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (UniqueConstraint('organization_id', 'email', name='uq_user_org_email'),)
     id = Column(String, primary_key=True)
     organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
     name = Column(String, nullable=False)
@@ -181,6 +193,7 @@ class OrgClass(Base):
     Fee-first flow: assign fees for class → student pays → items distributed.
     """
     __tablename__ = "org_classes"
+    __table_args__ = (UniqueConstraint('organization_id', 'name', 'academic_year', name='uq_orgclass_org_name_year'),)
     id = Column(String, primary_key=True)
     organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
     name = Column(String, nullable=False)       # "Grade 5A"
@@ -219,6 +232,7 @@ class Recipient(Base):
     class_id   = FK to OrgClass (optional — only set for school-style orgs)
     """
     __tablename__ = "recipients"
+    __table_args__ = (UniqueConstraint('organization_id', 'identifier', name='uq_recipient_org_identifier'),)
     id = Column(String, primary_key=True)
     organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
     name = Column(String, nullable=False)

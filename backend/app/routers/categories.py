@@ -16,6 +16,12 @@ def list_categories(user: User = Depends(require("inventory:read")), db: Session
 
 @router.post("", response_model=CategoryOut, status_code=201)
 def create_category(body: CategoryCreate, user: User = Depends(require("inventory:create")), db: Session = Depends(get_db)):
+    existing = db.query(Category).filter(
+        Category.organization_id == user.organization_id,
+        Category.name == body.name,
+    ).first()
+    if existing:
+        raise HTTPException(409, f"A category named '{body.name}' already exists")
     cat = Category(
         id=f"cat_{int(time.time() * 1000)}",
         organization_id=user.organization_id,

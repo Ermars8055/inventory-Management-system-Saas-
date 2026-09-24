@@ -1,8 +1,8 @@
 from __future__ import annotations
 import re
 import html
-from typing import Any, Optional
-from pydantic import BaseModel, ConfigDict, model_validator
+from typing import Any, Optional, Literal
+from pydantic import BaseModel, ConfigDict, model_validator, field_validator, Field
 from pydantic.alias_generators import to_camel
 
 
@@ -14,6 +14,44 @@ def _sanitize(v: str) -> str:
     """Strip HTML tags and escape special chars."""
     v = re.sub(r'<[^>]+>', '', v)
     return html.escape(v).strip()
+
+
+_EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', re.IGNORECASE)
+_ACAD_YEAR_RE = re.compile(r'^\d{4}-\d{2}$')
+
+
+def _clean_phone(v: str | None) -> str | None:
+    """Validate and normalise Indian mobile numbers to 10 digits."""
+    if v is None or v == '':
+        return v
+    digits = re.sub(r'[\s\-\(\)\+\.]', '', v)
+    # Strip leading +91 / 91 country code
+    if digits.startswith('91') and len(digits) == 12:
+        digits = digits[2:]
+    if not digits.isdigit():
+        raise ValueError('Phone number must contain only digits')
+    if len(digits) != 10:
+        raise ValueError(f'Phone number must be exactly 10 digits (got {len(digits)})')
+    return digits
+
+
+def _clean_email(v: str | None) -> str | None:
+    """Validate email format."""
+    if v is None or v == '':
+        return v
+    v = v.strip()
+    if not _EMAIL_RE.match(v):
+        raise ValueError('Invalid email address')
+    return v.lower()
+
+
+def _clean_acad_year(v: str | None) -> str | None:
+    """Validate academic year format YYYY-YY (e.g. 2025-26)."""
+    if v is None or v == '':
+        return v
+    if not _ACAD_YEAR_RE.match(v):
+        raise ValueError('Academic year must be in YYYY-YY format (e.g. 2025-26)')
+    return v
 
 
 class CamelModel(BaseModel):
@@ -87,6 +125,16 @@ class OrganizationUpdate(CamelModel):
     phone: Optional[str] = None
     email: Optional[str] = None
 
+    @field_validator('phone', mode='before')
+    @classmethod
+    def validate_phone(cls, v):
+        return _clean_phone(v)
+
+    @field_validator('email', mode='before')
+    @classmethod
+    def validate_email(cls, v):
+        return _clean_email(v)
+
 
 class ModulesUpdate(CamelModel):
     enabled_modules: list[str]
@@ -145,11 +193,11 @@ class ItemCreate(CamelModel):
     category_id: Optional[str] = None
     category_name: Optional[str] = None
     module: Optional[str] = "general"
-    quantity: int = 0
-    available: Optional[int] = None
-    reserved: int = 0
-    min_quantity: Optional[int] = None
-    reorder_qty: Optional[int] = None
+    quantity: int = Field(default=0, ge=0)
+    available: Optional[int] = Field(default=None, ge=0)
+    reserved: int = Field(default=0, ge=0)
+    min_quantity: Optional[int] = Field(default=None, ge=0)
+    reorder_qty: Optional[int] = Field(default=None, ge=0)
     location: Optional[str] = None
     uniform: Optional[dict[str, Any]] = None
     book: Optional[dict[str, Any]] = None
@@ -163,11 +211,11 @@ class ItemUpdate(CamelModel):
     category_id: Optional[str] = None
     category_name: Optional[str] = None
     module: Optional[str] = None
-    quantity: Optional[int] = None
-    available: Optional[int] = None
-    reserved: Optional[int] = None
-    min_quantity: Optional[int] = None
-    reorder_qty: Optional[int] = None
+    quantity: Optional[int] = Field(default=None, ge=0)
+    available: Optional[int] = Field(default=None, ge=0)
+    reserved: Optional[int] = Field(default=None, ge=0)
+    min_quantity: Optional[int] = Field(default=None, ge=0)
+    reorder_qty: Optional[int] = Field(default=None, ge=0)
     location: Optional[str] = None
     uniform: Optional[dict[str, Any]] = None
     book: Optional[dict[str, Any]] = None
@@ -239,6 +287,16 @@ class VendorCreate(CamelModel):
     vendor_type: Optional[str] = None
     attributes: Optional[dict[str, Any]] = None
 
+    @field_validator('phone', mode='before')
+    @classmethod
+    def validate_phone(cls, v):
+        return _clean_phone(v)
+
+    @field_validator('email', mode='before')
+    @classmethod
+    def validate_email(cls, v):
+        return _clean_email(v)
+
 
 class VendorUpdate(CamelModel):
     name: Optional[str] = None
@@ -249,6 +307,16 @@ class VendorUpdate(CamelModel):
     vendor_type: Optional[str] = None
     status: Optional[str] = None
     attributes: Optional[dict[str, Any]] = None
+
+    @field_validator('phone', mode='before')
+    @classmethod
+    def validate_phone(cls, v):
+        return _clean_phone(v)
+
+    @field_validator('email', mode='before')
+    @classmethod
+    def validate_email(cls, v):
+        return _clean_email(v)
 
 
 # ---------------------------------------------------------------------------
@@ -295,6 +363,11 @@ class RecipientCreate(CamelModel):
     extra_data: Optional[dict[str, Any]] = None
     class_id: Optional[str] = None
 
+    @field_validator('contact', mode='before')
+    @classmethod
+    def validate_contact(cls, v):
+        return _clean_phone(v)
+
 
 class RecipientUpdate(CamelModel):
     name: Optional[str] = None
@@ -303,6 +376,11 @@ class RecipientUpdate(CamelModel):
     contact: Optional[str] = None
     extra_data: Optional[dict[str, Any]] = None
     class_id: Optional[str] = None
+
+    @field_validator('contact', mode='before')
+    @classmethod
+    def validate_contact(cls, v):
+        return _clean_phone(v)
 
 
 # ---------------------------------------------------------------------------
@@ -466,14 +544,24 @@ class UserCreate(CamelModel):
     name: str
     email: str
     password: Optional[str] = None
-    role: str = "staff"
+    role: Literal['org_admin', 'manager', 'staff', 'viewer'] = 'staff'
+
+    @field_validator('email', mode='before')
+    @classmethod
+    def validate_email(cls, v):
+        return _clean_email(v)
 
 
 class UserUpdate(CamelModel):
     name: Optional[str] = None
     email: Optional[str] = None
-    role: Optional[str] = None
-    status: Optional[str] = None
+    role: Optional[Literal['org_admin', 'manager', 'staff', 'viewer']] = None
+    status: Optional[Literal['active', 'inactive']] = None
+
+    @field_validator('email', mode='before')
+    @classmethod
+    def validate_email(cls, v):
+        return _clean_email(v)
 
 
 # ---------------------------------------------------------------------------
@@ -493,8 +581,8 @@ class POLineItemOut(CamelModel):
 class POLineItemCreate(CamelModel):
     item_id: Optional[str] = None
     item_name: str
-    quantity_ordered: int
-    unit_price: int = 0
+    quantity_ordered: int = Field(ge=1)
+    unit_price: int = Field(default=0, ge=0)
 
 
 class ReceiveLineItem(CamelModel):
@@ -525,6 +613,9 @@ class PurchaseOrderOut(CamelModel):
     line_items: list[POLineItemOut] = []
 
 
+_PO_STATUS = Literal['draft', 'pending', 'approved', 'ordered', 'partially_received', 'received', 'cancelled']
+
+
 class PurchaseOrderCreate(CamelModel):
     organization_id: str
     po_number: Optional[str] = None
@@ -535,7 +626,7 @@ class PurchaseOrderCreate(CamelModel):
     ordered_date: Optional[str] = None
     expected_date: Optional[str] = None
     amount: int = 0
-    status: str = "draft"
+    status: _PO_STATUS = 'draft'
     raised_by: Optional[str] = None
     notes: Optional[str] = None
     line_items: list[POLineItemCreate] = []
@@ -549,7 +640,7 @@ class PurchaseOrderUpdate(CamelModel):
     ordered_date: Optional[str] = None
     expected_date: Optional[str] = None
     amount: Optional[int] = None
-    status: Optional[str] = None
+    status: Optional[_PO_STATUS] = None
     raised_by: Optional[str] = None
     notes: Optional[str] = None
 
@@ -665,8 +756,8 @@ class ClassTemplateItemOut(CamelModel):
 class ClassTemplateItemCreate(CamelModel):
     item_id: Optional[str] = None
     item_name: str
-    quantity: int = 1
-    unit_price: int = 0
+    quantity: int = Field(default=1, ge=1)
+    unit_price: int = Field(default=0, ge=0)
     condition_issued: str = "New"
     notes: Optional[str] = None
 
@@ -708,12 +799,22 @@ class ClassTemplateCreate(CamelModel):
     notes: Optional[str] = None
     items: list[ClassTemplateItemCreate] = []
 
+    @field_validator('academic_year', mode='before')
+    @classmethod
+    def validate_academic_year(cls, v):
+        return _clean_acad_year(v)
+
 
 class ClassTemplateUpdate(CamelModel):
     name: Optional[str] = None
     group: Optional[str] = None
     academic_year: Optional[str] = None
     notes: Optional[str] = None
+
+    @field_validator('academic_year', mode='before')
+    @classmethod
+    def validate_academic_year(cls, v):
+        return _clean_acad_year(v)
 
 
 class BulkIssueBody(CamelModel):
@@ -857,16 +958,16 @@ class OrgClassItemOut(CamelModel):
 class OrgClassItemCreate(CamelModel):
     item_id: Optional[str] = None
     item_name: str
-    quantity: int = 1
-    unit_price: int = 0
+    quantity: int = Field(default=1, ge=1)
+    unit_price: int = Field(default=0, ge=0)
     condition_issued: str = "New"
     notes: Optional[str] = None
 
 
 class OrgClassItemUpdate(CamelModel):
     item_name: Optional[str] = None
-    quantity: Optional[int] = None
-    unit_price: Optional[int] = None
+    quantity: Optional[int] = Field(default=None, ge=1)
+    unit_price: Optional[int] = Field(default=None, ge=0)
     condition_issued: Optional[str] = None
     notes: Optional[str] = None
 
@@ -910,12 +1011,22 @@ class OrgClassCreate(CamelModel):
     academic_year: Optional[str] = None
     notes: Optional[str] = None
 
+    @field_validator('academic_year', mode='before')
+    @classmethod
+    def validate_academic_year(cls, v):
+        return _clean_acad_year(v)
+
 
 class OrgClassUpdate(CamelModel):
     name: Optional[str] = None
     academic_year: Optional[str] = None
     notes: Optional[str] = None
     status: Optional[str] = None
+
+    @field_validator('academic_year', mode='before')
+    @classmethod
+    def validate_academic_year(cls, v):
+        return _clean_acad_year(v)
 
 
 class ImportClassTemplateBody(CamelModel):
@@ -938,3 +1049,8 @@ class EnrolStudentBody(CamelModel):
     identifier: Optional[str] = None
     contact: Optional[str] = None
     extra_data: Optional[dict[str, Any]] = None
+
+    @field_validator('contact', mode='before')
+    @classmethod
+    def validate_contact(cls, v):
+        return _clean_phone(v)

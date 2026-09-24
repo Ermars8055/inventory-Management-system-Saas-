@@ -9,8 +9,9 @@ import requests
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic.alias_generators import to_camel
+from ..schemas import _clean_email, _clean_phone
 from ..database import get_db
 from ..models import Organization, User
 from ..module_fields import create_module_fields
@@ -38,6 +39,25 @@ class SignupBody(_Camel):
     email: str
     password: str
     enabled_modules: list[str] = []
+
+    @field_validator('email', mode='before')
+    @classmethod
+    def validate_email(cls, v):
+        return _clean_email(v)
+
+    @field_validator('password', mode='before')
+    @classmethod
+    def validate_password(cls, v):
+        if not v or len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        return v
+
+    @field_validator('org_name', mode='before')
+    @classmethod
+    def validate_org_name(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Organization name is required')
+        return v.strip()
 
 
 def _sanitize_subdomain(s: str) -> str:

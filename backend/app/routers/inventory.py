@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import Item, User
+from ..models import Item, User, compute_item_status
 from ..schemas import ItemOut, ItemCreate, ItemUpdate, StockAdjust
 from ..dependencies import require, same_org, check_limit
 from ..audit import log_action
@@ -11,13 +11,6 @@ from .notifications import create_notification
 
 router = APIRouter(prefix="/inventory", tags=["inventory"])
 
-
-def _compute_status(qty: int, min_qty: int = 10) -> str:
-    if qty == 0:
-        return "out_of_stock"
-    if qty <= min_qty:
-        return "low_stock"
-    return "in_stock"
 
 
 @router.get("", response_model=list[ItemOut])
@@ -50,7 +43,7 @@ def create_item(body: ItemCreate, user: User = Depends(require("inventory:create
         min_quantity=min_qty,
         reorder_qty=reorder_qty,
         location=body.location,
-        status=_compute_status(body.quantity, min_qty),
+        status=compute_item_status(body.quantity, min_qty),
         last_updated=date.today().isoformat(),
         uniform=body.uniform,
         book=body.book,
@@ -80,14 +73,16 @@ def update_item(item_id: str, body: ItemUpdate, user: User = Depends(require("in
         raise HTTPException(404, "Item not found")
     same_org(item.organization_id, user)
     data = body.model_dump(exclude_none=True, by_alias=False)
+    before = {k: getattr(item, k) for k in data}
     for field, value in data.items():
         setattr(item, field, value)
     if "quantity" in data:
-        item.status = _compute_status(item.quantity, item.min_quantity or 10)
+        item.status = compute_item_status(item.quantity, item.min_quantity or 10)
     if "min_quantity" in data and "quantity" not in data:
-        item.status = _compute_status(item.quantity, item.min_quantity or 10)
+        item.status = compute_item_status(item.quantity, item.min_quantity or 10)
     item.last_updated = date.today().isoformat()
-    log_action(db, user, "update", "item", item.id, f"Updated item: {item.name}")
+    log_action(db, user, "update", "item", item.id, f"Updated item: {item.name}",
+               before=before, after=data)
     db.commit()
     db.refresh(item)
     return item
@@ -100,15 +95,22 @@ def adjust_stock(item_id: str, body: StockAdjust, user: User = Depends(require("
     if not item:
         raise HTTPException(404, "Item not found")
     same_org(item.organization_id, user)
+    old_available = item.available
+    old_quantity = item.quantity
     item.quantity = max(0, item.quantity + body.delta)
     item.available = max(0, item.available + body.delta)
-    item.status = _compute_status(item.available, item.min_quantity or 10)
+    item.status = compute_item_status(item.available, item.min_quantity or 10)
     item.last_updated = date.today().isoformat()
     # Low stock notification
     if item.status in ("low_stock", "out_of_stock"):
         create_notification(db, user.organization_id, "low_stock",
             f"Low stock: {item.name}",
             f"{item.name} has {item.quantity} units left (min: {item.min_quantity or 10})")
+    direction = "+" if body.delta >= 0 else ""
+    log_action(db, user, "stock_adjust", "item", item.id,
+               f"Stock adjusted: {item.name} {direction}{body.delta}",
+               before={"quantity": old_quantity, "available": old_available},
+               after={"quantity": item.quantity, "available": item.available})
     db.commit()
     db.refresh(item)
     return item

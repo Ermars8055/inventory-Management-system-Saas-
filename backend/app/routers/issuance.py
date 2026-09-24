@@ -3,12 +3,13 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import Recipient, Assignment, Item, User, Organization, StockTransaction
+from ..models import Recipient, Assignment, Item, User, Organization, StockTransaction, compute_item_status
 from ..schemas import (
     RecipientOut, RecipientCreate, RecipientUpdate,
     AssignmentOut, AssignmentCreate, ReturnBody, LostBody,
 )
 from ..dependencies import require, same_org
+from ..audit import log_action
 
 router = APIRouter(tags=["issuance"])
 
@@ -36,6 +37,8 @@ def create_recipient(body: RecipientCreate, user: User = Depends(require("recipi
         extra_data=body.extra_data,
     )
     db.add(r)
+    log_action(db, user, "create", "recipient", r.id,
+               f"Created recipient: {body.name} [{body.identifier or '—'}] group={body.group or '—'}")
     db.commit()
     db.refresh(r)
     return r
@@ -56,8 +59,12 @@ def update_recipient(recipient_id: str, body: RecipientUpdate, user: User = Depe
     if not r:
         raise HTTPException(404, "Recipient not found")
     same_org(r.organization_id, user)
-    for field, value in body.model_dump(exclude_none=True, by_alias=False).items():
+    changes = body.model_dump(exclude_none=True, by_alias=False)
+    before = {k: getattr(r, k) for k in changes}
+    for field, value in changes.items():
         setattr(r, field, value)
+    log_action(db, user, "update", "recipient", r.id,
+               f"Updated recipient: {r.name}", before=before, after=changes)
     db.commit()
     db.refresh(r)
     return r
@@ -69,6 +76,8 @@ def delete_recipient(recipient_id: str, user: User = Depends(require("recipients
     if not r:
         raise HTTPException(404, "Recipient not found")
     same_org(r.organization_id, user)
+    log_action(db, user, "delete", "recipient", r.id,
+               f"Deleted recipient: {r.name} [{r.identifier or '—'}]")
     db.delete(r)
     db.commit()
 
@@ -139,8 +148,7 @@ def create_assignment(body: AssignmentCreate, user: User = Depends(require("assi
         else:
             item.reserved = (item.reserved or 0) + body.quantity
             item.available = max(0, item.quantity - item.reserved)
-        from ..routers.inventory import _compute_status
-        item.status = _compute_status(item.available, item.min_quantity or 10)
+        item.status = compute_item_status(item.available, item.min_quantity or 10)
         item.last_updated = date.today().isoformat()
 
     # Create stock transaction for audit trail
@@ -158,6 +166,8 @@ def create_assignment(body: AssignmentCreate, user: User = Depends(require("assi
         recipient_class=body.recipient_group,
     )
     db.add(tx)
+    log_action(db, user, "issue", "assignment", a.id,
+               f"Issued {body.quantity}x '{body.item_name}' to {body.recipient_name} [{body.recipient_group or '—'}]")
 
     db.commit()
     db.refresh(a)
@@ -199,8 +209,7 @@ def return_assignment(assignment_id: str, body: ReturnBody, user: User = Depends
     if item:
         item.reserved = max(0, (item.reserved or 0) - a.quantity)
         item.available = max(0, item.quantity - item.reserved)
-        from ..routers.inventory import _compute_status
-        item.status = _compute_status(item.available, item.min_quantity or 10)
+        item.status = compute_item_status(item.available, item.min_quantity or 10)
         item.last_updated = date.today().isoformat()
 
     # Log return transaction
@@ -216,6 +225,10 @@ def return_assignment(assignment_id: str, body: ReturnBody, user: User = Depends
         reference=f"Return-{a.id[-8:]}",
         recipient=a.recipient_name,
     ))
+    fine_note = f", fine=₹{body.fine_amount}" if body.fine_amount else ""
+    log_action(db, user, "return", "assignment", a.id,
+               f"Returned {a.quantity}x '{a.item_name}' from {a.recipient_name} "
+               f"(condition={body.condition_returned}{fine_note})")
 
     db.commit()
     db.refresh(a)
@@ -239,9 +252,11 @@ def mark_lost(assignment_id: str, body: LostBody, user: User = Depends(require("
         item.quantity = max(0, item.quantity - a.quantity)
         item.reserved = max(0, (item.reserved or 0) - a.quantity)
         item.available = max(0, item.quantity - item.reserved)
-        from ..routers.inventory import _compute_status
-        item.status = _compute_status(item.available, item.min_quantity or 10)
+        item.status = compute_item_status(item.available, item.min_quantity or 10)
         item.last_updated = date.today().isoformat()
+    fine_note = f", fine=₹{body.fine_amount}" if body.fine_amount else ""
+    log_action(db, user, "lost", "assignment", a.id,
+               f"Marked lost: {a.quantity}x '{a.item_name}' for {a.recipient_name}{fine_note}")
     db.commit()
     db.refresh(a)
     return a
@@ -255,6 +270,8 @@ def mark_fine_paid(assignment_id: str, user: User = Depends(require("assignments
     same_org(a.organization_id, user)
     a.fine_paid = True
     a.status = "fine_paid"
+    log_action(db, user, "fine_paid", "assignment", a.id,
+               f"Fine paid: ₹{a.fine_amount} for {a.recipient_name} ({a.item_name})")
     db.commit()
     db.refresh(a)
     return a
@@ -268,6 +285,8 @@ def mark_fee_paid(assignment_id: str, user: User = Depends(require("assignments:
         raise HTTPException(404, "Assignment not found")
     same_org(a.organization_id, user)
     a.fee_status = "paid"
+    log_action(db, user, "fee_paid", "assignment", a.id,
+               f"Fee marked paid: ₹{a.fee_amount} for {a.recipient_name} ({a.item_name})")
     db.commit()
     db.refresh(a)
     return a

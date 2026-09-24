@@ -226,6 +226,25 @@ def run():
                 else:
                     print(f"Migration warning: {e}")
 
+        # ── Unique indexes (data-integrity enforcement for existing DBs) ──────────
+        # These run after column migrations. If existing data has duplicates the
+        # index creation will fail — the warning is intentional so admins can fix it.
+        unique_indexes = [
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_item_org_sku ON items(organization_id, sku)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_user_org_email ON users(organization_id, email)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_vendor_org_name ON vendors(organization_id, name)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_category_org_name ON categories(organization_id, name)",
+            # Partial index — only enforces uniqueness when identifier is set
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_recipient_org_identifier ON recipients(organization_id, identifier) WHERE identifier IS NOT NULL AND identifier != ''",
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_orgclass_org_name_year ON org_classes(organization_id, name, academic_year)",
+        ]
+        for sql in unique_indexes:
+            try:
+                conn.execute(__import__('sqlalchemy').text(sql))
+                conn.commit()
+            except Exception as e:
+                print(f"Unique index warning (may have duplicate data): {e}")
+
 
 if __name__ == "__main__":
     run()

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { ClassTemplate, Item } from '@/types';
+import { getAcademicYearOptions } from '@/utils/academicYear';
 
 const EMPTY_TEMPLATE = { name: '', group: '', academicYear: '', notes: '' };
 const EMPTY_ITEM = { itemId: '', itemName: '', quantity: '1', unitPrice: '0', conditionIssued: 'New', notes: '' };
@@ -306,11 +307,13 @@ export function ClassTemplatesPage() {
             </div>
             <div className="space-y-1.5">
               <Label>{t('Academic Year')}</Label>
-              <Input
-                placeholder="e.g. 2025-26"
-                value={tForm.academicYear}
-                onChange={e => setTForm(f => ({ ...f, academicYear: e.target.value }))}
-              />
+              <Select value={tForm.academicYear} onValueChange={v => setTForm(f => ({ ...f, academicYear: v === '__none__' ? '' : v }))}>
+                <SelectTrigger><SelectValue placeholder={t('Select year')} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">{t('None')}</SelectItem>
+                  {getAcademicYearOptions().map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label>{t('Notes')}</Label>

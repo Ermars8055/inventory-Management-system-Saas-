@@ -5,6 +5,7 @@ from ..database import get_db
 from ..models import Vendor, User
 from ..schemas import VendorOut, VendorCreate, VendorUpdate
 from ..dependencies import require, same_org
+from ..audit import log_action
 
 router = APIRouter(prefix="/vendors", tags=["vendors"])
 
@@ -16,6 +17,12 @@ def list_vendors(user: User = Depends(require("vendors:read")), db: Session = De
 
 @router.post("", response_model=VendorOut, status_code=201)
 def create_vendor(body: VendorCreate, user: User = Depends(require("vendors:create")), db: Session = Depends(get_db)):
+    existing_name = db.query(Vendor).filter(
+        Vendor.organization_id == user.organization_id,
+        Vendor.name == body.name,
+    ).first()
+    if existing_name:
+        raise HTTPException(409, f"A vendor named '{body.name}' already exists")
     if body.email:
         existing = db.query(Vendor).filter(Vendor.organization_id == user.organization_id, Vendor.email == body.email).first()
         if existing:
@@ -34,6 +41,8 @@ def create_vendor(body: VendorCreate, user: User = Depends(require("vendors:crea
         outstanding_orders=[],
     )
     db.add(vendor)
+    log_action(db, user, "create", "vendor", vendor.id,
+               f"Created vendor: {body.name} (type={body.vendor_type or '—'})")
     db.commit()
     db.refresh(vendor)
     return vendor
@@ -54,8 +63,12 @@ def update_vendor(vendor_id: str, body: VendorUpdate, user: User = Depends(requi
     if not vendor:
         raise HTTPException(404, "Vendor not found")
     same_org(vendor.organization_id, user)
-    for field, value in body.model_dump(exclude_none=True, by_alias=False).items():
+    changes = body.model_dump(exclude_none=True, by_alias=False)
+    before = {k: getattr(vendor, k) for k in changes}
+    for field, value in changes.items():
         setattr(vendor, field, value)
+    log_action(db, user, "update", "vendor", vendor.id,
+               f"Updated vendor: {vendor.name}", before=before, after=changes)
     db.commit()
     db.refresh(vendor)
     return vendor
@@ -67,5 +80,7 @@ def delete_vendor(vendor_id: str, user: User = Depends(require("vendors:delete")
     if not vendor:
         raise HTTPException(404, "Vendor not found")
     same_org(vendor.organization_id, user)
+    log_action(db, user, "delete", "vendor", vendor.id,
+               f"Deleted vendor: {vendor.name}")
     db.delete(vendor)
     db.commit()

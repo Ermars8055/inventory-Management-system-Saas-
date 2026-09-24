@@ -6,6 +6,7 @@ from ..models import User, Role
 from ..schemas import UserOut, RoleOut, UserCreate, UserUpdate
 from ..dependencies import require, same_org, get_current_user, check_limit
 from ..auth import hash_password
+from ..audit import log_action
 
 router = APIRouter(tags=["users"])
 
@@ -36,6 +37,8 @@ def create_user(body: UserCreate, user: User = Depends(require("users:manage")),
         last_active=None,
     )
     db.add(new_user)
+    log_action(db, user, "create", "user", new_user.id,
+               f"Created user: {body.name} ({body.email}) role={body.role}")
     db.commit()
     db.refresh(new_user)
     return new_user
@@ -47,8 +50,12 @@ def update_user(user_id: str, body: UserUpdate, user: User = Depends(require("us
     if not target:
         raise HTTPException(404, "User not found")
     same_org(target.organization_id, user)
-    for field, value in body.model_dump(exclude_none=True, by_alias=False).items():
+    changes = body.model_dump(exclude_none=True, by_alias=False)
+    before = {k: getattr(target, k) for k in changes}
+    for field, value in changes.items():
         setattr(target, field, value)
+    log_action(db, user, "update", "user", target.id,
+               f"Updated user: {target.name}", before=before, after=changes)
     db.commit()
     db.refresh(target)
     return target
@@ -63,6 +70,8 @@ def deactivate_user(user_id: str, user: User = Depends(require("users:manage")),
     if target.id == user.id:
         raise HTTPException(400, "Cannot deactivate yourself")
     target.status = "inactive"
+    log_action(db, user, "deactivate", "user", target.id,
+               f"Deactivated user: {target.name} ({target.email})")
     db.commit()
     db.refresh(target)
     return target
@@ -75,6 +84,8 @@ def activate_user(user_id: str, user: User = Depends(require("users:manage")), d
         raise HTTPException(404, "User not found")
     same_org(target.organization_id, user)
     target.status = "active"
+    log_action(db, user, "activate", "user", target.id,
+               f"Activated user: {target.name} ({target.email})")
     db.commit()
     db.refresh(target)
     return target
@@ -96,6 +107,8 @@ def delete_user(user_id: str, user: User = Depends(require("users:manage")), db:
         ).count()
         if admin_count <= 1:
             raise HTTPException(400, "Cannot delete the last organization admin")
+    log_action(db, user, "delete", "user", target.id,
+               f"Deleted user: {target.name} ({target.email}) role={target.role}")
     db.delete(target)
     db.commit()
 

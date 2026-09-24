@@ -8,6 +8,7 @@ from ..models import Organization, User
 from ..schemas import OrganizationOut, OrganizationCreate, OrganizationUpdate, ModulesUpdate, ConfigUpdate
 from ..dependencies import get_current_user, require, same_org, get_plan_limits
 from ..module_fields import create_module_fields
+from ..audit import log_action
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 
@@ -32,8 +33,12 @@ def update_organization(org_id: str, body: OrganizationUpdate, user: User = Depe
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
         raise HTTPException(404, "Organization not found")
-    for field, value in body.model_dump(exclude_none=True, by_alias=False).items():
+    changes = body.model_dump(exclude_none=True, by_alias=False)
+    before = {k: getattr(org, k) for k in changes}
+    for field, value in changes.items():
         setattr(org, field, value)
+    log_action(db, user, "update", "organization", org_id,
+               "Updated organization settings", before=before, after=changes)
     db.commit()
     db.refresh(org)
     return org
@@ -48,10 +53,22 @@ def update_modules(org_id: str, body: ModulesUpdate, user: User = Depends(requir
     limits = get_plan_limits(org_id, db)
     if len(body.enabled_modules) > limits["max_modules"]:
         raise HTTPException(403, f"Plan limit reached: {limits['max_modules']} modules max. Upgrade your plan to enable more.")
+    old_modules = set(org.enabled_modules or [])
+    new_modules = set(body.enabled_modules)
+    added = sorted(new_modules - old_modules)
+    removed = sorted(old_modules - new_modules)
     org.enabled_modules = body.enabled_modules
 
     # Auto-create default custom fields for newly enabled modules
     create_module_fields(db, org_id, body.enabled_modules)
+
+    detail_parts = []
+    if added:
+        detail_parts.append(f"enabled: {', '.join(added)}")
+    if removed:
+        detail_parts.append(f"disabled: {', '.join(removed)}")
+    log_action(db, user, "update", "modules", org_id,
+               "Module changes — " + "; ".join(detail_parts) if detail_parts else "No module changes")
 
     db.commit()
     db.refresh(org)
@@ -75,9 +92,13 @@ def update_config(org_id: str, body: ConfigUpdate, user: User = Depends(require(
     org = db.query(Organization).filter(Organization.id == org_id).first()
     if not org:
         raise HTTPException(404, "Organization not found")
-    current = dict(org.config or {})
+    old_config = dict(org.config or {})
+    current = dict(old_config)
     current.update(body.config)
     org.config = current  # Assign new dict so SQLAlchemy detects the change
+    log_action(db, user, "update", "config", org_id,
+               "Updated org config", before={k: old_config.get(k) for k in body.config},
+               after=body.config)
     db.commit()
     db.refresh(org)
     return org

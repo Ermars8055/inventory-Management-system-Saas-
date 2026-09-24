@@ -6,13 +6,14 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import ClassTemplate, ClassTemplateItem, Recipient, Assignment, Item, User, Organization, StockTransaction
+from ..models import ClassTemplate, ClassTemplateItem, Recipient, Assignment, Item, User, Organization, StockTransaction, compute_item_status
 from ..schemas import (
     ClassTemplateOut, ClassTemplateCreate, ClassTemplateUpdate,
     ClassTemplateItemOut, ClassTemplateItemCreate,
     BulkIssueBody, AssignmentOut,
 )
 from ..dependencies import require, same_org
+from ..audit import log_action
 
 router = APIRouter(prefix="/class-templates", tags=["class_templates"])
 
@@ -52,6 +53,8 @@ def create_template(body: ClassTemplateCreate, user: User = Depends(require("inv
             condition_issued=li.condition_issued,
             notes=li.notes,
         ))
+    log_action(db, user, "create", "template", tid,
+               f"Created template: {body.name} (group={body.group}, year={body.academic_year or '—'}, {len(body.items)} items)")
     db.commit()
     db.refresh(t)
     return t
@@ -72,8 +75,12 @@ def update_template(template_id: str, body: ClassTemplateUpdate, user: User = De
     if not t:
         raise HTTPException(404, "Template not found")
     same_org(t.organization_id, user)
-    for field, value in body.model_dump(exclude_none=True).items():
+    changes = body.model_dump(exclude_none=True)
+    before = {k: getattr(t, k) for k in changes}
+    for field, value in changes.items():
         setattr(t, field, value)
+    log_action(db, user, "update", "template", template_id,
+               f"Updated template: {t.name}", before=before, after=changes)
     db.commit()
     db.refresh(t)
     return t
@@ -85,6 +92,8 @@ def delete_template(template_id: str, user: User = Depends(require("inventory:de
     if not t:
         raise HTTPException(404, "Template not found")
     same_org(t.organization_id, user)
+    log_action(db, user, "delete", "template", template_id,
+               f"Deleted template: {t.name} (group={t.group})")
     db.delete(t)
     db.commit()
 
@@ -107,6 +116,8 @@ def add_template_item(template_id: str, body: ClassTemplateItemCreate, user: Use
         notes=body.notes,
     )
     db.add(item)
+    log_action(db, user, "add_item", "template", template_id,
+               f"Added item to '{t.name}': {body.item_name} ×{body.quantity} @ ₹{body.unit_price}")
     db.commit()
     db.refresh(item)
     return item
@@ -125,8 +136,12 @@ def update_template_item(template_id: str, item_id: str, body: ClassTemplateItem
     )
     if not ti:
         raise HTTPException(404, "Item not found")
-    for field, value in body.model_dump(exclude_none=True).items():
+    changes = body.model_dump(exclude_none=True)
+    before = {k: getattr(ti, k) for k in changes}
+    for field, value in changes.items():
         setattr(ti, field, value)
+    log_action(db, user, "update_item", "template", template_id,
+               f"Updated item in '{t.name}': {ti.item_name}", before=before, after=changes)
     db.commit()
     db.refresh(ti)
     return ti
@@ -145,6 +160,8 @@ def delete_template_item(template_id: str, item_id: str, user: User = Depends(re
     )
     if not ti:
         raise HTTPException(404, "Item not found")
+    log_action(db, user, "remove_item", "template", template_id,
+               f"Removed item from '{t.name}': {ti.item_name}")
     db.delete(ti)
     db.commit()
 
@@ -165,8 +182,6 @@ def bulk_issue(template_id: str, body: BulkIssueBody, user: User = Depends(requi
     recipients = db.query(Recipient).filter(Recipient.id.in_(body.recipient_ids)).all()
     if not recipients:
         raise HTTPException(404, "No matching recipients found")
-
-    from ..routers.inventory import _compute_status
 
     # Determine mode from org config
     org = db.query(Organization).filter(Organization.id == user.organization_id).first()
@@ -226,7 +241,7 @@ def bulk_issue(template_id: str, body: BulkIssueBody, user: User = Depends(requi
                     else:
                         inv_item.reserved = (inv_item.reserved or 0) + titem.quantity
                         inv_item.available = max(0, inv_item.quantity - inv_item.reserved)
-                    inv_item.status = _compute_status(inv_item.available, inv_item.min_quantity or 10)
+                    inv_item.status = compute_item_status(inv_item.available, inv_item.min_quantity or 10)
                     inv_item.last_updated = date.today().isoformat()
 
         ts += 1

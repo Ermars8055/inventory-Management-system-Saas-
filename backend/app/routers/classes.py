@@ -29,6 +29,7 @@ from ..database import get_db
 from ..models import (
     OrgClass, OrgClassItem, Recipient, FeeRecord,
     Assignment, Item, ClassTemplate, Organization, StockTransaction, User,
+    compute_item_status,
 )
 from ..schemas import (
     OrgClassOut, OrgClassDetail, OrgClassCreate, OrgClassUpdate,
@@ -37,18 +38,10 @@ from ..schemas import (
     AssignClassFeesBody, EnrolStudentBody,
 )
 from ..dependencies import require, same_org
+from ..audit import log_action
 
 router = APIRouter(prefix="/classes", tags=["classes"])
 
-
-# ── helpers ──────────────────────────────────────────────────────────────────
-
-def _compute_status(qty: int, min_qty: int = 10) -> str:
-    if qty == 0:
-        return "out_of_stock"
-    if qty <= min_qty:
-        return "low_stock"
-    return "in_stock"
 
 
 def _fee_per_student(cls: OrgClass) -> int:
@@ -211,6 +204,14 @@ def create_class(
     user: User = Depends(require("inventory:create")),
     db: Session = Depends(get_db),
 ):
+    existing = db.query(OrgClass).filter(
+        OrgClass.organization_id == user.organization_id,
+        OrgClass.name == body.name,
+        OrgClass.academic_year == body.academic_year,
+    ).first()
+    if existing:
+        year_str = f" ({body.academic_year})" if body.academic_year else ""
+        raise HTTPException(409, f"A class named '{body.name}'{year_str} already exists")
     cls = OrgClass(
         id=f"cls_{int(time.time() * 1000)}",
         organization_id=user.organization_id,
@@ -221,6 +222,8 @@ def create_class(
         created_at=date.today().isoformat(),
     )
     db.add(cls)
+    log_action(db, user, "create", "class", cls.id,
+               f"Created class: {body.name} ({body.academic_year or 'no year'})")
     db.commit()
     db.refresh(cls)
     return _build_out(cls, db)
@@ -299,6 +302,8 @@ def add_class_item(
     db.refresh(cls)
     _recalculate_fees(cls, db)
     _auto_assign_fees(cls, db, user.organization_id)
+    log_action(db, user, "add_item", "class", cid,
+               f"Added item to {cls.name}: {body.item_name} ×{body.quantity} @ ₹{body.unit_price}")
     db.commit()
     db.refresh(cls)
     return _build_out(cls, db)
@@ -321,11 +326,16 @@ def update_class_item(
     ).first()
     if not item:
         raise HTTPException(404, "Item not found")
-    for field, value in body.model_dump(exclude_none=True).items():
+    changes = body.model_dump(exclude_none=True)
+    before = {k: getattr(item, k) for k in changes}
+    for field, value in changes.items():
         setattr(item, field, value)
     db.flush()
     db.refresh(cls)
     _recalculate_fees(cls, db)
+    log_action(db, user, "update_item", "class", cid,
+               f"Updated item in {cls.name}: {item.item_name}",
+               before=before, after=changes)
     db.commit()
     db.refresh(cls)
     return _build_out(cls, db)
@@ -347,10 +357,13 @@ def remove_class_item(
     ).first()
     if not item:
         raise HTTPException(404, "Item not found")
+    item_name = item.item_name
     db.delete(item)
     db.flush()
     db.refresh(cls)
     _recalculate_fees(cls, db)
+    log_action(db, user, "remove_item", "class", cid,
+               f"Removed item from {cls.name}: {item_name}")
     db.commit()
     db.refresh(cls)
     return _build_out(cls, db)
@@ -388,6 +401,8 @@ def import_template(
     db.refresh(cls)
     _recalculate_fees(cls, db)
     _auto_assign_fees(cls, db, user.organization_id)
+    log_action(db, user, "import_template", "class", cid,
+               f"Imported template '{tpl.name}' into {cls.name} ({len(tpl.items)} items)")
     db.commit()
     db.refresh(cls)
     return _build_detail(cls, db)
@@ -437,6 +452,8 @@ def enrol_student(
     db.flush()
     # Auto-assign fee for the newly enrolled student (if class has items)
     _auto_assign_fees(cls, db, user.organization_id, recipient_ids=[r.id])
+    log_action(db, user, "enrol", "class", cid,
+               f"Enrolled {r.name} [{r.identifier or '—'}] in {cls.name} ({cls.academic_year or '—'})")
     db.commit()
     db.refresh(cls)
     return _build_detail(cls, db)
@@ -459,6 +476,8 @@ def remove_student(
     if not r:
         raise HTTPException(404, "Student not enrolled in this class")
     r.class_id = None  # unenrol — do not delete the recipient
+    log_action(db, user, "unenrol", "class", cid,
+               f"Removed {r.name} [{r.identifier or '—'}] from {cls.name}")
     db.commit()
     db.refresh(cls)
     return _build_detail(cls, db)
@@ -590,7 +609,7 @@ def distribute_paid(
                     else:
                         inv_item.reserved = (inv_item.reserved or 0) + ci.quantity
                         inv_item.available = max(0, inv_item.quantity - inv_item.reserved)
-                    inv_item.status = _compute_status(
+                    inv_item.status = compute_item_status(
                         inv_item.available, inv_item.min_quantity or 10
                     )
                     inv_item.last_updated = today
@@ -600,5 +619,7 @@ def distribute_paid(
         distributed += 1
         ts += 1
 
+    log_action(db, user, "distribute_all", "class", cid,
+               f"Bulk distributed to {distributed} student(s) in {cls.name}")
     db.commit()
     return {"distributed": distributed}

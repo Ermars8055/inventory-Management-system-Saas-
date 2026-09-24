@@ -3,9 +3,10 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import PurchaseOrder, POLineItem, Item, StockTransaction, User
+from ..models import PurchaseOrder, POLineItem, Item, StockTransaction, User, compute_item_status
 from ..schemas import PurchaseOrderOut, PurchaseOrderCreate, PurchaseOrderUpdate, ReceivePOBody
 from ..dependencies import require, same_org
+from ..audit import log_action
 
 router = APIRouter(prefix="/procurement", tags=["procurement"])
 
@@ -15,13 +16,6 @@ def _next_po_number(db: Session, org_id: str) -> str:
     count = db.query(PurchaseOrder).filter(PurchaseOrder.organization_id == org_id).count()
     return f"PO-{year}-{str(count + 1).zfill(4)}"
 
-
-def _compute_status(qty: int, min_qty: int = 10) -> str:
-    if qty == 0:
-        return "out_of_stock"
-    if qty <= min_qty:
-        return "low_stock"
-    return "in_stock"
 
 
 @router.get("", response_model=list[PurchaseOrderOut])
@@ -73,6 +67,8 @@ def create_order(body: PurchaseOrderCreate, user: User = Depends(require("invent
         )
         db.add(line)
 
+    log_action(db, user, "create", "purchase_order", po.id,
+               f"Created PO {po_number} for {body.vendor_name} — ₹{amount}")
     db.commit()
     db.refresh(po)
     return po
@@ -84,8 +80,12 @@ def update_order(po_id: str, body: PurchaseOrderUpdate, user: User = Depends(req
     if not po:
         raise HTTPException(404, "Purchase order not found")
     same_org(po.organization_id, user)
-    for field, value in body.model_dump(exclude_none=True, by_alias=False).items():
+    changes = body.model_dump(exclude_none=True, by_alias=False)
+    before = {k: getattr(po, k) for k in changes}
+    for field, value in changes.items():
         setattr(po, field, value)
+    log_action(db, user, "update", "purchase_order", po.id,
+               f"Updated PO {po.po_number}", before=before, after=changes)
     db.commit()
     db.refresh(po)
     return po
@@ -97,7 +97,10 @@ def update_status(po_id: str, status: str = Query(...), user: User = Depends(req
     if not po:
         raise HTTPException(404, "Purchase order not found")
     same_org(po.organization_id, user)
+    old_status = po.status
     po.status = status
+    log_action(db, user, "status_change", "purchase_order", po.id,
+               f"PO {po.po_number} status: {old_status} → {status}")
     db.commit()
     db.refresh(po)
     return po
@@ -122,7 +125,7 @@ def receive_order(po_id: str, body: ReceivePOBody, user: User = Depends(require(
             if item:
                 item.quantity = max(0, item.quantity + receive_line.quantity_received)
                 item.available = max(0, item.available + receive_line.quantity_received)
-                item.status = _compute_status(item.available, item.min_quantity or 10)
+                item.status = compute_item_status(item.available, item.min_quantity or 10)
                 item.last_updated = date.today().isoformat()
 
         tx = StockTransaction(
@@ -150,6 +153,13 @@ def receive_order(po_id: str, body: ReceivePOBody, user: User = Depends(require(
         elif any_received:
             po.status = "partially_received"
 
+    received_items = ", ".join(
+        f"{l.item_name} ×{l.quantity_received}"
+        for l in db.query(POLineItem).filter(POLineItem.po_id == po_id).all()
+        if l.quantity_received > 0
+    )
+    log_action(db, user, "receive", "purchase_order", po.id,
+               f"Received against PO {po.po_number}: {received_items or 'no items'}")
     db.commit()
     db.refresh(po)
     return po
@@ -161,5 +171,7 @@ def delete_order(po_id: str, user: User = Depends(require("inventory:delete")), 
     if not po:
         raise HTTPException(404, "Purchase order not found")
     same_org(po.organization_id, user)
+    log_action(db, user, "delete", "purchase_order", po.id,
+               f"Deleted PO {po.po_number} ({po.vendor_name})")
     db.delete(po)
     db.commit()

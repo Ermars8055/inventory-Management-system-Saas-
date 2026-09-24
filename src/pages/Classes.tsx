@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { getAcademicYearOptions } from '@/utils/academicYear';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -180,11 +182,13 @@ export function ClassesPage() {
             </div>
             <div className="space-y-1.5">
               <Label>{t('Academic Year')}</Label>
-              <Input
-                placeholder={t('e.g. 2025-26')}
-                value={form.academicYear}
-                onChange={e => setForm({ ...form, academicYear: e.target.value })}
-              />
+              <Select value={form.academicYear} onValueChange={v => setForm({ ...form, academicYear: v === '__none__' ? '' : v })}>
+                <SelectTrigger><SelectValue placeholder={t('Select year')} /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">{t('None')}</SelectItem>
+                  {getAcademicYearOptions().map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label>{t('Notes')}</Label>

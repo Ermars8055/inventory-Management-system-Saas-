@@ -455,3 +455,30 @@ export const quotationService = {
     return api.post(`/quotations/${id}/generate-pos`, data);
   },
 };
+
+export interface AuditEntry {
+  id: string;
+  userId?: string;
+  userName: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  detail: string;
+  createdAt: string;
+}
+
+export const recordsService = {
+  async getTimeline(params: {
+    dateFrom?: string;
+    dateTo?: string;
+    entityType?: string;
+    limit?: number;
+  }): Promise<AuditEntry[]> {
+    const p = new URLSearchParams();
+    if (params.dateFrom) p.set('date_from', params.dateFrom);
+    if (params.dateTo) p.set('date_to', params.dateTo);
+    if (params.entityType) p.set('entity_type', params.entityType);
+    p.set('limit', String(params.limit ?? 500));
+    return api.get(`/audit-log?${p.toString()}`);
+  },
+};

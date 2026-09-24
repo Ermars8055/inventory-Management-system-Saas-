@@ -49,6 +49,7 @@ import { QuotationDetailPage } from '@/pages/QuotationDetail';
 import { FeesPage } from '@/pages/Fees';
 import { SupportPage } from '@/pages/Support';
 import { ActivityLogPage } from '@/pages/ActivityLog';
+import { RecordsPage } from '@/pages/Records';
 import { ProfilePage } from '@/pages/Profile';
 import { TermsPage } from '@/pages/TermsOfService';
 import { PrivacyPage } from '@/pages/PrivacyPolicy';
@@ -177,6 +178,7 @@ export default function App() {
                   <Route path="quotations/:id" element={<QuotationDetailPage />} />
                   <Route path="support" element={<SupportPage />} />
                   <Route path="activity-log" element={<ActivityLogPage />} />
+                  <Route path="records" element={<RecordsPage />} />
                   <Route path="profile" element={<ProfilePage />} />
                 </Route>
               </Route>

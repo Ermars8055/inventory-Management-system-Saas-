@@ -10,9 +10,10 @@ from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 from typing import Optional
 from ..database import get_db
-from ..models import FeeRecord, ClassTemplate, OrgClass, OrgClassItem, Recipient, Assignment, Item, Organization, User, StockTransaction
+from ..models import FeeRecord, ClassTemplate, OrgClass, OrgClassItem, Recipient, Assignment, Item, Organization, User, StockTransaction, compute_item_status
 from ..schemas import FeeRecordOut
 from ..dependencies import require, same_org
+from ..audit import log_action
 
 router = APIRouter(prefix="/fees", tags=["fees"])
 
@@ -115,6 +116,7 @@ def record_payment(
     if fee.status == "distributed":
         raise HTTPException(400, "Already distributed")
 
+    old_paid = fee.paid_amount
     fee.paid_amount = min(fee.paid_amount + body.amount, fee.total_amount)
     if fee.paid_amount >= fee.total_amount:
         fee.status = "paid"
@@ -123,6 +125,10 @@ def record_payment(
     fee.payment_date = date.today().isoformat()
     if body.notes:
         fee.notes = (fee.notes or "") + f"\nPayment: ₹{body.amount} on {date.today().isoformat()}"
+    log_action(db, user, "fee_payment", "fee_record", fee.id,
+               f"Fee payment for {fee.recipient_name}: ₹{body.amount} "
+               f"(paid {fee.paid_amount}/₹{fee.total_amount}, status={fee.status})",
+               before={"paid_amount": old_paid}, after={"paid_amount": fee.paid_amount})
     db.commit()
     db.refresh(fee)
     return fee
@@ -142,6 +148,8 @@ def waive_fee(
     same_org(fee.organization_id, user)
     fee.status = "waived"
     fee.paid_amount = fee.total_amount
+    log_action(db, user, "fee_waived", "fee_record", fee.id,
+               f"Fee waived for {fee.recipient_name} — ₹{fee.total_amount} ({fee.class_name or fee.template_name or '—'})")
     db.commit()
     db.refresh(fee)
     return fee
@@ -219,8 +227,6 @@ def distribute(
     mode = org_config.get("assignmentMode", "distribution")
     is_distribution = mode == "distribution"
 
-    from ..routers.inventory import _compute_status
-
     today = date.today().isoformat()
     ts = int(time.time() * 1000)
     for idx, item in enumerate(items_to_distribute):
@@ -271,11 +277,14 @@ def distribute(
                 else:
                     inv_item.reserved = (inv_item.reserved or 0) + item["quantity"]
                     inv_item.available = max(0, inv_item.quantity - inv_item.reserved)
-                inv_item.status = _compute_status(inv_item.available, inv_item.min_quantity or 10)
+                inv_item.status = compute_item_status(inv_item.available, inv_item.min_quantity or 10)
                 inv_item.last_updated = today
 
     fee.status = "distributed"
     fee.distributed_date = today
+    items_summary = ", ".join(f"{i['item_name']} ×{i['quantity']}" for i in items_to_distribute)
+    log_action(db, user, "distribute", "fee_record", fee.id,
+               f"Distributed items to {recipient.name}: {items_summary}")
     db.commit()
     db.refresh(fee)
     return fee
