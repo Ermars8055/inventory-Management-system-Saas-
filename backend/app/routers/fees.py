@@ -88,7 +88,7 @@ def assign_package(
         template_name=template.name,
         total_amount=total,
         paid_amount=0,
-        status="unpaid" if total > 0 else "waived",
+        status="unpaid",
         notes=body.notes,
         created_at=date.today().isoformat(),
     )

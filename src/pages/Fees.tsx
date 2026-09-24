@@ -97,7 +97,7 @@ export function FeesPage() {
   async function handleCollect() {
     if (!collectTarget?.feeRecordId) return;
     const amt = parseFloat(collectAmount);
-    if (isNaN(amt) || amt <= 0) return;
+    if (isNaN(amt) || amt < 0) return;
     setSaving(true);
     try {
       const updatedFee = await feeService.pay(collectTarget.feeRecordId, amt, collectNotes || undefined);
@@ -270,7 +270,7 @@ export function FeesPage() {
                                       setCollectTarget(s);
                                       setCollectAmount(String(s.totalAmount - s.paidAmount));
                                     }}>
-                                    {t('Collect Fee')}
+                                    {s.totalAmount > 0 ? t('Collect Fee') : t('Mark Collected')}
                                   </Button>
                                   <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground"
                                     onClick={() => handleWaive(s)}>

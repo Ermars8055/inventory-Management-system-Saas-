@@ -64,9 +64,7 @@ def _recalculate_fees(cls: OrgClass, db: Session):
     ).all()
     for fee in stale:
         fee.total_amount = total
-        if total == 0:
-            fee.status = "waived"
-        elif fee.paid_amount >= total:
+        if fee.paid_amount >= total and total > 0:
             fee.status = "paid"
         elif fee.paid_amount > 0:
             fee.status = "partial"
@@ -107,7 +105,7 @@ def _auto_assign_fees(cls: OrgClass, db: Session, org_id: str, recipient_ids: li
             template_name=cls.name,
             total_amount=total,
             paid_amount=0,
-            status="unpaid" if total > 0 else "waived",
+            status="unpaid",
             created_at=date.today().isoformat(),
         ))
         ts += 1
