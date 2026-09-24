@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, UserCheck, Plus, AlertTriangle, CheckCircle2, XCircle, DollarSign, Printer } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, UserCheck, Plus, AlertTriangle, CheckCircle2, XCircle, DollarSign, Printer, School } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
 import { recipientService, assignmentService, inventoryService, transactionService } from '@/services';
@@ -69,6 +70,7 @@ function FeeBadge({ assignment }: { assignment: Assignment }) {
 export function AssignmentsPage() {
   const { currentOrg } = useOrganization();
   const config = useOrgConfig();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useTranslation();
 
@@ -295,10 +297,17 @@ export function AssignmentsPage() {
                         )}
                       </div>
                     </div>
-                    <Button size="sm" onClick={() => setIssueDialog(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      {t(config.assignmentLabel)} {t('Item')}
-                    </Button>
+                    {selected.classId ? (
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/classes/${selected.classId}`)}>
+                        <School className="h-4 w-4 mr-2" />
+                        {t('Go to Class')}
+                      </Button>
+                    ) : (
+                      <Button size="sm" onClick={() => setIssueDialog(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t(config.assignmentLabel)} {t('Item')}
+                      </Button>
+                    )}
                   </div>
                   <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm border-t pt-3">
                     <span>
@@ -328,6 +337,17 @@ export function AssignmentsPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Class-enrolled banner */}
+              {selected.classId && (
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-blue-200 bg-blue-50 text-sm text-blue-800">
+                  <School className="h-4 w-4 shrink-0" />
+                  <span>{t('This student is enrolled in a class. Items are distributed through the class fee flow.')}</span>
+                  <Button size="sm" variant="outline" className="ml-auto shrink-0 h-7 text-xs border-blue-300 text-blue-700 hover:bg-blue-100" onClick={() => navigate(`/classes/${selected.classId}`)}>
+                    {t('Open Class')} →
+                  </Button>
+                </div>
+              )}
 
               {/* Active assignments */}
               <Card>

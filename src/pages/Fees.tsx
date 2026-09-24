@@ -51,6 +51,10 @@ export function FeesPage() {
     if (!currentOrg) return;
     Promise.all([feeService.getAll(), classService.getAll()])
       .then(([f, c]) => { setFees(f); setClasses(c); })
+      .catch((err) => {
+        console.error('Fee Collection load error:', err);
+        toast({ title: t('Error'), description: t('Failed to load fee records'), variant: 'destructive' });
+      })
       .finally(() => setLoading(false));
   }, [currentOrg]);
 
@@ -214,7 +218,7 @@ export function FeesPage() {
         <EmptyState
           icon={Wallet}
           title={t('No fee records found')}
-          description={t('Fee records are created when you assign items to a class and collect fees.')}
+          description={t('Go to a class, add items, then click "Assign Fees for All Students" to generate fee records here.')}
           action={<Button onClick={() => navigate('/classes')}>{t('Go to Classes')}</Button>}
         />
       ) : (
