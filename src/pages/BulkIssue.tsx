@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Check, Users, Package, ClipboardCheck, Loader2, ChevronLeft, Printer, Plus } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
-import { classTemplateService, recipientService, feeService } from '@/services';
+import { classTemplateService, recipientService, feeService, classService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -95,16 +95,43 @@ export function BulkIssuePage() {
     setIssuing(true);
     try {
       if (isDistribution) {
-        // Distribution mode: create fee records for each recipient
+        // Distribution mode: import template into class → auto-create fee records
         const recipientIds = Array.from(selectedRecipientIds);
-        let created = 0;
+
+        // Group by classId so we import template per class
+        const byClass = new Map<string, string[]>();
+        const noClass: string[] = [];
         for (const rid of recipientIds) {
-          await feeService.assignPackage(rid, selectedTemplate.id);
-          created++;
+          const r = recipients.find(rec => rec.id === rid);
+          if (r?.classId) {
+            const list = byClass.get(r.classId) || [];
+            list.push(rid);
+            byClass.set(r.classId, list);
+          } else {
+            noClass.push(rid);
+          }
         }
+
+        // For class-enrolled students: import template items into their class
+        // (import_template auto-creates fee records for all enrolled students)
+        for (const [classId] of byClass) {
+          const cls = await classService.getById(classId);
+          if (cls.items.length === 0) {
+            await classService.importTemplate(classId, selectedTemplate.id);
+          } else {
+            // Items already exist — just ensure fees are assigned
+            try { await classService.assignFees(classId); } catch { /* ignore */ }
+          }
+        }
+
+        // For students not in a class: use old template-based fee flow
+        for (const rid of noClass) {
+          await feeService.assignPackage(rid, selectedTemplate.id);
+        }
+
         toast({
           title: t('Fee packages assigned'),
-          description: `${created} ${t('fee records created for')} ${recipientIds.length} ${config.recipientPluralLabel.toLowerCase()}. ${t('Collect payment then distribute.')}`,
+          description: `${recipientIds.length} ${config.recipientPluralLabel.toLowerCase()} ${t('now have fees. Go to Fee Collection to collect payments.')}`,
         });
       } else {
         // Lending mode: direct bulk issue

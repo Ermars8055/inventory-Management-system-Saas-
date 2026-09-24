@@ -70,11 +70,20 @@ def assign_package(
     # Calculate total fee from template items
     total = sum((ti.unit_price or 0) * (ti.quantity or 1) for ti in template.items)
 
+    # Link to class if recipient is enrolled in one
+    class_id = recipient.class_id
+    class_name = None
+    if class_id:
+        cls = db.query(OrgClass).filter(OrgClass.id == class_id).first()
+        class_name = cls.name if cls else None
+
     fee = FeeRecord(
         id=f"fee_{int(time.time() * 1000)}",
         organization_id=user.organization_id,
         recipient_id=recipient.id,
         recipient_name=recipient.name,
+        class_id=class_id,
+        class_name=class_name,
         template_id=template.id,
         template_name=template.name,
         total_amount=total,
