@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Package, MapPin, Calendar, TrendingUp, Pencil, Layers2, Tag, ChevronRight } from 'lucide-react';
 import { inventoryService, transactionService, variantGroupService } from '@/services';
+import { normalizeSku } from '@/lib/sku';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -439,7 +440,8 @@ export function ItemDetailPage() {
             </div>
             <div className="space-y-1.5">
               <Label>{t('SKU')}</Label>
-              <Input value={editForm.sku} onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })} required />
+              <Input value={editForm.sku} className="font-mono uppercase"
+                onChange={(e) => setEditForm({ ...editForm, sku: normalizeSku(e.target.value) })} required />
             </div>
             <div className="space-y-1.5">
               <Label>{t('Location')}</Label>

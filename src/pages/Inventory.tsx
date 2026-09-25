@@ -4,7 +4,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import {
   Plus, Search, Package, MoreHorizontal, Eye, ArrowRightLeft,
   ShieldAlert, LayoutGrid, List, MapPin, PackagePlus, Pencil, Trash2, Settings2,
-  Layers2, ChevronRight, ChevronDown, Tag,
+  Layers2, ChevronRight, ChevronDown, Tag, RefreshCw,
 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
@@ -25,6 +25,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { generateSku, normalizeSku } from '@/lib/sku';
 import type { Item, Category, Recipient, GroupedInventoryRow, ItemVariantGroup } from '@/types';
 
 const EMPTY_FORM = { name: '', sku: '', categoryId: '', categoryName: '', module: 'general', quantity: '', location: '', minQuantity: '10', reorderQty: '50', attributes: {} as Record<string, string | number | boolean>, uniform: null as { size: string; gender: string } | null, book: null as { isbn: string; subject: string } | null, medicine: null as { batchNumber: string; expiryDate: string } | null };
@@ -1140,9 +1141,16 @@ export function InventoryPage() {
                         <div key={i} className="px-2 py-1.5 items-center"
                           style={{ display: 'grid', gridTemplateColumns: '140px 130px 60px 70px 80px 1fr 24px', gap: 4, minWidth: 560 }}>
                           <Input className="h-8 text-[12px]" placeholder="e.g. Size 32" required
-                            value={row.label} onChange={e => setVariantRows(r => r.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
-                          <Input className="h-8 text-[12px] font-mono" placeholder="SKU-001" required
-                            value={row.sku} onChange={e => setVariantRows(r => r.map((x, j) => j === i ? { ...x, sku: e.target.value } : x))} />
+                            value={row.label} onChange={e => {
+                              const label = e.target.value;
+                              setVariantRows(r => r.map((x, j) => j === i ? {
+                                ...x,
+                                label,
+                                sku: x.sku === '' ? generateSku(variantProductForm.name || 'ITEM', label) : x.sku,
+                              } : x));
+                            }} />
+                          <Input className="h-8 text-[12px] font-mono uppercase" placeholder="AUTO" required
+                            value={row.sku} onChange={e => setVariantRows(r => r.map((x, j) => j === i ? { ...x, sku: normalizeSku(e.target.value) } : x))} />
                           <Input className="h-8 text-[12px]" type="number" min="0" placeholder="0"
                             value={row.quantity} onChange={e => setVariantRows(r => r.map((x, j) => j === i ? { ...x, quantity: e.target.value } : x))} />
                           <Input className="h-8 text-[12px]" type="number" min="0" placeholder="10"
@@ -1178,12 +1186,25 @@ export function InventoryPage() {
             <div className="space-y-1.5">
               <Label htmlFor="item-name">{t('Item Name')} *</Label>
               <Input id="item-name" placeholder={t('e.g. School Shirt')} required
-                value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+                value={form.name} onChange={e => {
+                  const name = e.target.value;
+                  setForm(f => ({ ...f, name, sku: f.sku === '' ? generateSku(name) : f.sku }));
+                }} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="item-sku">{t('SKU')} *</Label>
-              <Input id="item-sku" placeholder={t('e.g. UNI-SH-002')} required
-                value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} />
+              <div className="flex gap-1.5">
+                <Input id="item-sku" placeholder="AUTO-GENERATED" required className="font-mono uppercase"
+                  value={form.sku}
+                  onChange={e => setForm({ ...form, sku: normalizeSku(e.target.value) })} />
+                {!editItem && (
+                  <Button type="button" variant="outline" size="icon" className="shrink-0 h-10 w-10"
+                    title={t('Regenerate SKU')}
+                    onClick={() => setForm(f => ({ ...f, sku: generateSku(f.name || 'ITEM') }))}>
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="item-category">{t('Category')} *</Label>
@@ -1287,13 +1308,27 @@ export function InventoryPage() {
               <Label>{t('Variant Label')} *</Label>
               <Input placeholder={t('e.g. Size 36, 650mg, Blue/XL')} required
                 value={addVariantRow.label}
-                onChange={e => setAddVariantRow(r => ({ ...r, label: e.target.value }))} />
+                onChange={e => {
+                  const label = e.target.value;
+                  setAddVariantRow(r => ({
+                    ...r,
+                    label,
+                    sku: r.sku === '' ? generateSku(addVariantGroup?.name || 'ITEM', label) : r.sku,
+                  }));
+                }} />
             </div>
             <div className="space-y-1.5">
               <Label>{t('SKU')} *</Label>
-              <Input placeholder={t('e.g. UNI-SH-036')} required
-                value={addVariantRow.sku}
-                onChange={e => setAddVariantRow(r => ({ ...r, sku: e.target.value }))} />
+              <div className="flex gap-1.5">
+                <Input placeholder="AUTO-GENERATED" required className="font-mono uppercase"
+                  value={addVariantRow.sku}
+                  onChange={e => setAddVariantRow(r => ({ ...r, sku: normalizeSku(e.target.value) }))} />
+                <Button type="button" variant="outline" size="icon" className="shrink-0 h-10 w-10"
+                  title={t('Regenerate SKU')}
+                  onClick={() => setAddVariantRow(r => ({ ...r, sku: generateSku(addVariantGroup?.name || 'ITEM', r.label) }))}>
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
