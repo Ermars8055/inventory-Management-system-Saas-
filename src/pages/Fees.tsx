@@ -290,12 +290,12 @@ export function FeesPage() {
       {/* ── Filter bar ──────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap gap-3 mb-5">
         {/* Academic year */}
-        <Select value={academicYear} onValueChange={v => { setAcademicYear(v); setSelectedClassId(''); }}>
+        <Select value={academicYear || 'all'} onValueChange={v => { setAcademicYear(v === 'all' ? '' : v); setSelectedClassId(''); }}>
           <SelectTrigger className="w-44">
             <SelectValue placeholder={t('All Academic Years')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">{t('All Academic Years')}</SelectItem>
+            <SelectItem value="all">{t('All Academic Years')}</SelectItem>
             {academicYears.map(y => (
               <SelectItem key={y} value={y}>{y}</SelectItem>
             ))}

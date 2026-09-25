@@ -112,6 +112,7 @@ def add_template_item(template_id: str, body: ClassTemplateItemCreate, user: Use
         item_id=body.item_id,
         item_name=body.item_name,
         quantity=body.quantity,
+        unit_price=body.unit_price,
         condition_issued=body.condition_issued,
         notes=body.notes,
     )

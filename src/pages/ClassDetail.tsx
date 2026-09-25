@@ -302,7 +302,7 @@ export function ClassDetailPage() {
 
       <PageHeader
         title={cls.name}
-        description={[cls.academicYear, `${cls.studentCount} ${t('students')}`, `${cls.items.length} ${t('items')}`, cls.totalFeePerStudent ? `₹${cls.totalFeePerStudent} ${t('per student')}` : ''].filter(Boolean).join(' · ')}
+        description={[cls.academicYear, `${cls.studentCount} ${t('students')}`, `${(cls.items ?? []).length} ${t('items')}`, cls.totalFeePerStudent ? `₹${cls.totalFeePerStudent} ${t('per student')}` : ''].filter(Boolean).join(' · ')}
         actions={
           <Badge variant="outline" className={cls.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-muted text-muted-foreground'}>
             {t(cls.status === 'active' ? 'Active' : 'Closed')}
@@ -318,7 +318,7 @@ export function ClassDetailPage() {
           </TabsTrigger>
           <TabsTrigger value="items">
             <Package className="h-3.5 w-3.5 mr-1.5" />
-            {t('Items')} ({cls.items.length})
+            {t('Items')} ({(cls.items ?? []).length})
           </TabsTrigger>
           <TabsTrigger value="fees">
             <IndianRupee className="h-3.5 w-3.5 mr-1.5" />
@@ -339,7 +339,7 @@ export function ClassDetailPage() {
               </Button>
             </CardHeader>
             <CardContent>
-              {cls.students.length === 0 ? (
+              {(cls.students ?? []).length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
                   {t('No students enrolled yet. Enrol students to get started.')}
                 </p>
@@ -387,7 +387,7 @@ export function ClassDetailPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {cls.items.length === 0 ? (
+              {(cls.items ?? []).length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
                   {t('No items assigned. Add items each student in this class will receive.')}
                 </p>
