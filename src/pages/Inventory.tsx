@@ -1034,7 +1034,7 @@ export function InventoryPage() {
       ══════════════════════════════════════════════════════════ */}
 
       {/* Add / Edit Item */}
-      <Dialog open={showAddDialog} onOpenChange={(open) => { setShowAddDialog(open); if (!open) { setEditItem(null); setForm(EMPTY_FORM); setItemMode('single'); setVariantProductForm({ name: '', description: '', categoryId: '' }); setVariantRows([{ ...EMPTY_VROW }]); } }}>
+      <Dialog open={showAddDialog} onOpenChange={(open) => { setShowAddDialog(open); if (!open) { setEditItem(null); setForm(EMPTY_FORM); setItemMode('single'); setVariantProductForm({ name: '', description: '', categoryId: '', module: 'general' }); setVariantRows([{ ...EMPTY_VROW }]); } }}>
         <DialogContent className={itemMode === 'variant' && !editItem ? 'sm:max-w-3xl' : 'sm:max-w-md'}>
           <DialogHeader><DialogTitle>{editItem ? t('Edit Item') : t('Add New Item')}</DialogTitle></DialogHeader>
 

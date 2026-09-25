@@ -56,7 +56,7 @@ export const variantGroupService = {
   async list(): Promise<ItemVariantGroup[]> {
     return api.get('/item-variant-groups');
   },
-  async create(data: { name: string; description?: string; categoryId?: string; variants?: VariantItemCreate[] }): Promise<ItemVariantGroup> {
+  async create(data: { name: string; description?: string; categoryId?: string; module?: string; variants?: VariantItemCreate[] }): Promise<ItemVariantGroup> {
     return api.post('/item-variant-groups', data);
   },
   async update(id: string, data: { name?: string; description?: string; categoryId?: string }): Promise<ItemVariantGroup> {
