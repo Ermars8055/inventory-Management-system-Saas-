@@ -35,6 +35,16 @@ def _clean_phone(v: str | None) -> str | None:
     return digits
 
 
+def _clean_contact(v: str | None) -> str | None:
+    """Accept a phone number OR email address for the contact field."""
+    if v is None or v == '':
+        return v
+    v = v.strip()
+    if '@' in v:
+        return _clean_email(v)
+    return _clean_phone(v)
+
+
 def _clean_email(v: str | None) -> str | None:
     """Validate email format."""
     if v is None or v == '':
@@ -416,7 +426,7 @@ class RecipientCreate(CamelModel):
     @field_validator('contact', mode='before')
     @classmethod
     def validate_contact(cls, v):
-        return _clean_phone(v)
+        return _clean_contact(v)
 
 
 class RecipientUpdate(CamelModel):
@@ -430,7 +440,7 @@ class RecipientUpdate(CamelModel):
     @field_validator('contact', mode='before')
     @classmethod
     def validate_contact(cls, v):
-        return _clean_phone(v)
+        return _clean_contact(v)
 
 
 # ---------------------------------------------------------------------------
@@ -1103,4 +1113,4 @@ class EnrolStudentBody(CamelModel):
     @field_validator('contact', mode='before')
     @classmethod
     def validate_contact(cls, v):
-        return _clean_phone(v)
+        return _clean_contact(v)
