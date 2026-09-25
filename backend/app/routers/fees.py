@@ -33,6 +33,11 @@ class PayBody(_Camel):
     notes: Optional[str] = None
 
 
+class DistributeBody(_Camel):
+    """Optional filter: if item_ids is provided, only distribute those specific items."""
+    item_ids: Optional[list[str]] = None
+
+
 # ─── List fees for org or recipient ──────────────────────────────────────────
 
 @router.get("", response_model=list[FeeRecordOut])
@@ -160,6 +165,7 @@ def waive_fee(
 @router.post("/{fee_id}/distribute", response_model=FeeRecordOut)
 def distribute(
     fee_id: str,
+    body: DistributeBody,
     user: User = Depends(require("assignments:create")),
     db: Session = Depends(get_db),
 ):
@@ -220,6 +226,13 @@ def distribute(
             }
             for ti in template.items
         ]
+
+    # Apply optional item filter (partial distribution — staff unchecked some items)
+    if body.item_ids is not None:
+        allowed = set(body.item_ids)
+        items_to_distribute = [i for i in items_to_distribute if i["item_id"] in allowed]
+        if not items_to_distribute:
+            raise HTTPException(400, "None of the specified items were found in this class/template")
 
     # Determine mode
     org = db.query(Organization).filter(Organization.id == user.organization_id).first()

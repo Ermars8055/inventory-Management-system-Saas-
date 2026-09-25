@@ -393,11 +393,11 @@ export const feeService = {
   async pay(feeId: string, amount: number, notes?: string): Promise<FeeRecord> {
     return api.patch(`/fees/${feeId}/pay`, { amount, notes });
   },
+  async distribute(feeId: string, itemIds?: string[]): Promise<FeeRecord> {
+    return api.post(`/fees/${feeId}/distribute`, itemIds ? { itemIds } : {});
+  },
   async waive(feeId: string): Promise<FeeRecord> {
     return api.patch(`/fees/${feeId}/waive`, {});
-  },
-  async distribute(feeId: string): Promise<FeeRecord> {
-    return api.post(`/fees/${feeId}/distribute`, {});
   },
 };
 
