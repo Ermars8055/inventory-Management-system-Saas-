@@ -50,6 +50,10 @@ export const inventoryService = {
   async delete(id: string): Promise<void> {
     return api.delete(`/inventory/${id}`);
   },
+  async nextSku(): Promise<string> {
+    const res = await api.get<{ sku: string }>('/inventory/next-sku');
+    return res.sku;
+  },
 };
 
 export const variantGroupService = {

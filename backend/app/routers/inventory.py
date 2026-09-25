@@ -1,9 +1,10 @@
+import re
 import time
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import Item, ItemVariantGroup, User, compute_item_status
+from ..models import Item, ItemVariantGroup, Organization, User, compute_item_status
 from ..schemas import ItemOut, ItemCreate, ItemUpdate, StockAdjust
 from ..dependencies import require, same_org, check_limit
 from ..audit import log_action
@@ -185,6 +186,38 @@ def list_grouped(
         })
 
     return result
+
+
+@router.get("/next-sku")
+def next_sku(
+    user: User = Depends(require("inventory:read")),
+    db: Session = Depends(get_db),
+):
+    """Return the next available sequential SKU for this org: ORG-YEAR-NNN."""
+    org = db.query(Organization).filter(Organization.id == user.organization_id).first()
+    raw_name = org.name if org else "ORG"
+    org_prefix = re.sub(r"[^A-Z0-9]", "", raw_name.upper())[:4] or "ORG"
+    year = date.today().year
+    prefix_pattern = f"{org_prefix}-{year}-"
+
+    # Find highest sequence already used this year
+    rows = (
+        db.query(Item.sku)
+        .filter(
+            Item.organization_id == user.organization_id,
+            Item.sku.like(f"{prefix_pattern}%"),
+        )
+        .all()
+    )
+    max_seq = 0
+    for (sku,) in rows:
+        suffix = sku[len(prefix_pattern):]
+        m = re.match(r"^(\d+)", suffix)
+        if m:
+            max_seq = max(max_seq, int(m.group(1)))
+
+    next_seq = max_seq + 1
+    return {"sku": f"{org_prefix}-{year}-{str(next_seq).zfill(3)}"}
 
 
 @router.get("/{item_id}", response_model=ItemOut)
