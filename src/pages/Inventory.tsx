@@ -37,8 +37,8 @@ const MODULE_OPTIONS = [
   { value: 'assets', label: 'Assets' },
 ];
 const EMPTY_ISSUE = { recipientId: '', quantity: '1', conditionIssued: 'Good', expectedReturn: '' };
-type VRow = { label: string; sku: string; quantity: string; minQuantity: string; location: string };
-const EMPTY_VROW: VRow = { label: '', sku: '', quantity: '0', minQuantity: '10', location: '' };
+type VRow = { label: string; sku: string; quantity: string; minQuantity: string; reorderQty: string; location: string };
+const EMPTY_VROW: VRow = { label: '', sku: '', quantity: '0', minQuantity: '10', reorderQty: '50', location: '' };
 
 // ── Colour helpers ─────────────────────────────────────────────────────────────
 const CAT_PALETTE = [
@@ -436,6 +436,7 @@ export function InventoryPage() {
           sku: r.sku.trim(),
           quantity: Number(r.quantity),
           minQuantity: Number(r.minQuantity),
+          reorderQty: Number(r.reorderQty),
           location: r.location || undefined,
         })),
       });
@@ -460,6 +461,7 @@ export function InventoryPage() {
         sku: addVariantRow.sku.trim(),
         quantity: Number(addVariantRow.quantity),
         minQuantity: Number(addVariantRow.minQuantity),
+        reorderQty: Number(addVariantRow.reorderQty),
         location: addVariantRow.location || undefined,
       });
       await reloadAll();
@@ -1120,36 +1122,46 @@ export function InventoryPage() {
                   </Button>
                 </div>
                 <div className="border border-gray-100 rounded-xl overflow-hidden">
-                  <div className="grid grid-cols-12 gap-0 bg-gray-50 px-3 py-2 text-[11px] font-semibold text-gray-500 border-b border-gray-100">
-                    <span className="col-span-3">{t('Label')} *</span>
-                    <span className="col-span-3">{t('SKU')} *</span>
-                    <span className="col-span-2">{t('Qty')}</span>
-                    <span className="col-span-2">{t('Min Qty')}</span>
-                    <span className="col-span-2">{t('Location')}</span>
-                  </div>
-                  <div className="divide-y divide-gray-50 max-h-56 overflow-y-auto">
-                    {variantRows.map((row, i) => (
-                      <div key={i} className="grid grid-cols-12 gap-1 px-2 py-1.5 items-center">
-                        <Input className="col-span-3 h-8 text-[12px]" placeholder="Size 32" required
-                          value={row.label} onChange={e => setVariantRows(r => r.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
-                        <Input className="col-span-3 h-8 text-[12px] font-mono" placeholder="SKU-001" required
-                          value={row.sku} onChange={e => setVariantRows(r => r.map((x, j) => j === i ? { ...x, sku: e.target.value } : x))} />
-                        <Input className="col-span-2 h-8 text-[12px]" type="number" min="0" placeholder="0"
-                          value={row.quantity} onChange={e => setVariantRows(r => r.map((x, j) => j === i ? { ...x, quantity: e.target.value } : x))} />
-                        <Input className="col-span-2 h-8 text-[12px]" type="number" min="0" placeholder="10"
-                          value={row.minQuantity} onChange={e => setVariantRows(r => r.map((x, j) => j === i ? { ...x, minQuantity: e.target.value } : x))} />
-                        <div className="col-span-2 flex items-center gap-1">
-                          <Input className="h-8 text-[12px] min-w-0" placeholder="Store"
+                  <div className="overflow-x-auto">
+                    {/* Header */}
+                    <div className="bg-gray-50 px-3 py-2 text-[11px] font-semibold text-gray-500 border-b border-gray-100"
+                      style={{ display: 'grid', gridTemplateColumns: '140px 130px 60px 70px 80px 1fr 24px', gap: 4, minWidth: 560 }}>
+                      <span>{t('Label')} *</span>
+                      <span>{t('SKU')} *</span>
+                      <span>{t('Qty')}</span>
+                      <span>{t('Low Stock')}</span>
+                      <span>{t('Reorder Qty')}</span>
+                      <span>{t('Location')}</span>
+                      <span />
+                    </div>
+                    {/* Rows */}
+                    <div className="divide-y divide-gray-50 max-h-56 overflow-y-auto">
+                      {variantRows.map((row, i) => (
+                        <div key={i} className="px-2 py-1.5 items-center"
+                          style={{ display: 'grid', gridTemplateColumns: '140px 130px 60px 70px 80px 1fr 24px', gap: 4, minWidth: 560 }}>
+                          <Input className="h-8 text-[12px]" placeholder="e.g. Size 32" required
+                            value={row.label} onChange={e => setVariantRows(r => r.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
+                          <Input className="h-8 text-[12px] font-mono" placeholder="SKU-001" required
+                            value={row.sku} onChange={e => setVariantRows(r => r.map((x, j) => j === i ? { ...x, sku: e.target.value } : x))} />
+                          <Input className="h-8 text-[12px]" type="number" min="0" placeholder="0"
+                            value={row.quantity} onChange={e => setVariantRows(r => r.map((x, j) => j === i ? { ...x, quantity: e.target.value } : x))} />
+                          <Input className="h-8 text-[12px]" type="number" min="0" placeholder="10"
+                            value={row.minQuantity} onChange={e => setVariantRows(r => r.map((x, j) => j === i ? { ...x, minQuantity: e.target.value } : x))} />
+                          <Input className="h-8 text-[12px]" type="number" min="0" placeholder="50"
+                            value={row.reorderQty} onChange={e => setVariantRows(r => r.map((x, j) => j === i ? { ...x, reorderQty: e.target.value } : x))} />
+                          <Input className="h-8 text-[12px]" placeholder="e.g. Store A"
                             value={row.location} onChange={e => setVariantRows(r => r.map((x, j) => j === i ? { ...x, location: e.target.value } : x))} />
-                          {variantRows.length > 1 && (
-                            <button type="button" className="text-gray-300 hover:text-red-400 shrink-0 transition-colors"
-                              onClick={() => setVariantRows(r => r.filter((_, j) => j !== i))}>
-                              ×
-                            </button>
-                          )}
+                          <div className="flex items-center justify-center">
+                            {variantRows.length > 1 && (
+                              <button type="button" className="text-gray-300 hover:text-red-400 transition-colors text-base leading-none"
+                                onClick={() => setVariantRows(r => r.filter((_, j) => j !== i))}>
+                                ×
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1283,7 +1295,7 @@ export function InventoryPage() {
                 value={addVariantRow.sku}
                 onChange={e => setAddVariantRow(r => ({ ...r, sku: e.target.value }))} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label>{t('Initial Quantity')}</Label>
                 <Input type="number" min="0" value={addVariantRow.quantity}
@@ -1293,6 +1305,11 @@ export function InventoryPage() {
                 <Label>{t('Low Stock Threshold')}</Label>
                 <Input type="number" min="0" value={addVariantRow.minQuantity}
                   onChange={e => setAddVariantRow(r => ({ ...r, minQuantity: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t('Reorder Qty')}</Label>
+                <Input type="number" min="0" value={addVariantRow.reorderQty}
+                  onChange={e => setAddVariantRow(r => ({ ...r, reorderQty: e.target.value }))} />
               </div>
             </div>
             <div className="space-y-1.5">
