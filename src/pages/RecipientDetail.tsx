@@ -563,7 +563,15 @@ export function RecipientDetailPage() {
             </div>
             <div className="space-y-1.5">
               <Label>{t('Contact')}</Label>
-              <Input value={editRecipientForm.contact} onChange={(e) => setEditRecipientForm({ ...editRecipientForm, contact: e.target.value })} />
+              <Input
+                value={editRecipientForm.contact}
+                placeholder={t('Phone or email')}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  const clean = v.includes('@') ? v.slice(0, 100) : v.replace(/[^\d+\-\s()]/g, '').slice(0, 15);
+                  setEditRecipientForm({ ...editRecipientForm, contact: clean });
+                }}
+              />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowEditRecipient(false)}>{t('Cancel')}</Button>

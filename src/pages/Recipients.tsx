@@ -236,7 +236,15 @@ export function RecipientsPage() {
             </div>
             <div className="space-y-1.5">
               <Label>{t('Contact')} ({t('optional')})</Label>
-              <Input value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} placeholder={t('Phone or email')} />
+              <Input
+                value={form.contact}
+                placeholder={t('Phone or email')}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  const clean = v.includes('@') ? v.slice(0, 100) : v.replace(/[^\d+\-\s()]/g, '').slice(0, 15);
+                  setForm({ ...form, contact: clean });
+                }}
+              />
             </div>
             <CustomFieldsRenderer
               entity="recipient"

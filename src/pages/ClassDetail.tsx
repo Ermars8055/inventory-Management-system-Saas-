@@ -582,7 +582,16 @@ export function ClassDetailPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">{t('Contact')}</Label>
-                  <Input value={enrolForm.contact} onChange={e => setEnrolForm({ ...enrolForm, contact: e.target.value })} className="text-sm" />
+                  <Input
+                    value={enrolForm.contact}
+                    placeholder={t('Phone or email')}
+                    className="text-sm"
+                    onChange={e => {
+                      const v = e.target.value;
+                      const clean = v.includes('@') ? v.slice(0, 100) : v.replace(/[^\d+\-\s()]/g, '').slice(0, 15);
+                      setEnrolForm({ ...enrolForm, contact: clean });
+                    }}
+                  />
                 </div>
               </>
             ) : (
