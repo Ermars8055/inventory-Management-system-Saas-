@@ -46,12 +46,14 @@ const CAT_PALETTE = [
   '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b',
   '#10b981', '#06b6d4', '#3b82f6', '#84cc16', '#f97316',
 ];
-function catColor(name: string) {
+function catColor(name: string | null | undefined) {
+  if (!name) return CAT_PALETTE[0];
   let h = 0;
   for (const ch of name) h = ((h << 5) - h) + ch.charCodeAt(0);
   return CAT_PALETTE[Math.abs(h) % CAT_PALETTE.length];
 }
-function strSeed(s: string) {
+function strSeed(s: string | null | undefined) {
+  if (!s) return 1;
   let h = 0;
   for (const ch of s) h = ((h << 5) - h) + ch.charCodeAt(0);
   return Math.abs(h) % 500 + 1; // 1-500
@@ -90,14 +92,15 @@ const CATEGORY_PHOTOS: Record<string, string[]> = {
 };
 
 // pick a photo: match first word of category (lowercase) against map, then use item hash to vary within the array
-function getPhotoId(categoryName: string, itemId: string): string | null {
+function getPhotoId(categoryName: string | null | undefined, itemId: string): string | null {
+  if (!categoryName) return null;
   const key = categoryName.toLowerCase().trim().split(/\s+/)[0];
   const photos = CATEGORY_PHOTOS[key];
   if (!photos) return null;
   return photos[strSeed(itemId) % photos.length];
 }
 
-function itemImgSrc(categoryName: string, itemId: string, w: number, h: number): string {
+function itemImgSrc(categoryName: string | null | undefined, itemId: string, w: number, h: number): string {
   const id = getPhotoId(categoryName, itemId);
   if (id) return `https://images.unsplash.com/photo-${id}?w=${w}&h=${h}&fit=crop&q=80&auto=format`;
   // fallback: picsum with category-seeded but item-varied seed
