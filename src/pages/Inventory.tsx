@@ -191,7 +191,7 @@ export function InventoryPage() {
 
   // Variant create mode
   const [itemMode, setItemMode] = useState<'single' | 'variant'>('single');
-  const [variantProductForm, setVariantProductForm] = useState({ name: '', description: '', categoryId: '' });
+  const [variantProductForm, setVariantProductForm] = useState({ name: '', description: '', categoryId: '', module: 'general' });
   const [variantRows, setVariantRows] = useState<VRow[]>([{ ...EMPTY_VROW }]);
 
   // Add variant to existing group dialog
@@ -430,6 +430,7 @@ export function InventoryPage() {
         name: variantProductForm.name.trim(),
         description: variantProductForm.description || undefined,
         categoryId: variantProductForm.categoryId || undefined,
+        module: variantProductForm.module || 'general',
         variants: variantRows.map(r => ({
           label: r.label.trim(),
           sku: r.sku.trim(),
@@ -441,7 +442,7 @@ export function InventoryPage() {
       await reloadAll();
       setShowAddDialog(false);
       setItemMode('single');
-      setVariantProductForm({ name: '', description: '', categoryId: '' });
+      setVariantProductForm({ name: '', description: '', categoryId: '', module: 'general' });
       setVariantRows([{ ...EMPTY_VROW }]);
       toast({ title: t('Variant group created') });
     } catch (err: unknown) {
@@ -1076,7 +1077,7 @@ export function InventoryPage() {
                     onChange={e => setVariantProductForm(f => ({ ...f, description: e.target.value }))}
                   />
                 </div>
-                <div className="space-y-1.5 col-span-2">
+                <div className="space-y-1.5">
                   <Label>{t('Category')}</Label>
                   <Select value={variantProductForm.categoryId} onValueChange={val => {
                     if (val === '__new__') {
@@ -1095,6 +1096,15 @@ export function InventoryPage() {
                     <SelectContent>
                       {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                       <SelectItem value="__new__" className="text-primary font-medium">+ {t('Create New Category')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t('Module')}</Label>
+                  <Select value={variantProductForm.module} onValueChange={val => setVariantProductForm(f => ({ ...f, module: val }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {MODULE_OPTIONS.map(m => <SelectItem key={m.value} value={m.value}>{t(m.label)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>

@@ -55,6 +55,7 @@ def _make_variant_item(
     v: VariantItemCreate,
     idx: int,
     ts: int,
+    module: str = "general",
 ) -> Item:
     existing = db.query(Item).filter(
         Item.organization_id == org_id,
@@ -67,6 +68,7 @@ def _make_variant_item(
         organization_id=org_id,
         name=f"{group.name} – {v.label}",
         sku=v.sku,
+        module=module,
         quantity=v.quantity,
         available=v.quantity,
         reserved=0,
@@ -127,7 +129,7 @@ def create_group(
 
     created_items = []
     for idx, v in enumerate(body.variants):
-        item = _make_variant_item(db, group, user.organization_id, v, idx, ts)
+        item = _make_variant_item(db, group, user.organization_id, v, idx, ts, module=body.module)
         db.add(item)
         created_items.append(item)
 
@@ -252,8 +254,12 @@ def add_variant(
         raise HTTPException(404, "Variant group not found")
     same_org(group.organization_id, user)
 
+    # Inherit module from existing siblings so all variants stay consistent
+    sibling = db.query(Item).filter(Item.variant_group_id == group_id).first()
+    module = sibling.module if sibling and sibling.module else "general"
+
     ts = int(time.time() * 1000)
-    item = _make_variant_item(db, group, user.organization_id, body, 0, ts)
+    item = _make_variant_item(db, group, user.organization_id, body, 0, ts, module=module)
     db.add(item)
     log_action(db, user, "add_variant", "variant_group", group_id,
                f"Added variant to '{group.name}': {body.label} (SKU: {body.sku})")

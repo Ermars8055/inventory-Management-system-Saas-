@@ -253,6 +253,7 @@ class ItemVariantGroupCreate(CamelModel):
     name: str
     description: Optional[str] = None
     category_id: Optional[str] = None
+    module: str = "general"
     variants: list["VariantItemCreate"] = []
 
 
