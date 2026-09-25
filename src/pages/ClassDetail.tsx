@@ -122,8 +122,8 @@ export function ClassDetailPage() {
       setEnrolForm({ name: '', identifier: '', contact: '' });
       setEnrolRecipientId('');
       setEnrolSearch('');
-    } catch {
-      toast({ title: t('Error'), description: t('Failed to enrol student'), variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: t('Error'), description: err instanceof Error ? err.message : t('Failed to enrol student'), variant: 'destructive' });
     } finally {
       setEnrolSaving(false);
     }

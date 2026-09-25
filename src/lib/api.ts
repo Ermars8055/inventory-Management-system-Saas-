@@ -51,7 +51,17 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
     let message = `API error ${res.status}`;
     try {
       const json = JSON.parse(text);
-      message = json.detail ?? message;
+      if (Array.isArray(json.detail)) {
+        // Pydantic validation errors — extract field + message
+        message = json.detail
+          .map((e: { loc?: string[]; msg?: string }) => {
+            const field = e.loc ? e.loc.filter(x => x !== 'body').join('.') : '';
+            return field ? `${field}: ${e.msg}` : (e.msg ?? 'Validation error');
+          })
+          .join('; ');
+      } else {
+        message = json.detail ?? message;
+      }
     } catch {
       message = text || message;
     }
