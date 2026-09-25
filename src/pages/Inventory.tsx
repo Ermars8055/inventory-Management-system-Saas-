@@ -1078,10 +1078,23 @@ export function InventoryPage() {
                 </div>
                 <div className="space-y-1.5 col-span-2">
                   <Label>{t('Category')}</Label>
-                  <Select value={variantProductForm.categoryId} onValueChange={val => setVariantProductForm(f => ({ ...f, categoryId: val }))}>
+                  <Select value={variantProductForm.categoryId} onValueChange={val => {
+                    if (val === '__new__') {
+                      const name = prompt(t('Enter new category name:'));
+                      if (name && name.trim()) {
+                        categoryService.create({ name: name.trim() }).then(cat => {
+                          setCategories(prev => [...prev, cat]);
+                          setVariantProductForm(f => ({ ...f, categoryId: cat.id }));
+                        });
+                      }
+                    } else {
+                      setVariantProductForm(f => ({ ...f, categoryId: val }));
+                    }
+                  }}>
                     <SelectTrigger><SelectValue placeholder={t('Select category (optional)')} /></SelectTrigger>
                     <SelectContent>
                       {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                      <SelectItem value="__new__" className="text-primary font-medium">+ {t('Create New Category')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
