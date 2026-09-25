@@ -234,7 +234,7 @@ export function InventoryPage() {
     }
   }, [searchParams, setSearchParams]);
 
-  const locations = useMemo(() => Array.from(new Set(items.map(i => i.location))), [items]);
+  const locations = useMemo(() => Array.from(new Set(items.map(i => i.location).filter((l): l is string => !!l))), [items]);
 
   async function reloadAll() {
     if (!currentOrg) return;
