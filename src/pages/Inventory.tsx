@@ -104,12 +104,12 @@ function itemImgSrc(categoryName: string | null | undefined, itemId: string, w: 
   const id = getPhotoId(categoryName, itemId);
   if (id) return `https://images.unsplash.com/photo-${id}?w=${w}&h=${h}&fit=crop&q=80&auto=format`;
   // fallback: picsum with category-seeded but item-varied seed
-  const seed = `${categoryName.toLowerCase().replace(/\s+/g, '-')}-${strSeed(itemId)}`;
+  const seed = `${(categoryName || 'item').toLowerCase().replace(/\s+/g, '-')}-${strSeed(itemId)}`;
   return `https://picsum.photos/seed/${seed}/${w}/${h}`;
 }
 
 // ── Card image ─────────────────────────────────────────────────────────────────
-function CardImage({ categoryName, itemId }: { categoryName: string; itemId: string }) {
+function CardImage({ categoryName, itemId }: { categoryName: string | null | undefined; itemId: string }) {
   const [failed, setFailed] = useState(false);
   const color = catColor(categoryName);
 
@@ -117,7 +117,7 @@ function CardImage({ categoryName, itemId }: { categoryName: string; itemId: str
     return (
       <div className="w-full h-32 flex items-center justify-center select-none" style={{ background: color + '14' }}>
         <span className="text-6xl font-black opacity-20" style={{ color }}>
-          {categoryName.charAt(0).toUpperCase()}
+          {(categoryName || '?').charAt(0).toUpperCase()}
         </span>
       </div>
     );
@@ -125,7 +125,7 @@ function CardImage({ categoryName, itemId }: { categoryName: string; itemId: str
   return (
     <img
       src={itemImgSrc(categoryName, itemId, 480, 280)}
-      alt={categoryName}
+      alt={categoryName || ''}
       className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-500"
       onError={() => setFailed(true)}
     />
@@ -133,21 +133,21 @@ function CardImage({ categoryName, itemId }: { categoryName: string; itemId: str
 }
 
 // ── Table row thumbnail ────────────────────────────────────────────────────────
-function RowThumb({ categoryName, itemId }: { categoryName: string; itemId: string }) {
+function RowThumb({ categoryName, itemId }: { categoryName: string | null | undefined; itemId: string }) {
   const [failed, setFailed] = useState(false);
   const color = catColor(categoryName);
 
   if (failed) {
     return (
       <div className="h-8 w-8 rounded-lg flex items-center justify-center text-[12px] font-bold shrink-0" style={{ background: color + '18', color }}>
-        {categoryName.charAt(0).toUpperCase()}
+        {(categoryName || '?').charAt(0).toUpperCase()}
       </div>
     );
   }
   return (
     <img
       src={itemImgSrc(categoryName, itemId, 80, 80)}
-      alt={categoryName}
+      alt={categoryName || ''}
       className="h-8 w-8 rounded-lg object-cover shrink-0"
       onError={() => setFailed(true)}
     />
