@@ -124,6 +124,21 @@ function ProtectedRoutes() {
   return <Outlet />;
 }
 
+function PermissionGuard({ permission, children }: { permission: string; children: React.ReactNode }) {
+  const { can, user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="text-muted-foreground text-sm">Loading…</div>
+      </div>
+    );
+  }
+  if (!user || !can(permission)) {
+    return <Navigate to="/access-denied" replace />;
+  }
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -142,43 +157,43 @@ export default function App() {
               <Route element={<ProtectedRoutes />}>
                 <Route element={<AppLayout />}>
                   <Route path="dashboard" element={<DashboardPage />} />
-                  <Route path="inventory" element={<InventoryPage />} />
-                  <Route path="inventory/:id" element={<ItemDetailPage />} />
-                  <Route path="transactions" element={<TransactionsPage />} />
-                  <Route path="vendors" element={<VendorsPage />} />
-                  <Route path="vendors/:id" element={<VendorDetailPage />} />
-                  <Route path="uniforms" element={<UniformsPage />} />
-                  <Route path="books" element={<BooksPage />} />
-                  <Route path="student-issues" element={<AssignmentsPage />} />
-                  <Route path="recipients" element={<RecipientsPage />} />
-                  <Route path="recipients/:id" element={<RecipientDetailPage />} />
-                  <Route path="assignments" element={<AssignmentsPage />} />
-                  <Route path="medicines" element={<MedicinesPage />} />
-                  <Route path="batches" element={<BatchesPage />} />
-                  <Route path="expiry" element={<ExpiryTrackingPage />} />
-                  <Route path="reports" element={<ReportsPage />} />
-                  <Route path="users" element={<UsersPage />} />
-                  <Route path="modules" element={<ModulesPage />} />
-                  <Route path="barcode" element={<BarcodePage />} />
-                  <Route path="assets" element={<AssetsPage />} />
-                  <Route path="procurement" element={<ProcurementPage />} />
-                  <Route path="maintenance" element={<MaintenancePage />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                  <Route path="settings/organization" element={<OrganizationSettingsPage />} />
-                  <Route path="settings/custom-fields" element={<CustomFieldsPage />} />
-                  <Route path="settings/document-templates" element={<DocumentTemplatesPage />} />
-                  <Route path="settings/subscription" element={<SubscriptionPage />} />
-                  <Route path="settings/class-templates" element={<ClassTemplatesPage />} />
-                  <Route path="classes" element={<ClassesPage />} />
-                  <Route path="classes/:id" element={<ClassDetailPage />} />
-                  <Route path="bulk-issue" element={<BulkIssuePage />} />
-                  <Route path="class-report" element={<ClassIssueReportPage />} />
-                  <Route path="fees" element={<FeesPage />} />
-                  <Route path="quotations" element={<QuotationsPage />} />
-                  <Route path="quotations/:id" element={<QuotationDetailPage />} />
+                  <Route path="inventory" element={<PermissionGuard permission="inventory:read"><InventoryPage /></PermissionGuard>} />
+                  <Route path="inventory/:id" element={<PermissionGuard permission="inventory:read"><ItemDetailPage /></PermissionGuard>} />
+                  <Route path="transactions" element={<PermissionGuard permission="transactions:read"><TransactionsPage /></PermissionGuard>} />
+                  <Route path="vendors" element={<PermissionGuard permission="vendors:read"><VendorsPage /></PermissionGuard>} />
+                  <Route path="vendors/:id" element={<PermissionGuard permission="vendors:read"><VendorDetailPage /></PermissionGuard>} />
+                  <Route path="uniforms" element={<PermissionGuard permission="inventory:read"><UniformsPage /></PermissionGuard>} />
+                  <Route path="books" element={<PermissionGuard permission="inventory:read"><BooksPage /></PermissionGuard>} />
+                  <Route path="student-issues" element={<PermissionGuard permission="assignments:read"><AssignmentsPage /></PermissionGuard>} />
+                  <Route path="recipients" element={<PermissionGuard permission="recipients:read"><RecipientsPage /></PermissionGuard>} />
+                  <Route path="recipients/:id" element={<PermissionGuard permission="recipients:read"><RecipientDetailPage /></PermissionGuard>} />
+                  <Route path="assignments" element={<PermissionGuard permission="assignments:read"><AssignmentsPage /></PermissionGuard>} />
+                  <Route path="medicines" element={<PermissionGuard permission="inventory:read"><MedicinesPage /></PermissionGuard>} />
+                  <Route path="batches" element={<PermissionGuard permission="inventory:read"><BatchesPage /></PermissionGuard>} />
+                  <Route path="expiry" element={<PermissionGuard permission="inventory:read"><ExpiryTrackingPage /></PermissionGuard>} />
+                  <Route path="reports" element={<PermissionGuard permission="reports:read"><ReportsPage /></PermissionGuard>} />
+                  <Route path="users" element={<PermissionGuard permission="users:read"><UsersPage /></PermissionGuard>} />
+                  <Route path="modules" element={<PermissionGuard permission="settings:update"><ModulesPage /></PermissionGuard>} />
+                  <Route path="barcode" element={<PermissionGuard permission="inventory:read"><BarcodePage /></PermissionGuard>} />
+                  <Route path="assets" element={<PermissionGuard permission="inventory:read"><AssetsPage /></PermissionGuard>} />
+                  <Route path="procurement" element={<PermissionGuard permission="vendors:read"><ProcurementPage /></PermissionGuard>} />
+                  <Route path="maintenance" element={<PermissionGuard permission="inventory:read"><MaintenancePage /></PermissionGuard>} />
+                  <Route path="settings" element={<PermissionGuard permission="settings:read"><SettingsPage /></PermissionGuard>} />
+                  <Route path="settings/organization" element={<PermissionGuard permission="settings:update"><OrganizationSettingsPage /></PermissionGuard>} />
+                  <Route path="settings/custom-fields" element={<PermissionGuard permission="settings:update"><CustomFieldsPage /></PermissionGuard>} />
+                  <Route path="settings/document-templates" element={<PermissionGuard permission="settings:update"><DocumentTemplatesPage /></PermissionGuard>} />
+                  <Route path="settings/subscription" element={<PermissionGuard permission="settings:update"><SubscriptionPage /></PermissionGuard>} />
+                  <Route path="settings/class-templates" element={<PermissionGuard permission="settings:update"><ClassTemplatesPage /></PermissionGuard>} />
+                  <Route path="classes" element={<PermissionGuard permission="inventory:read"><ClassesPage /></PermissionGuard>} />
+                  <Route path="classes/:id" element={<PermissionGuard permission="inventory:read"><ClassDetailPage /></PermissionGuard>} />
+                  <Route path="bulk-issue" element={<PermissionGuard permission="assignments:create"><BulkIssuePage /></PermissionGuard>} />
+                  <Route path="class-report" element={<PermissionGuard permission="reports:read"><ClassIssueReportPage /></PermissionGuard>} />
+                  <Route path="fees" element={<PermissionGuard permission="assignments:read"><FeesPage /></PermissionGuard>} />
+                  <Route path="quotations" element={<PermissionGuard permission="vendors:read"><QuotationsPage /></PermissionGuard>} />
+                  <Route path="quotations/:id" element={<PermissionGuard permission="vendors:read"><QuotationDetailPage /></PermissionGuard>} />
                   <Route path="support" element={<SupportPage />} />
-                  <Route path="activity-log" element={<ActivityLogPage />} />
-                  <Route path="records" element={<RecordsPage />} />
+                  <Route path="activity-log" element={<PermissionGuard permission="settings:read"><ActivityLogPage /></PermissionGuard>} />
+                  <Route path="records" element={<PermissionGuard permission="settings:read"><RecordsPage /></PermissionGuard>} />
                   <Route path="profile" element={<ProfilePage />} />
                 </Route>
               </Route>

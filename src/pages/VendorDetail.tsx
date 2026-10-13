@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Store, Phone, Mail, MapPin, ShoppingCart, Pencil } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useOrganization } from '@/context/OrganizationContext';
+import { useAuth } from '@/context/AuthContext';
 import { vendorService, procurementService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
@@ -28,6 +29,8 @@ const STATUS_CONFIG: Record<POStatus, { label: string; className: string }> = {
 };
 
 export function VendorDetailPage() {
+  const { can } = useAuth();
+  const canUpdate = can('vendors:update');
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentOrg } = useOrganization();
@@ -116,9 +119,11 @@ export function VendorDetailPage() {
           description={`${vendor.vendorType || t('General Vendor')} · ${vendor.contactPerson || ''}`}
           actions={
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={openEditVendor}>
-                <Pencil className="h-4 w-4 mr-1" /> {t('Edit')}
-              </Button>
+              {canUpdate && (
+                <Button variant="outline" size="sm" onClick={openEditVendor}>
+                  <Pencil className="h-4 w-4 mr-1" /> {t('Edit')}
+                </Button>
+              )}
               <StatusBadge status={vendor.status} />
             </div>
           }

@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useToast } from '@/hooks/use-toast';
 import { getModuleDef } from '@/data/modules';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAuth } from '@/context/AuthContext';
 import type { Item, StockTransaction, ItemVariantGroup } from '@/types';
 
 const TRANSACTION_LABELS: Record<string, string> = {
@@ -26,6 +27,8 @@ export function ItemDetailPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { can } = useAuth();
+  const canUpdate = can('inventory:update');
   const [item, setItem] = useState<Item | null>(null);
   const [transactions, setTransactions] = useState<StockTransaction[]>([]);
   const [siblings, setSiblings] = useState<Item[]>([]);
@@ -131,9 +134,11 @@ export function ItemDetailPage() {
         title={item.name}
         description={`${t('SKU')}: ${item.sku}`}
         actions={
-          <Button variant="outline" size="sm" onClick={openEdit}>
-            <Pencil className="h-4 w-4 mr-1" /> {t('Edit')}
-          </Button>
+          canUpdate ? (
+            <Button variant="outline" size="sm" onClick={openEdit}>
+              <Pencil className="h-4 w-4 mr-1" /> {t('Edit')}
+            </Button>
+          ) : undefined
         }
       />
 

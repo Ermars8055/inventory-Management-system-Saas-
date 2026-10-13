@@ -12,10 +12,13 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAuth } from '@/context/AuthContext';
 import type { Item, CustomField } from '@/types';
 
 export function MedicinesPage() {
   const { currentOrg } = useOrganization();
+  const { can } = useAuth();
+  const canCreate = can('inventory:create');
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [items, setItems] = useState<Item[]>([]);
@@ -63,7 +66,7 @@ export function MedicinesPage() {
     <div>
       <PageHeader title={t("Medicine Management")}
         description={`${items.length} ${t('medicines')} · ${totalAvailable} ${t('available')}`}
-        actions={<Button onClick={() => navigate('/inventory?module=pharmacy')}><Plus className="h-4 w-4 mr-1" /> {t('Add Medicine')}</Button>}
+        actions={canCreate ? <Button onClick={() => navigate('/inventory?module=pharmacy')}><Plus className="h-4 w-4 mr-1" /> {t('Add Medicine')}</Button> : undefined}
       />
       <Card className="mb-4"><CardContent className="p-4">
         <div className="flex flex-wrap gap-3">

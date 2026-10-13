@@ -53,6 +53,8 @@ def run():
         "ALTER TABLE items ADD COLUMN variant_label VARCHAR",
         # Fee receipts
         "ALTER TABLE fee_records ADD COLUMN receipt_number VARCHAR",
+        # Roles: organization_id for tenant-specific role customization
+        "ALTER TABLE roles ADD COLUMN organization_id VARCHAR REFERENCES organizations(id)",
     ]
 
     with engine.connect() as conn:

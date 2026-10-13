@@ -11,6 +11,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from ..dependencies import get_db, get_current_user
 from ..email_service import send_password_reset
 from ..audit import log_action, log_system
+from ..rbac import get_role_permissions
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -85,18 +86,20 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
             "email": user.email,
             "role": user.role,
             "organizationId": user.organization_id,
+            "permissions": get_role_permissions(user.role, user.organization_id, db),
         },
     }
 
 
 @router.get("/me")
-def me(current_user: User = Depends(get_current_user)):
+def me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return {
         "id": current_user.id,
         "name": current_user.name,
         "email": current_user.email,
         "role": current_user.role,
         "organizationId": current_user.organization_id,
+        "permissions": get_role_permissions(current_user.role, current_user.organization_id, db),
     }
 
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Wallet, CheckCircle2, Clock, Package, School, Zap } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
+import { useAuth } from '@/context/AuthContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
 import { useTranslation } from '@/hooks/useTranslation';
 import { feeService, classService } from '@/services';
@@ -41,6 +42,9 @@ interface ReceiptPayload {
 
 export function FeesPage() {
   const { currentOrg } = useOrganization();
+  const { can } = useAuth();
+  const canDistribute = can('assignments:create');
+  const canCollect = can('assignments:update');
   const config = useOrgConfig();
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -372,7 +376,7 @@ export function FeesPage() {
           </div>
 
           {/* Bulk distribute button — shown when any students are in paid state */}
-          {kpiPaid > 0 && (
+          {canDistribute && kpiPaid > 0 && (
             <div className="flex items-center justify-between mb-4 px-1">
               <span className="text-xs text-muted-foreground">
                 <strong>{kpiPaid}</strong> {t('student(s) paid and ready to distribute')}
@@ -438,11 +442,11 @@ export function FeesPage() {
                                 </span>
                               ) : s.feeStatus === 'no_fee' ? (
                                 <span className="text-xs text-muted-foreground">{t('No items')}</span>
-                              ) : (
+                              ) : (canCollect || canDistribute) ? (
                                 <Button size="sm" className="h-7 text-xs" onClick={() => openStudent(s)}>
                                   {s.feeStatus === 'paid' ? t('Distribute') : t('Process')}
                                 </Button>
-                              )}
+                              ) : null}
                             </td>
                           </tr>
                         );

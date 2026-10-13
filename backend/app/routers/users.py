@@ -3,8 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import User, Role
-from ..schemas import UserOut, RoleOut, UserCreate, UserUpdate
+from ..schemas import UserOut, RoleOut, RoleUpdate, UserCreate, UserUpdate
 from ..dependencies import require, same_org, get_current_user, check_limit
+from ..rbac import ROLE_PERMISSIONS, ROLE_NAMES
 from ..auth import hash_password
 from ..audit import log_action
 
@@ -115,4 +116,72 @@ def delete_user(user_id: str, user: User = Depends(require("users:manage")), db:
 
 @router.get("/roles", response_model=list[RoleOut])
 def list_roles(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return db.query(Role).all()
+    standard_roles = [
+        {"id": "org_admin", "name": "Organization Admin"},
+        {"id": "manager", "name": "Manager"},
+        {"id": "staff", "name": "Staff"},
+        {"id": "viewer", "name": "Viewer"},
+    ]
+    # Fetch custom roles for this organization
+    custom_roles = {}
+    for r in db.query(Role).filter(Role.organization_id == user.organization_id).all():
+        key = r.id.replace(f"{user.organization_id}_", "")
+        custom_roles[key] = r
+
+    result = []
+    for r in standard_roles:
+        role_key = r["id"]
+        if role_key in custom_roles:
+            result.append(RoleOut(
+                id=role_key,
+                name=custom_roles[role_key].name or r["name"],
+                permissions=custom_roles[role_key].permissions or [],
+            ))
+        else:
+            result.append(RoleOut(
+                id=role_key,
+                name=r["name"],
+                permissions=ROLE_PERMISSIONS.get(role_key, []),
+            ))
+    return result
+
+
+@router.put("/roles/{role_id}", response_model=RoleOut)
+def update_role(
+    role_id: str,
+    body: RoleUpdate,
+    user: User = Depends(require("users:manage")),
+    db: Session = Depends(get_db),
+):
+    if role_id == "org_admin":
+        raise HTTPException(400, "Organization Admin permissions cannot be modified")
+    if role_id not in ROLE_NAMES:
+        raise HTTPException(400, f"Unknown role '{role_id}'. Valid roles: manager, staff, viewer")
+
+    # Search for existing role record for this org
+    role_record = db.query(Role).filter(
+        Role.organization_id == user.organization_id,
+        Role.id.in_([f"{user.organization_id}_{role_id}", role_id]),
+    ).first()
+
+    if not role_record:
+        role_record = Role(
+            id=f"{user.organization_id}_{role_id}",
+            organization_id=user.organization_id,
+            name=ROLE_NAMES[role_id],
+            permissions=body.permissions,
+        )
+        db.add(role_record)
+    else:
+        role_record.permissions = body.permissions
+
+    log_action(db, user, "update_role", "role", role_id,
+               f"Updated permissions for role '{role_id}': {len(body.permissions)} permissions granted")
+    db.commit()
+    db.refresh(role_record)
+
+    return RoleOut(
+        id=role_id,
+        name=ROLE_NAMES[role_id],
+        permissions=role_record.permissions,
+    )

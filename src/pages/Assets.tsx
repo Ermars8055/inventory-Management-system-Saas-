@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Briefcase, Monitor, Wrench, User, Plus, Trash2, Search, Pencil, Settings2 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
+import { useAuth } from '@/context/AuthContext';
 import { assetService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { CustomFieldsSheet } from '@/components/shared/CustomFieldsSheet';
@@ -38,6 +39,11 @@ const EMPTY_FORM: Omit<Asset, 'id' | 'assetCode' | 'organizationId' | 'createdAt
 
 export function AssetsPage() {
   const { currentOrg } = useOrganization();
+  const { can } = useAuth();
+  const canCreate = can('inventory:create');
+  const canUpdate = can('inventory:update');
+  const canDelete = can('inventory:delete');
+  const canManageFields = can('settings:update');
   const { toast } = useToast();
   const { t } = useTranslation();
 
@@ -139,12 +145,16 @@ export function AssetsPage() {
         description={t('Track and manage organizational assets and equipment')}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setFieldsSheetOpen(true)}>
-              <Settings2 className="h-4 w-4 mr-1" />{t('Custom Fields')}
-            </Button>
-            <Button size="sm" onClick={openCreate}>
-              <Plus className="h-4 w-4 mr-2" /> {t('Add Asset')}
-            </Button>
+            {canManageFields && (
+              <Button variant="outline" size="sm" onClick={() => setFieldsSheetOpen(true)}>
+                <Settings2 className="h-4 w-4 mr-1" />{t('Custom Fields')}
+              </Button>
+            )}
+            {canCreate && (
+              <Button size="sm" onClick={openCreate}>
+                <Plus className="h-4 w-4 mr-2" /> {t('Add Asset')}
+              </Button>
+            )}
           </div>
         }
       />
@@ -244,20 +254,26 @@ export function AssetsPage() {
                       {asset.value.toLocaleString('en-IN')}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => openEdit(asset)}
-                          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(asset.id)}
-                          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
+                      {(canUpdate || canDelete) && (
+                        <div className="flex gap-1">
+                          {canUpdate && (
+                            <button
+                              onClick={() => openEdit(asset)}
+                              className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDelete(asset.id)}
+                              className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 );

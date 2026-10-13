@@ -38,7 +38,10 @@ const EMPTY_FORM = {
 
 export function MaintenancePage() {
   const { currentOrg } = useOrganization();
-  const { user } = useAuth();
+  const { user, can } = useAuth();
+  const canCreate = can('inventory:create');
+  const canUpdate = can('inventory:update');
+  const canDelete = can('inventory:delete');
   const { toast } = useToast();
   const { t } = useTranslation();
 
@@ -129,9 +132,11 @@ export function MaintenancePage() {
         title={t('Maintenance')}
         description={t('Track and manage maintenance requests and repairs')}
         actions={
-          <Button size="sm" onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4 mr-2" /> {t('New Ticket')}
-          </Button>
+          canCreate ? (
+            <Button size="sm" onClick={() => setShowCreate(true)}>
+              <Plus className="h-4 w-4 mr-2" /> {t('New Ticket')}
+            </Button>
+          ) : undefined
         }
       />
 
@@ -222,29 +227,37 @@ export function MaintenancePage() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{ticket.reportedDate || '—'}</TableCell>
                     <TableCell>
-                      <Select
-                        value={ticket.status}
-                        onValueChange={(v) => handleStatusChange(ticket.id, v as TicketStatus)}
-                      >
-                        <SelectTrigger className="h-7 w-[130px] text-xs">
-                          <Badge variant="outline" className={`text-xs ${statusCfg.className} border-0 p-0`}>
-                            {t(statusCfg.label)}
-                          </Badge>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(Object.keys(STATUS_CONFIG) as TicketStatus[]).map((s) => (
-                            <SelectItem key={s} value={s} className="text-xs">{t(STATUS_CONFIG[s].label)}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {canUpdate ? (
+                        <Select
+                          value={ticket.status}
+                          onValueChange={(v) => handleStatusChange(ticket.id, v as TicketStatus)}
+                        >
+                          <SelectTrigger className="h-7 w-[130px] text-xs">
+                            <Badge variant="outline" className={`text-xs ${statusCfg.className} border-0 p-0`}>
+                              {t(statusCfg.label)}
+                            </Badge>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(Object.keys(STATUS_CONFIG) as TicketStatus[]).map((s) => (
+                              <SelectItem key={s} value={s} className="text-xs">{t(STATUS_CONFIG[s].label)}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge variant="outline" className={`text-xs ${statusCfg.className}`}>
+                          {t(statusCfg.label)}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell>
-                      <button
-                        onClick={() => handleDelete(ticket.id)}
-                        className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      {canDelete && (
+                        <button
+                          onClick={() => handleDelete(ticket.id)}
+                          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </TableCell>
                   </TableRow>
                 );

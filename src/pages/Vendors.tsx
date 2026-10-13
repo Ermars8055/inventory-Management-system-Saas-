@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Store, Mail, Phone, MapPin, Pencil, Trash2, Settings2 } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useOrganization } from '@/context/OrganizationContext';
+import { useAuth } from '@/context/AuthContext';
 import { vendorService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/StatusBadge';
@@ -27,6 +28,11 @@ const EMPTY_FORM = {
 
 export function VendorsPage() {
   const { currentOrg } = useOrganization();
+  const { can } = useAuth();
+  const canCreate = can('vendors:create');
+  const canUpdate = can('vendors:update');
+  const canDelete = can('vendors:delete');
+  const canManageFields = can('settings:update');
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -116,15 +122,19 @@ export function VendorsPage() {
           <div className="flex items-center gap-2">
             <CsvActions
               exportUrl="/data/export/vendors"
-              importUrl="/data/import/vendors"
+              importUrl={canCreate ? "/data/import/vendors" : undefined}
               entityName={t('Vendors')}
               sampleHeaders="name,contact_person,phone,email,address,vendor_type"
               onImportComplete={() => currentOrg && vendorService.getByOrganization(currentOrg.id).then(setVendors)}
             />
-            <Button variant="outline" size="sm" onClick={() => setFieldsSheetOpen(true)}>
-              <Settings2 className="h-4 w-4 mr-1" />{t('Custom Fields')}
-            </Button>
-            <Button onClick={openAdd}><Plus className="h-4 w-4 mr-1" />{t('Add Vendor')}</Button>
+            {canManageFields && (
+              <Button variant="outline" size="sm" onClick={() => setFieldsSheetOpen(true)}>
+                <Settings2 className="h-4 w-4 mr-1" />{t('Custom Fields')}
+              </Button>
+            )}
+            {canCreate && (
+              <Button onClick={openAdd}><Plus className="h-4 w-4 mr-1" />{t('Add Vendor')}</Button>
+            )}
           </div>
         }
       />
@@ -145,7 +155,7 @@ export function VendorsPage() {
               icon={Store}
               title={t('No vendors found')}
               description={t('Add a vendor to start tracking purchases.')}
-              action={<Button onClick={openAdd}><Plus className="h-4 w-4 mr-1" />{t('Add Vendor')}</Button>}
+              action={canCreate ? <Button onClick={openAdd}><Plus className="h-4 w-4 mr-1" />{t('Add Vendor')}</Button> : undefined}
             />
           </CardContent>
         </Card>
@@ -168,20 +178,26 @@ export function VendorsPage() {
                       <p className="text-xs text-muted-foreground truncate">{vendor.vendorType}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={(e) => openEdit(vendor, e)}
-                      className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={(e) => handleDelete(vendor, e)}
-                      className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
+                  {(canUpdate || canDelete) && (
+                    <div className="flex items-center gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                      {canUpdate && (
+                        <button
+                          onClick={(e) => openEdit(vendor, e)}
+                          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          onClick={(e) => handleDelete(vendor, e)}
+                          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-1.5 text-sm text-muted-foreground">
                   {vendor.email && <p className="flex items-center gap-2"><Mail className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{vendor.email}</span></p>}

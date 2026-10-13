@@ -12,10 +12,13 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAuth } from '@/context/AuthContext';
 import type { Item, CustomField } from '@/types';
 
 export function UniformsPage() {
   const { currentOrg } = useOrganization();
+  const { can } = useAuth();
+  const canCreate = can('inventory:create');
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [items, setItems] = useState<Item[]>([]);
@@ -67,9 +70,11 @@ export function UniformsPage() {
         title={t("Uniform Management")}
         description={`${items.length} ${t('uniform types')} · ${totalAvailable} ${t('available')} · ${totalIssued} ${t('issued')}`}
         actions={
-          <Button onClick={() => navigate('/inventory?module=uniforms')}>
-            <Plus className="h-4 w-4 mr-1" /> {t('Add Uniform')}
-          </Button>
+          canCreate ? (
+            <Button onClick={() => navigate('/inventory?module=uniforms')}>
+              <Plus className="h-4 w-4 mr-1" /> {t('Add Uniform')}
+            </Button>
+          ) : undefined
         }
       />
 

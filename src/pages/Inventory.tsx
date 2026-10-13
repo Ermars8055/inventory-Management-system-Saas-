@@ -7,6 +7,7 @@ import {
   Layers2, ChevronRight, ChevronDown, Tag,
 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
+import { useAuth } from '@/context/AuthContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
 import { inventoryService, categoryService, recipientService, assignmentService, transactionService, variantGroupService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -157,6 +158,12 @@ function RowThumb({ categoryName, itemId }: { categoryName: string | null | unde
 // ── Page ──────────────────────────────────────────────────────────────────────
 export function InventoryPage() {
   const { currentOrg } = useOrganization();
+  const { can } = useAuth();
+  const canCreate = can('inventory:create');
+  const canUpdate = can('inventory:update');
+  const canDelete = can('inventory:delete');
+  const canIssue = can('assignments:create');
+  const canManageFields = can('settings:update');
   const config = useOrgConfig();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -541,17 +548,21 @@ export function InventoryPage() {
           <div className="flex items-center gap-2">
             <CsvActions
               exportUrl="/data/export/inventory"
-              importUrl="/data/import/inventory"
+              importUrl={canCreate ? "/data/import/inventory" : undefined}
               entityName="Inventory"
               sampleHeaders="name,sku,category,quantity,location,min_quantity,reorder_qty"
               onImportComplete={() => currentOrg && inventoryService.getByOrganization(currentOrg.id).then(setItems)}
             />
-            <Button variant="outline" size="sm" onClick={() => setFieldsSheetOpen(true)}>
-              <Settings2 className="h-4 w-4 mr-1" />{t('Custom Fields')}
-            </Button>
-            <Button onClick={openCreateDialog}>
-              <Plus className="h-4 w-4 mr-1" /> {t('Add Item')}
-            </Button>
+            {canManageFields && (
+              <Button variant="outline" size="sm" onClick={() => setFieldsSheetOpen(true)}>
+                <Settings2 className="h-4 w-4 mr-1" />{t('Custom Fields')}
+              </Button>
+            )}
+            {canCreate && (
+              <Button onClick={openCreateDialog}>
+                <Plus className="h-4 w-4 mr-1" /> {t('Add Item')}
+              </Button>
+            )}
           </div>
         }
       />
@@ -655,7 +666,7 @@ export function InventoryPage() {
             icon={Package}
             title={t('No items found')}
             description={t('Try adjusting your filters or add a new item.')}
-            action={<Button onClick={openCreateDialog}><Plus className="h-4 w-4 mr-1" />{t('Add Item')}</Button>}
+            action={canCreate ? <Button onClick={openCreateDialog}><Plus className="h-4 w-4 mr-1" />{t('Add Item')}</Button> : undefined}
           />
         </div>
 
@@ -729,7 +740,7 @@ export function InventoryPage() {
                     className="flex items-center gap-1.5 pt-3 mt-3 border-t border-gray-50"
                     onClick={e => e.stopPropagation()}
                   >
-                    {config.assignmentMode !== 'distribution' ? (
+                    {config.assignmentMode !== 'distribution' && canIssue ? (
                       item.available > 0 ? (
                         <button
                           className="flex-1 text-[12px] font-semibold py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1.5"
@@ -748,7 +759,7 @@ export function InventoryPage() {
                       )
                     ) : (
                       <span className="flex-1 text-[11px] text-gray-400 text-center py-1.5 select-none">
-                        {t('Use fee packages')}
+                        {config.assignmentMode === 'distribution' ? t('Use fee packages') : ''}
                       </span>
                     )}
                     <DropdownMenu>
@@ -761,24 +772,32 @@ export function InventoryPage() {
                         <DropdownMenuItem onClick={() => navigate(`/inventory/${item.id}`)}>
                           <Eye className="h-4 w-4 mr-2" /> {t('View Details')}
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={e => openEdit(item, e)}>
-                          <Pencil className="h-4 w-4 mr-2" /> {t('Edit Item')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={e => openRestock(item, e)}>
-                          <PackagePlus className="h-4 w-4 mr-2" /> {t('Add Stock')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={e => openDamage(item, e)}
-                        >
-                          <ShieldAlert className="h-4 w-4 mr-2" /> {t('Report Damage')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={e => handleDeleteItem(item, e)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" /> {t('Delete Item')}
-                        </DropdownMenuItem>
+                        {canUpdate && (
+                          <DropdownMenuItem onClick={e => openEdit(item, e)}>
+                            <Pencil className="h-4 w-4 mr-2" /> {t('Edit Item')}
+                          </DropdownMenuItem>
+                        )}
+                        {canUpdate && (
+                          <DropdownMenuItem onClick={e => openRestock(item, e)}>
+                            <PackagePlus className="h-4 w-4 mr-2" /> {t('Add Stock')}
+                          </DropdownMenuItem>
+                        )}
+                        {canUpdate && (
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={e => openDamage(item, e)}
+                          >
+                            <ShieldAlert className="h-4 w-4 mr-2" /> {t('Report Damage')}
+                          </DropdownMenuItem>
+                        )}
+                        {canDelete && (
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={e => handleDeleteItem(item, e)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" /> {t('Delete Item')}
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -849,7 +868,7 @@ export function InventoryPage() {
                       <TableCell className="text-[12px] text-gray-400 whitespace-nowrap">{item.lastUpdated}</TableCell>
                       <TableCell onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-1.5">
-                          {item.available > 0 && config.assignmentMode !== 'distribution' && (
+                          {item.available > 0 && config.assignmentMode !== 'distribution' && canIssue && (
                             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={e => openIssue(item, e)}>
                               <ArrowRightLeft className="h-3 w-3 mr-1" />
                               {config.assignmentLabel}
@@ -865,24 +884,32 @@ export function InventoryPage() {
                               <DropdownMenuItem onClick={() => navigate(`/inventory/${item.id}`)}>
                                 <Eye className="h-4 w-4 mr-2" /> {t('View Details')}
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={e => openEdit(item, e)}>
-                                <Pencil className="h-4 w-4 mr-2" /> {t('Edit Item')}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={e => openRestock(item, e)}>
-                                <PackagePlus className="h-4 w-4 mr-2" /> {t('Add Stock')}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                onClick={e => openDamage(item, e)}
-                              >
-                                <ShieldAlert className="h-4 w-4 mr-2" /> {t('Report Damage')}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                onClick={e => handleDeleteItem(item, e)}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" /> {t('Delete Item')}
-                              </DropdownMenuItem>
+                              {canUpdate && (
+                                <DropdownMenuItem onClick={e => openEdit(item, e)}>
+                                  <Pencil className="h-4 w-4 mr-2" /> {t('Edit Item')}
+                                </DropdownMenuItem>
+                              )}
+                              {canUpdate && (
+                                <DropdownMenuItem onClick={e => openRestock(item, e)}>
+                                  <PackagePlus className="h-4 w-4 mr-2" /> {t('Add Stock')}
+                                </DropdownMenuItem>
+                              )}
+                              {canUpdate && (
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={e => openDamage(item, e)}
+                                >
+                                  <ShieldAlert className="h-4 w-4 mr-2" /> {t('Report Damage')}
+                                </DropdownMenuItem>
+                              )}
+                              {canDelete && (
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={e => handleDeleteItem(item, e)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" /> {t('Delete Item')}
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -933,9 +960,15 @@ export function InventoryPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => navigate(`/inventory/${item.id}`)}><Eye className="h-4 w-4 mr-2" />{t('View Details')}</DropdownMenuItem>
-                        <DropdownMenuItem onClick={e => openEdit(item, e)}><Pencil className="h-4 w-4 mr-2" />{t('Edit Item')}</DropdownMenuItem>
-                        <DropdownMenuItem onClick={e => openRestock(item, e)}><PackagePlus className="h-4 w-4 mr-2" />{t('Add Stock')}</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={e => handleDeleteItem(item, e)}><Trash2 className="h-4 w-4 mr-2" />{t('Delete Item')}</DropdownMenuItem>
+                        {canUpdate && (
+                          <DropdownMenuItem onClick={e => openEdit(item, e)}><Pencil className="h-4 w-4 mr-2" />{t('Edit Item')}</DropdownMenuItem>
+                        )}
+                        {canUpdate && (
+                          <DropdownMenuItem onClick={e => openRestock(item, e)}><PackagePlus className="h-4 w-4 mr-2" />{t('Add Stock')}</DropdownMenuItem>
+                        )}
+                        {canDelete && (
+                          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={e => handleDeleteItem(item, e)}><Trash2 className="h-4 w-4 mr-2" />{t('Delete Item')}</DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -982,23 +1015,25 @@ export function InventoryPage() {
                     </div>
                   </div>
                   <StatusBadge status={group.status} />
-                  <div onClick={e => e.stopPropagation()}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs border-violet-200 text-violet-700 hover:bg-violet-50"
-                      onClick={() => {
-                        inventoryService.nextSku().then(sku => {
-                          setAddVariantRow({ ...EMPTY_VROW, sku });
-                        }).catch(() => {
-                          setAddVariantRow({ ...EMPTY_VROW });
-                        });
-                        setAddVariantGroup(group);
-                      }}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />{t('Add Variant')}
-                    </Button>
-                  </div>
+                  {canCreate && (
+                    <div onClick={e => e.stopPropagation()}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs border-violet-200 text-violet-700 hover:bg-violet-50"
+                        onClick={() => {
+                          inventoryService.nextSku().then(sku => {
+                            setAddVariantRow({ ...EMPTY_VROW, sku });
+                          }).catch(() => {
+                            setAddVariantRow({ ...EMPTY_VROW });
+                          });
+                          setAddVariantGroup(group);
+                        }}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />{t('Add Variant')}
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Variant rows */}
@@ -1041,9 +1076,15 @@ export function InventoryPage() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => navigate(`/inventory/${variant.id}`)}><Eye className="h-4 w-4 mr-2" />{t('View Details')}</DropdownMenuItem>
-                                <DropdownMenuItem onClick={e => openEdit(variant, e)}><Pencil className="h-4 w-4 mr-2" />{t('Edit')}</DropdownMenuItem>
-                                <DropdownMenuItem onClick={e => openRestock(variant, e)}><PackagePlus className="h-4 w-4 mr-2" />{t('Add Stock')}</DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={e => handleDeleteItem(variant, e)}><Trash2 className="h-4 w-4 mr-2" />{t('Delete')}</DropdownMenuItem>
+                                {canUpdate && (
+                                  <DropdownMenuItem onClick={e => openEdit(variant, e)}><Pencil className="h-4 w-4 mr-2" />{t('Edit')}</DropdownMenuItem>
+                                )}
+                                {canUpdate && (
+                                  <DropdownMenuItem onClick={e => openRestock(variant, e)}><PackagePlus className="h-4 w-4 mr-2" />{t('Add Stock')}</DropdownMenuItem>
+                                )}
+                                {canDelete && (
+                                  <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={e => handleDeleteItem(variant, e)}><Trash2 className="h-4 w-4 mr-2" />{t('Delete')}</DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>

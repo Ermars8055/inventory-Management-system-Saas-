@@ -10,22 +10,78 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 import type { User, Role } from '@/types';
 
-const ALL_PERMISSIONS = [
-  { id: 'view_inventory', label: 'View Inventory' },
-  { id: 'create_items', label: 'Create Items' },
-  { id: 'edit_items', label: 'Edit Items' },
-  { id: 'delete_items', label: 'Delete Items' },
-  { id: 'stock_in', label: 'Stock In' },
-  { id: 'stock_out', label: 'Stock Out' },
-  { id: 'manage_suppliers', label: 'Manage Suppliers' },
-  { id: 'manage_modules', label: 'Manage Modules' },
-  { id: 'manage_users', label: 'Manage Users' },
-  { id: 'view_reports', label: 'View Reports' },
+interface PermissionDef {
+  id: string;
+  label: string;
+  description: string;
+}
+
+interface PermissionCategory {
+  name: string;
+  permissions: PermissionDef[];
+}
+
+const PERMISSION_CATEGORIES: PermissionCategory[] = [
+  {
+    name: 'Inventory Management',
+    permissions: [
+      { id: 'inventory:read', label: 'View Inventory', description: 'View items, quantities, and stock locations' },
+      { id: 'inventory:create', label: 'Create Items', description: 'Add new items and import catalog' },
+      { id: 'inventory:update', label: 'Edit & Adjust Stock', description: 'Edit item details and record stock adjustments' },
+      { id: 'inventory:delete', label: 'Delete Items', description: 'Permanently remove items from inventory' },
+    ],
+  },
+  {
+    name: 'Issuance & Assignments',
+    permissions: [
+      { id: 'assignments:read', label: 'View Assignments', description: 'View issued items and student allocations' },
+      { id: 'assignments:create', label: 'Issue Items', description: 'Issue or lend materials to students/recipients' },
+      { id: 'assignments:update', label: 'Return & Collect Fees', description: 'Process returns, collect fees, waive fines' },
+      { id: 'assignments:delete', label: 'Delete Assignments', description: 'Delete assignment or issuance records' },
+    ],
+  },
+  {
+    name: 'Recipients & Students',
+    permissions: [
+      { id: 'recipients:read', label: 'View Recipients', description: 'View students, patients, or recipients' },
+      { id: 'recipients:create', label: 'Add Recipients', description: 'Add new recipients or enrol students' },
+      { id: 'recipients:update', label: 'Edit Recipients', description: 'Update recipient info and custom fields' },
+      { id: 'recipients:delete', label: 'Delete Recipients', description: 'Remove recipients from the system' },
+    ],
+  },
+  {
+    name: 'Vendors & Procurement',
+    permissions: [
+      { id: 'vendors:read', label: 'View Vendors', description: 'View vendors, contacts, and purchase orders' },
+      { id: 'vendors:create', label: 'Create Vendors & POs', description: 'Add new vendors and raise purchase orders' },
+      { id: 'vendors:update', label: 'Edit Vendors & POs', description: 'Update vendor details and quotation quotes' },
+      { id: 'vendors:delete', label: 'Delete Vendors', description: 'Delete vendor records' },
+    ],
+  },
+  {
+    name: 'Reports & Transactions',
+    permissions: [
+      { id: 'transactions:read', label: 'View Transactions', description: 'View stock ledger and movement history' },
+      { id: 'reports:read', label: 'View Reports', description: 'View analytics, reports, and printable registers' },
+    ],
+  },
+  {
+    name: 'Administration & Settings',
+    permissions: [
+      { id: 'users:read', label: 'View Users & Roles', description: 'View team members and role permissions' },
+      { id: 'users:manage', label: 'Manage Users & Permissions', description: 'Invite users, assign roles, edit role permissions' },
+      { id: 'settings:read', label: 'View Settings', description: 'View organization configuration' },
+      { id: 'settings:update', label: 'Update Settings', description: 'Update organization settings and modules' },
+    ],
+  },
 ];
+
+const ALL_PERMISSION_IDS = PERMISSION_CATEGORIES.flatMap((c) => c.permissions.map((p) => p.id));
 
 const ROLES = ['org_admin', 'manager', 'staff', 'viewer'];
 
@@ -33,6 +89,8 @@ const EMPTY_FORM = { name: '', email: '', role: 'staff' };
 
 export function UsersPage() {
   const { currentOrg } = useOrganization();
+  const { can } = useAuth();
+  const canManage = can('users:manage');
   const { toast } = useToast();
   const { t } = useTranslation();
 
@@ -42,6 +100,11 @@ export function UsersPage() {
   const [editUser, setEditUser] = useState<User | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+
+  // Role permissions editing
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [selectedPerms, setSelectedPerms] = useState<string[]>([]);
+  const [savingRole, setSavingRole] = useState(false);
 
   const load = async () => {
     if (!currentOrg) return;
@@ -113,6 +176,41 @@ export function UsersPage() {
     }
   }
 
+  function openEditRole(r: Role) {
+    setEditingRole(r);
+    setSelectedPerms([...(r.permissions || [])]);
+  }
+
+  function togglePermission(permId: string) {
+    setSelectedPerms((prev) =>
+      prev.includes(permId) ? prev.filter((p) => p !== permId) : [...prev, permId]
+    );
+  }
+
+  function handleSelectAll() {
+    setSelectedPerms([...ALL_PERMISSION_IDS]);
+  }
+
+  function handleDeselectAll() {
+    setSelectedPerms([]);
+  }
+
+  async function handleSaveRole() {
+    if (!editingRole) return;
+    setSavingRole(true);
+    try {
+      const updated = await userService.updateRole(editingRole.id, { permissions: selectedPerms });
+      setRoles((prev) => prev.map((r) => (r.id === editingRole.id ? updated : r)));
+      toast({ title: `${t('Permissions updated for')} ${editingRole.name}` });
+      setEditingRole(null);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : t('Failed to update permissions');
+      toast({ title: t('Error'), description: msg, variant: 'destructive' });
+    } finally {
+      setSavingRole(false);
+    }
+  }
+
   const inp = 'w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring';
 
   return (
@@ -121,10 +219,12 @@ export function UsersPage() {
         title={t("Users & Roles")}
         description={`${users.length} ${t('users in')} ${currentOrg.name}`}
         actions={
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-2" />
-            {t('Add User')}
-          </Button>
+          canManage ? (
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="h-4 w-4 mr-2" />
+              {t('Add User')}
+            </Button>
+          ) : undefined
         }
       />
 
@@ -177,32 +277,34 @@ export function UsersPage() {
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">{user.lastActive || '—'}</TableCell>
                         <TableCell>
-                          <div className="flex gap-1 justify-end">
-                            <button
-                              onClick={() => openEdit(user)}
-                              className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                              title={t("Edit")}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleToggleStatus(user)}
-                              className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                              title={user.status === 'active' ? t('Deactivate') : t('Activate')}
-                            >
-                              {user.status === 'active'
-                                ? <UserX className="h-3.5 w-3.5" />
-                                : <UserCheck className="h-3.5 w-3.5" />
-                              }
-                            </button>
-                            <button
-                              onClick={() => handleDelete(user.id)}
-                              className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                              title={t("Delete")}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
+                          {canManage && (
+                            <div className="flex gap-1 justify-end">
+                              <button
+                                onClick={() => openEdit(user)}
+                                className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                title={t("Edit")}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleToggleStatus(user)}
+                                className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                title={user.status === 'active' ? t('Deactivate') : t('Activate')}
+                              >
+                                {user.status === 'active'
+                                  ? <UserX className="h-3.5 w-3.5" />
+                                  : <UserCheck className="h-3.5 w-3.5" />
+                                }
+                              </button>
+                              <button
+                                onClick={() => handleDelete(user.id)}
+                                className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                title={t("Delete")}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -217,42 +319,129 @@ export function UsersPage() {
           <div className="space-y-4">
             {roles.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-12">{t('No roles defined yet')}</p>
-            ) : roles.map((role) => (
-              <Card key={role.id}>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Shield className="h-4 w-4 text-muted-foreground" />
-                    {role.name}
-                    <span className="ml-auto text-xs font-normal text-muted-foreground">
-                      {role.permissions.length}/{ALL_PERMISSIONS.length} {t('permissions')}
-                    </span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="flex flex-wrap gap-2">
-                    {ALL_PERMISSIONS.map((perm) => {
-                      const has = role.permissions.includes(perm.id as Parameters<typeof role.permissions.includes>[0]);
-                      return (
-                        <Badge
-                          key={perm.id}
-                          variant="outline"
-                          className={`text-xs ${
-                            has
-                              ? 'bg-primary/10 text-primary border-primary/20'
-                              : 'text-muted-foreground/40 border-border/40'
-                          }`}
-                        >
-                          {t(perm.label)}
-                        </Badge>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            ) : roles.map((role) => {
+              const isAdmin = role.id === 'org_admin';
+              const activeCount = isAdmin
+                ? ALL_PERMISSION_IDS.length
+                : role.permissions.filter((p) => p !== '*').length;
+
+              return (
+                <Card key={role.id}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Shield className="h-4 w-4 text-muted-foreground" />
+                        {role.name}
+                        {isAdmin ? (
+                          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-normal">
+                            {t('Full Access (Admin)')}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs font-normal text-muted-foreground">
+                            {activeCount}/{ALL_PERMISSION_IDS.length} {t('permissions')}
+                          </span>
+                        )}
+                      </CardTitle>
+                      {!isAdmin && canManage && (
+                        <Button size="sm" variant="outline" onClick={() => openEditRole(role)} className="h-8 text-xs">
+                          <Pencil className="h-3.5 w-3.5 mr-1" />
+                          {t('Edit Permissions')}
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="flex flex-wrap gap-1.5">
+                      {PERMISSION_CATEGORIES.flatMap((c) => c.permissions).map((perm) => {
+                        const has = isAdmin || role.permissions.includes('*') || role.permissions.includes(perm.id);
+                        return (
+                          <Badge
+                            key={perm.id}
+                            variant="outline"
+                            className={`text-[11px] ${
+                              has
+                                ? 'bg-primary/10 text-primary border-primary/20'
+                                : 'text-muted-foreground/30 border-border/30 opacity-40'
+                            }`}
+                          >
+                            {t(perm.label)}
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Role Permissions Dialog */}
+      <Dialog open={!!editingRole} onOpenChange={(v) => { if (!v) setEditingRole(null); }}>
+        <DialogContent className="max-w-xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-primary" />
+              {t('Edit Permissions')} — {editingRole?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-between pb-2 border-b">
+            <span className="text-xs text-muted-foreground">
+              {selectedPerms.length} / {ALL_PERMISSION_IDS.length} {t('permissions selected')}
+            </span>
+            <div className="flex gap-2">
+              <Button type="button" size="sm" variant="ghost" className="h-7 text-xs" onClick={handleSelectAll}>
+                {t('Select All')}
+              </Button>
+              <Button type="button" size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={handleDeselectAll}>
+                {t('Deselect All')}
+              </Button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto space-y-5 py-3 pr-1">
+            {PERMISSION_CATEGORIES.map((category) => (
+              <div key={category.name} className="space-y-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  {t(category.name)}
+                </h4>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {category.permissions.map((perm) => {
+                    const isChecked = selectedPerms.includes(perm.id);
+                    return (
+                      <label
+                        key={perm.id}
+                        className={`flex items-start gap-2.5 p-2.5 rounded-lg border text-xs cursor-pointer transition-colors ${
+                          isChecked ? 'bg-primary/5 border-primary/30' : 'bg-muted/20 border-border/60 hover:bg-muted/40'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => togglePermission(perm.id)}
+                          className="mt-0.5 h-3.5 w-3.5 rounded border-muted-foreground text-primary focus:ring-primary"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-foreground">{t(perm.label)}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{t(perm.description)}</p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter className="pt-2 border-t">
+            <Button type="button" variant="outline" onClick={() => setEditingRole(null)}>
+              {t('Cancel')}
+            </Button>
+            <Button onClick={handleSaveRole} disabled={savingRole}>
+              {savingRole ? t('Saving…') : t('Save Permissions')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create / Edit Dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>

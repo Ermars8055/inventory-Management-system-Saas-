@@ -247,7 +247,7 @@ export type Permission =
 export interface Role {
   id: string;
   name: string;
-  permissions: Permission[];
+  permissions: string[];
 }
 
 export interface User {

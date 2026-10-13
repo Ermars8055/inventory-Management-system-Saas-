@@ -40,8 +40,8 @@ def get_current_user(
 
 def require(permission: str):
     """Dependency factory — requires a specific permission."""
-    def _check(current_user: User = Depends(get_current_user)):
-        if not has_permission(current_user.role, permission):
+    def _check(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+        if not has_permission(current_user.role, permission, org_id=current_user.organization_id, db=db):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Permission denied: {permission}",

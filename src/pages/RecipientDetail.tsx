@@ -5,6 +5,7 @@ import {
   XCircle, DollarSign, Package, Pencil, CreditCard, Truck, Printer,
 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
+import { useAuth } from '@/context/AuthContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
 import { recipientService, assignmentService, inventoryService, transactionService, feeService, classTemplateService, classService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -42,6 +43,10 @@ export function RecipientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentOrg } = useOrganization();
+  const { can } = useAuth();
+  const canUpdateRecipient = can('recipients:update');
+  const canIssue = can('assignments:create');
+  const canUpdateAssignment = can('assignments:update');
   const config = useOrgConfig();
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -261,16 +266,18 @@ export function RecipientDetailPage() {
         description={`${config.identifierLabel}: ${recipient.identifier || '—'} · ${config.groupLabel}: ${recipient.group || '—'}`}
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={openEditRecipient}>
-              <Pencil className="h-4 w-4 mr-1" /> {t('Edit')}
-            </Button>
-            {isDistribution && templates.length > 0 && (
+            {canUpdateRecipient && (
+              <Button variant="outline" size="sm" onClick={openEditRecipient}>
+                <Pencil className="h-4 w-4 mr-1" /> {t('Edit')}
+              </Button>
+            )}
+            {canIssue && isDistribution && templates.length > 0 && (
               <Button variant="outline" onClick={() => setShowAssignPackage(true)}>
                 <CreditCard className="h-4 w-4 mr-1" />
                 {t('Assign Package')}
               </Button>
             )}
-            {!isDistribution && (
+            {canIssue && !isDistribution && (
               <Button onClick={() => setShowIssue(true)}>
                 <Plus className="h-4 w-4 mr-1" />
                 {t(config.assignmentLabel)} {t('Item')}
@@ -384,10 +391,12 @@ export function RecipientDetailPage() {
                       {isDistribution ? (
                         <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">{t('Distributed')}</Badge>
                       ) : a.status === 'fine_pending' ? (
-                        <Button size="sm" variant="outline" className="text-amber-700 border-amber-300" onClick={() => handleFinePaid(a.id)}>
-                          <DollarSign className="h-3.5 w-3.5 mr-1" /> {t('Mark Paid')}
-                        </Button>
-                      ) : (
+                        canUpdateAssignment && (
+                          <Button size="sm" variant="outline" className="text-amber-700 border-amber-300" onClick={() => handleFinePaid(a.id)}>
+                            <DollarSign className="h-3.5 w-3.5 mr-1" /> {t('Mark Paid')}
+                          </Button>
+                        )
+                      ) : canUpdateAssignment ? (
                         <>
                           <Button size="sm" variant="outline" onClick={() => { setReturning(a); setReturnForm({ returnReason: '', conditionReturned: 'Good', damageNotes: '', fineAmount: '0', receivedBy: '', notes: '' }); }}>
                             <RotateCcw className="h-3.5 w-3.5 mr-1" /> {t('Return')}
@@ -396,7 +405,7 @@ export function RecipientDetailPage() {
                             <XCircle className="h-3.5 w-3.5 mr-1" /> {t('Lost')}
                           </Button>
                         </>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 );
@@ -637,22 +646,28 @@ export function RecipientDetailPage() {
                     {fee.status === 'unpaid' && (
                       <>
                         <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">{t('Unpaid')}</Badge>
-                        <Button size="sm" onClick={() => { setShowPayDialog(fee.id); setPayAmount(String(fee.totalAmount - fee.paidAmount)); }}>
-                          <DollarSign className="h-3.5 w-3.5 mr-1" /> {t('Pay')}
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={async () => {
-                          await feeService.waive(fee.id);
-                          refreshRecipient();
-                          toast({ title: t('Fee waived') });
-                        }}>{t('Waive')}</Button>
+                        {canUpdateAssignment && (
+                          <>
+                            <Button size="sm" onClick={() => { setShowPayDialog(fee.id); setPayAmount(String(fee.totalAmount - fee.paidAmount)); }}>
+                              <DollarSign className="h-3.5 w-3.5 mr-1" /> {t('Pay')}
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={async () => {
+                              await feeService.waive(fee.id);
+                              refreshRecipient();
+                              toast({ title: t('Fee waived') });
+                            }}>{t('Waive')}</Button>
+                          </>
+                        )}
                       </>
                     )}
                     {fee.status === 'partial' && (
                       <>
                         <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">{t('Partial')} (₹{fee.paidAmount})</Badge>
-                        <Button size="sm" onClick={() => { setShowPayDialog(fee.id); setPayAmount(String(fee.totalAmount - fee.paidAmount)); }}>
-                          <DollarSign className="h-3.5 w-3.5 mr-1" /> {t('Pay Remaining')}
-                        </Button>
+                        {canUpdateAssignment && (
+                          <Button size="sm" onClick={() => { setShowPayDialog(fee.id); setPayAmount(String(fee.totalAmount - fee.paidAmount)); }}>
+                            <DollarSign className="h-3.5 w-3.5 mr-1" /> {t('Pay Remaining')}
+                          </Button>
+                        )}
                       </>
                     )}
                     {fee.status === 'paid' && (

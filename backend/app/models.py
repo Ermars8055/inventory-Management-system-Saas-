@@ -201,6 +201,7 @@ class PasswordResetToken(Base):
 class Role(Base):
     __tablename__ = "roles"
     id = Column(String, primary_key=True)
+    organization_id = Column(String, ForeignKey("organizations.id"), nullable=True)
     name = Column(String, nullable=False)
     permissions = Column(JSON, default=list)
 

@@ -14,7 +14,7 @@ interface SidebarProps {
 
 export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   const { isModuleEnabled, currentOrg } = useOrganization();
-  const { user, logout } = useAuth();
+  const { user, logout, can } = useAuth();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -26,8 +26,9 @@ export function Sidebar({ mobileOpen, onClose }: SidebarProps) {
   const navSections = getNavSections(currentOrg?.config);
 
   const isVisible = (item: ReturnType<typeof getNavSections>[0]['items'][0]) => {
-    if (!item.module) return true;
-    return isModuleEnabled(item.module);
+    if (item.module && !isModuleEnabled(item.module)) return false;
+    if (item.permission && !can(item.permission)) return false;
+    return true;
   };
 
   const visibleSections = navSections

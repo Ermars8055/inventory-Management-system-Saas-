@@ -399,6 +399,10 @@ class RoleOut(CamelModel):
     permissions: list[str] = []
 
 
+class RoleUpdate(CamelModel):
+    permissions: list[str]
+
+
 # ---------------------------------------------------------------------------
 # Recipient — generic: Student / Patient / Employee / Member / Customer
 # ---------------------------------------------------------------------------

@@ -44,7 +44,10 @@ const EMPTY_FORM = {
 
 export function ProcurementPage() {
   const { currentOrg } = useOrganization();
-  const { user } = useAuth();
+  const { user, can } = useAuth();
+  const canCreate = can('vendors:create');
+  const canUpdate = can('vendors:update');
+  const canDelete = can('vendors:delete');
   const { toast } = useToast();
   const { t } = useTranslation();
 
@@ -223,9 +226,11 @@ export function ProcurementPage() {
         title={t("Procurement")}
         description={t("Manage purchase orders and vendor stock")}
         actions={
-          <Button size="sm" onClick={() => { setForm(EMPTY_FORM); setLineItems([]); setShowCreate(true); }}>
-            <Plus className="h-4 w-4 mr-2" /> {t("New PO")}
-          </Button>
+          canCreate ? (
+            <Button size="sm" onClick={() => { setForm(EMPTY_FORM); setLineItems([]); setShowCreate(true); }}>
+              <Plus className="h-4 w-4 mr-2" /> {t("New PO")}
+            </Button>
+          ) : undefined
         }
       />
 
@@ -300,20 +305,24 @@ export function ProcurementPage() {
                       {po.amount.toLocaleString('en-IN')}
                     </TableCell>
                     <TableCell>
-                      <Select value={po.status} onValueChange={(v) => handleStatusChange(po.id, v as POStatus)}>
-                        <SelectTrigger className="h-7 w-[148px] text-xs">
-                          <Badge variant="outline" className={`text-xs ${cfg.className} border-0 p-0`}>{t(cfg.label)}</Badge>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(Object.keys(STATUS_CONFIG) as POStatus[]).map((s) => (
-                            <SelectItem key={s} value={s} className="text-xs">{t(STATUS_CONFIG[s].label)}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {canUpdate ? (
+                        <Select value={po.status} onValueChange={(v) => handleStatusChange(po.id, v as POStatus)}>
+                          <SelectTrigger className="h-7 w-[148px] text-xs">
+                            <Badge variant="outline" className={`text-xs ${cfg.className} border-0 p-0`}>{t(cfg.label)}</Badge>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(Object.keys(STATUS_CONFIG) as POStatus[]).map((s) => (
+                              <SelectItem key={s} value={s} className="text-xs">{t(STATUS_CONFIG[s].label)}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge variant="outline" className={`text-xs ${cfg.className}`}>{t(cfg.label)}</Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        {canReceive && (po.lineItems?.length ?? 0) > 0 && (
+                        {canUpdate && canReceive && (po.lineItems?.length ?? 0) > 0 && (
                           <button
                             onClick={() => openReceive(po)}
                             className="h-7 px-2 flex items-center gap-1 rounded text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
@@ -321,12 +330,14 @@ export function ProcurementPage() {
                             <PackageCheck className="h-3.5 w-3.5" /> {t("Receive")}
                           </button>
                         )}
-                        <button
-                          onClick={() => handleDelete(po.id)}
-                          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        {canDelete && (
+                          <button
+                            onClick={() => handleDelete(po.id)}
+                            className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

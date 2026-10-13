@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, FileText, Clock, CheckCircle2, XCircle, ArrowRight, Trash2 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
+import { useAuth } from '@/context/AuthContext';
 import { quotationService, inventoryService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -32,6 +33,8 @@ interface NewForm {
 
 export function QuotationsPage() {
   const { currentOrg } = useOrganization();
+  const { can } = useAuth();
+  const canCreate = can('vendors:create');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
@@ -129,9 +132,11 @@ export function QuotationsPage() {
         title={t("Vendor Quotations")}
         description={t("Compare vendor prices and send purchase orders via email")}
         actions={
-          <Button onClick={() => { setForm({ title: '', notes: '', selectedItems: [] }); setShowCreate(true); }}>
-            <Plus className="h-4 w-4 mr-1" /> {t("New Quotation")}
-          </Button>
+          canCreate ? (
+            <Button onClick={() => { setForm({ title: '', notes: '', selectedItems: [] }); setShowCreate(true); }}>
+              <Plus className="h-4 w-4 mr-1" /> {t("New Quotation")}
+            </Button>
+          ) : undefined
         }
       />
 
@@ -142,7 +147,7 @@ export function QuotationsPage() {
               icon={FileText}
               title={t("No quotations yet")}
               description={t("Create a quotation to compare vendor prices and generate purchase orders.")}
-              action={<Button onClick={() => setShowCreate(true)}><Plus className="h-4 w-4 mr-1" />{t("New Quotation")}</Button>}
+              action={canCreate ? <Button onClick={() => setShowCreate(true)}><Plus className="h-4 w-4 mr-1" />{t("New Quotation")}</Button> : undefined}
             />
           </CardContent>
         </Card>

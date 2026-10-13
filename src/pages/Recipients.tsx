@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, UserCircle2, ChevronRight, Settings2, School } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
+import { useAuth } from '@/context/AuthContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
 import { useTranslation } from '@/hooks/useTranslation';
 import { recipientService, classService } from '@/services';
@@ -20,6 +21,9 @@ import type { Recipient, OrgClass } from '@/types';
 
 export function RecipientsPage() {
   const { currentOrg } = useOrganization();
+  const { can } = useAuth();
+  const canCreate = can('recipients:create');
+  const canManageFields = can('settings:update');
   const config = useOrgConfig();
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -102,18 +106,22 @@ export function RecipientsPage() {
           <div className="flex items-center gap-2">
             <CsvActions
               exportUrl="/data/export/recipients"
-              importUrl="/data/import/recipients"
+              importUrl={canCreate ? "/data/import/recipients" : undefined}
               entityName={t(config.recipientPluralLabel)}
               sampleHeaders="name,identifier,group,contact"
               onImportComplete={() => currentOrg && recipientService.getByOrganization(currentOrg.id).then(setRecipients)}
             />
-            <Button variant="outline" size="sm" onClick={() => setFieldsSheetOpen(true)}>
-              <Settings2 className="h-4 w-4 mr-1" />{t('Custom Fields')}
-            </Button>
-            <Button onClick={() => setShowAdd(true)}>
-              <Plus className="h-4 w-4 mr-1" />
-              {t('Add')} {t(config.recipientLabel)}
-            </Button>
+            {canManageFields && (
+              <Button variant="outline" size="sm" onClick={() => setFieldsSheetOpen(true)}>
+                <Settings2 className="h-4 w-4 mr-1" />{t('Custom Fields')}
+              </Button>
+            )}
+            {canCreate && (
+              <Button onClick={() => setShowAdd(true)}>
+                <Plus className="h-4 w-4 mr-1" />
+                {t('Add')} {t(config.recipientLabel)}
+              </Button>
+            )}
           </div>
         }
       />
@@ -149,10 +157,12 @@ export function RecipientsPage() {
           title={`${t('No')} ${t(config.recipientPluralLabel).toLowerCase()} ${t('found')}`}
           description={`${t('Add')} ${t(config.recipientPluralLabel).toLowerCase()} ${t('to start tracking assignments.')}`}
           action={
-            <Button onClick={() => setShowAdd(true)}>
-              <Plus className="h-4 w-4 mr-1" />
-              {t('Add')} {t(config.recipientLabel)}
-            </Button>
+            canCreate ? (
+              <Button onClick={() => setShowAdd(true)}>
+                <Plus className="h-4 w-4 mr-1" />
+                {t('Add')} {t(config.recipientLabel)}
+              </Button>
+            ) : undefined
           }
         />
       ) : (

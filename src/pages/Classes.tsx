@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, School, Users, Package, ArrowRight, Trash2 } from 'lucide-react';
+import { Plus, School, Users, Package, ArrowRight, Trash2, Search, X } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { classService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -16,10 +16,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useAuth } from '@/context/AuthContext';
 import type { OrgClass } from '@/types';
 
 export function ClassesPage() {
   const { currentOrg } = useOrganization();
+  const { can } = useAuth();
+  const canCreate = can('inventory:create');
+  const canDelete = can('inventory:delete');
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -29,6 +33,44 @@ export function ClassesPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ name: '', academicYear: '', notes: '' });
   const [saving, setSaving] = useState(false);
+
+  const [search, setSearch] = useState('');
+  const [yearFilter, setYearFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const availableYears = useMemo(() => {
+    const years = new Set<string>();
+    classes.forEach(c => {
+      if (c.academicYear) years.add(c.academicYear);
+    });
+    return Array.from(years).sort().reverse();
+  }, [classes]);
+
+  const filteredClasses = useMemo(() => {
+    return classes.filter(cls => {
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const matchName = cls.name.toLowerCase().includes(q);
+        const matchNotes = cls.notes ? cls.notes.toLowerCase().includes(q) : false;
+        if (!matchName && !matchNotes) return false;
+      }
+      if (yearFilter !== 'all' && cls.academicYear !== yearFilter) {
+        return false;
+      }
+      if (statusFilter !== 'all' && cls.status !== statusFilter) {
+        return false;
+      }
+      return true;
+    });
+  }, [classes, search, yearFilter, statusFilter]);
+
+  const hasActiveFilters = search.trim() !== '' || yearFilter !== 'all' || statusFilter !== 'all';
+
+  function handleResetFilters() {
+    setSearch('');
+    setYearFilter('all');
+    setStatusFilter('all');
+  }
 
   useEffect(() => {
     if (!currentOrg) return;
@@ -76,9 +118,11 @@ export function ClassesPage() {
         title={t('Classes')}
         description={t('Manage classes, enrol students, assign items and collect fees')}
         actions={
-          <Button onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4 mr-1" /> {t('New Class')}
-          </Button>
+          canCreate ? (
+            <Button onClick={() => setShowCreate(true)}>
+              <Plus className="h-4 w-4 mr-1" /> {t('New Class')}
+            </Button>
+          ) : undefined
         }
       />
 
@@ -91,77 +135,151 @@ export function ClassesPage() {
               icon={School}
               title={t('No classes yet')}
               description={t('Create a class to start enrolling students and assigning materials.')}
-              action={<Button onClick={() => setShowCreate(true)}><Plus className="h-4 w-4 mr-1" />{t('New Class')}</Button>}
+              action={canCreate ? <Button onClick={() => setShowCreate(true)}><Plus className="h-4 w-4 mr-1" />{t('New Class')}</Button> : undefined}
             />
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {classes.map(cls => {
-            const feeProgress = cls.studentCount > 0
-              ? Math.round((cls.distributedCount / cls.studentCount) * 100)
-              : 0;
-            return (
-              <Card
-                key={cls.id}
-                className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => navigate(`/classes/${cls.id}`)}
+        <div className="space-y-4">
+          {/* Filters Toolbar */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={t('Search classes by name or notes…')}
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
+            {availableYears.length > 0 && (
+              <Select value={yearFilter} onValueChange={setYearFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder={t('All Academic Years')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('All Academic Years')}</SelectItem>
+                  {availableYears.map(y => (
+                    <SelectItem key={y} value={y}>{y}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[140px]">
+                <SelectValue placeholder={t('All Statuses')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('All Statuses')}</SelectItem>
+                <SelectItem value="active">{t('Active')}</SelectItem>
+                <SelectItem value="closed">{t('Closed')}</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleResetFilters}
+                className="h-10 px-3 text-muted-foreground hover:text-foreground"
               >
-                <CardContent className="p-4 flex items-center gap-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 shrink-0">
-                    <School className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold truncate">{cls.name}</p>
-                      {cls.academicYear && (
-                        <span className="text-xs text-muted-foreground">{cls.academicYear}</span>
-                      )}
-                      {cls.status === 'closed' && (
-                        <Badge variant="outline" className="text-xs bg-muted text-muted-foreground">
-                          {t('Closed')}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-4 mt-1">
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Users className="h-3 w-3" /> {cls.studentCount} {t('students')}
-                      </span>
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Package className="h-3 w-3" /> {cls.items.length} {t('items')}
-                        {cls.totalFeePerStudent > 0 && ` · ₹${cls.totalFeePerStudent}`}
-                      </span>
-                      {cls.studentCount > 0 && (
-                        <span className="text-xs text-muted-foreground">
-                          {cls.distributedCount}/{cls.studentCount} {t('distributed')}
-                          {' · '}{cls.paidCount} {t('paid')}
-                          {cls.unpaidCount > 0 && <span className="text-amber-600"> · {cls.unpaidCount} {t('pending')}</span>}
-                        </span>
-                      )}
-                    </div>
-                    {/* Fee progress bar */}
-                    {cls.studentCount > 0 && (
-                      <div className="mt-2 h-1 w-full max-w-xs bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-emerald-500 rounded-full transition-all"
-                          style={{ width: `${feeProgress}%` }}
-                        />
+                <X className="h-4 w-4 mr-1" /> {t('Clear')}
+              </Button>
+            )}
+          </div>
+
+          {/* Active filter count indicator */}
+          {hasActiveFilters && (
+            <p className="text-xs text-muted-foreground">
+              {t('Showing')} {filteredClasses.length} {t('of')} {classes.length} {t('classes')}
+            </p>
+          )}
+
+          {filteredClasses.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center space-y-3">
+                <p className="text-sm font-medium">{t('No classes matching filters')}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t('Try adjusting your search terms or filters.')}
+                </p>
+                <Button variant="outline" size="sm" onClick={handleResetFilters}>
+                  {t('Clear Filters')}
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {filteredClasses.map(cls => {
+                const feeProgress = cls.studentCount > 0
+                  ? Math.round((cls.distributedCount / cls.studentCount) * 100)
+                  : 0;
+                return (
+                  <Card
+                    key={cls.id}
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => navigate(`/classes/${cls.id}`)}
+                  >
+                    <CardContent className="p-4 flex items-center gap-4">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 shrink-0">
+                        <School className="h-5 w-5 text-primary" />
                       </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
-                    <button
-                      onClick={e => handleDelete(cls, e)}
-                      className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                </CardContent>
-              </Card>
-            );
-          })}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold truncate">{cls.name}</p>
+                          {cls.academicYear && (
+                            <span className="text-xs text-muted-foreground">{cls.academicYear}</span>
+                          )}
+                          {cls.status === 'closed' && (
+                            <Badge variant="outline" className="text-xs bg-muted text-muted-foreground">
+                              {t('Closed')}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 mt-1">
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Users className="h-3 w-3" /> {cls.studentCount} {t('students')}
+                          </span>
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Package className="h-3 w-3" /> {cls.items.length} {t('items')}
+                            {cls.totalFeePerStudent > 0 && ` · ₹${cls.totalFeePerStudent}`}
+                          </span>
+                          {cls.studentCount > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              {cls.distributedCount}/{cls.studentCount} {t('distributed')}
+                              {' · '}{cls.paidCount} {t('paid')}
+                              {cls.unpaidCount > 0 && <span className="text-amber-600"> · {cls.unpaidCount} {t('pending')}</span>}
+                            </span>
+                          )}
+                        </div>
+                        {/* Fee progress bar */}
+                        {cls.studentCount > 0 && (
+                          <div className="mt-2 h-1 w-full max-w-xs bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500 rounded-full transition-all"
+                              style={{ width: `${feeProgress}%` }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      {canDelete && (
+                        <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                          <button
+                            onClick={e => handleDelete(cls, e)}
+                            className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+                      <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, UserCheck, Plus, AlertTriangle, CheckCircle2, XCircle, DollarSign, Printer, School } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
+import { useAuth } from '@/context/AuthContext';
 import { useOrgConfig } from '@/hooks/useOrgConfig';
 import { recipientService, assignmentService, inventoryService, transactionService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -88,6 +89,9 @@ function FeeBadge({ assignment }: { assignment: Assignment }) {
 
 export function AssignmentsPage() {
   const { currentOrg } = useOrganization();
+  const { can } = useAuth();
+  const canIssue = can('assignments:create');
+  const canUpdate = can('assignments:update');
   const config = useOrgConfig();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -321,12 +325,12 @@ export function AssignmentsPage() {
                         <School className="h-4 w-4 mr-2" />
                         {t('Go to Class')}
                       </Button>
-                    ) : (
+                    ) : canIssue ? (
                       <Button size="sm" onClick={() => setIssueDialog(true)}>
                         <Plus className="h-4 w-4 mr-2" />
                         {t(config.assignmentLabel)} {t('Item')}
                       </Button>
-                    )}
+                    ) : null}
                   </div>
                   <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm border-t pt-3">
                     <span>
@@ -414,7 +418,7 @@ export function AssignmentsPage() {
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1.5">
-                                {a.mode === 'lending' && (
+                                {a.mode === 'lending' && canUpdate && (
                                   <>
                                     <Button variant="outline" size="sm" onClick={() => openReturn(a)}>
                                       <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
@@ -426,7 +430,7 @@ export function AssignmentsPage() {
                                     </Button>
                                   </>
                                 )}
-                                {a.mode === 'distribution' && a.feeStatus === 'unpaid' && a.feeAmount > 0 && (
+                                {a.mode === 'distribution' && a.feeStatus === 'unpaid' && a.feeAmount > 0 && canUpdate && (
                                   <Button variant="outline" size="sm" onClick={async () => {
                                     await assignmentService.markFeePaid(a.id);
                                     setAssignments(prev => prev.map(x => x.id === a.id ? { ...x, feeStatus: 'paid' as const } : x));

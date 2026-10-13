@@ -9,6 +9,7 @@ export interface AuthUser {
   email: string;
   role: 'org_admin' | 'manager' | 'staff' | 'viewer';
   organizationId: string;
+  permissions?: string[];
 }
 
 interface AuthContextValue {
@@ -109,6 +110,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const can = useCallback((permission: string) => {
     if (!user) return false;
+    if (user.role === 'org_admin') return true;
+    if (user.permissions && Array.isArray(user.permissions)) {
+      return user.permissions.includes('*') || user.permissions.includes(permission);
+    }
     return checkPermission(user.role, permission);
   }, [user]);
 

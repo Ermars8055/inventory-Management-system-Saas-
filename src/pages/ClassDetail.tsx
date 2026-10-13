@@ -5,6 +5,7 @@ import {
   CheckCircle2, Clock, XCircle, Download, UserPlus, Printer,
 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
+import { useAuth } from '@/context/AuthContext';
 import { classService, feeService, inventoryService, classTemplateService, recipientService } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -34,6 +35,12 @@ export function ClassDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentOrg } = useOrganization();
+  const { can } = useAuth();
+  const canCreate = can('inventory:create');
+  const canUpdate = can('inventory:update');
+  const canDelete = can('inventory:delete');
+  const canIssue = can('assignments:create');
+  const canCollect = can('assignments:update');
   const { toast } = useToast();
   const { t } = useTranslation();
 
@@ -319,6 +326,45 @@ export function ClassDetailPage() {
     }
   }
 
+  function handleExportStudents() {
+    if (!cls || !cls.students?.length) return;
+    const escapeCsv = (val: string | number | undefined | null) => {
+      const str = String(val ?? '');
+      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    };
+    const headers = [
+      'Roll Number',
+      'Student Name',
+      'Class',
+      'Academic Year',
+      'Contact',
+      'Fee Status',
+      'Paid Amount',
+      'Total Fee',
+      'Distributed Date',
+    ];
+    const rows = cls.students.map(s => [
+      escapeCsv(s.identifier),
+      escapeCsv(s.name),
+      escapeCsv(cls.name),
+      escapeCsv(cls.academicYear),
+      escapeCsv(s.contact),
+      escapeCsv(FEE_STATUS[s.feeStatus]?.label ?? s.feeStatus),
+      escapeCsv(s.paidAmount),
+      escapeCsv(s.totalAmount),
+      escapeCsv(s.distributedDate),
+    ].join(','));
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${cls.name.replace(/[^a-zA-Z0-9_-]/g, '_')}_students.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast({ title: t('Students exported') });
+  }
+
   // ── Derived stats ─────────────────────────────────────────────────────────
 
   const anyNoFee = (cls.students ?? []).some(s => s.feeStatus === 'no_fee');
@@ -367,14 +413,21 @@ export function ClassDetailPage() {
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle className="text-base">{t('Enrolled Students')}</CardTitle>
               <div className="flex gap-2">
-                {(cls.students ?? []).length > 0 && (
+                {currentOrg.industry === 'school' && (cls.students ?? []).length > 0 && (
+                  <Button size="sm" variant="outline" onClick={handleExportStudents}>
+                    <Download className="h-3.5 w-3.5 mr-1" /> {t('Export Students')}
+                  </Button>
+                )}
+                {canUpdate && (cls.students ?? []).length > 0 && (
                   <Button size="sm" variant="outline" onClick={() => setShowPromote(true)}>
                     {t('Promote Class')}
                   </Button>
                 )}
-                <Button size="sm" variant="outline" onClick={() => { setEnrolMode('new'); setShowEnrol(true); }}>
-                  <UserPlus className="h-3.5 w-3.5 mr-1" /> {t('Enrol Student')}
-                </Button>
+                {canCreate && (
+                  <Button size="sm" variant="outline" onClick={() => { setEnrolMode('new'); setShowEnrol(true); }}>
+                    <UserPlus className="h-3.5 w-3.5 mr-1" /> {t('Enrol Student')}
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -396,12 +449,14 @@ export function ClassDetailPage() {
                         <Badge variant="outline" className={`text-xs shrink-0 ${fsCfg.color}`}>
                           {t(fsCfg.label)}
                         </Badge>
-                        <button
-                          onClick={() => handleRemoveStudent(s.recipientId)}
-                          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        {canUpdate && (
+                          <button
+                            onClick={() => handleRemoveStudent(s.recipientId)}
+                            className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </div>
                     );
                   })}
@@ -416,14 +471,16 @@ export function ClassDetailPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle className="text-base">{t('Items per Student')}</CardTitle>
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => setShowImport(true)}>
-                  <Download className="h-3.5 w-3.5 mr-1" /> {t('Import Template')}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => { setItemMode('inventory'); setShowAddItem(true); }}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> {t('Add Item')}
-                </Button>
-              </div>
+              {canCreate && (
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setShowImport(true)}>
+                    <Download className="h-3.5 w-3.5 mr-1" /> {t('Import Template')}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => { setItemMode('inventory'); setShowAddItem(true); }}>
+                    <Plus className="h-3.5 w-3.5 mr-1" /> {t('Add Item')}
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               {(cls.items ?? []).length === 0 ? (
@@ -446,20 +503,26 @@ export function ClassDetailPage() {
                             <p className="text-xs text-muted-foreground">₹{item.unitPrice} × {item.quantity} = ₹{item.unitPrice * item.quantity}</p>
                           )}
                         </div>
-                        <div className="flex gap-1 shrink-0">
-                          <button
-                            onClick={() => { setEditingItem(item); setEditForm({ quantity: item.quantity, unitPrice: item.unitPrice, conditionIssued: item.conditionIssued }); }}
-                            className="h-7 px-2 text-xs rounded border hover:bg-muted transition-colors"
-                          >
-                            {t('Edit')}
-                          </button>
-                          <button
-                            onClick={() => handleRemoveItem(item.id)}
-                            className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
+                        {(canUpdate || canDelete) && (
+                          <div className="flex gap-1 shrink-0">
+                            {canUpdate && (
+                              <button
+                                onClick={() => { setEditingItem(item); setEditForm({ quantity: item.quantity, unitPrice: item.unitPrice, conditionIssued: item.conditionIssued }); }}
+                                className="h-7 px-2 text-xs rounded border hover:bg-muted transition-colors"
+                              >
+                                {t('Edit')}
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button
+                                onClick={() => handleRemoveItem(item.id)}
+                                className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -497,12 +560,12 @@ export function ClassDetailPage() {
 
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2 mb-4">
-            {cls.items.length > 0 && anyNoFee && (
+            {canIssue && cls.items.length > 0 && anyNoFee && (
               <Button size="sm" variant="outline" onClick={() => handleAssignFees()}>
                 {t('Assign Fees for All Students')}
               </Button>
             )}
-            {anyPaid && (
+            {canIssue && anyPaid && (
               <Button size="sm" onClick={handleDistributeAll}>
                 <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
                 {t('Distribute All Paid')}
@@ -559,13 +622,13 @@ export function ClassDetailPage() {
                                     <CheckCircle2 className="h-3.5 w-3.5" /> {t('Done')}
                                   </span>
                                 )}
-                                {s.feeStatus === 'no_fee' && cls.items.length > 0 && (
+                                {s.feeStatus === 'no_fee' && cls.items.length > 0 && canIssue && (
                                   <Button size="sm" variant="outline" className="h-7 text-xs"
                                     onClick={() => handleAssignFees(s.recipientId)}>
                                     {t('Assign Fee')}
                                   </Button>
                                 )}
-                                {(s.feeStatus === 'unpaid' || s.feeStatus === 'partial') && (
+                                {(s.feeStatus === 'unpaid' || s.feeStatus === 'partial') && canCollect && (
                                   <>
                                     <Button size="sm" className="h-7 text-xs"
                                       onClick={() => openCollect(s)}>
@@ -577,7 +640,7 @@ export function ClassDetailPage() {
                                     </Button>
                                   </>
                                 )}
-                                {(s.feeStatus === 'paid' || s.feeStatus === 'waived') && (
+                                {(s.feeStatus === 'paid' || s.feeStatus === 'waived') && canIssue && (
                                   <Button size="sm" className="h-7 text-xs"
                                     onClick={() => handleDistributeOne(s)}>
                                     <Package className="h-3 w-3 mr-1" /> {t('Distribute')}

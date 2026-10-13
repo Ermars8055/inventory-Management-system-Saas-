@@ -6,7 +6,7 @@
 import { api } from '@/lib/api';
 import type {
   Organization, ModuleId, OrgConfig, Item, Category, StockTransaction,
-  Vendor, User, Recipient, Assignment, Batch, ReceiptTemplate, CustomField, Subscription,
+  Vendor, User, Role, Recipient, Assignment, Batch, ReceiptTemplate, CustomField, Subscription,
   PurchaseOrder, POLineItem, MaintenanceTicket, Asset, ClassTemplate, ClassTemplateItem,
   Quotation, FeeRecord, FeeReceipt, OrgClass, OrgClassDetail, OrgClassItem,
   ClassEnrollmentHistory,
@@ -132,8 +132,11 @@ export const userService = {
   async getByOrganization(_orgId?: string): Promise<User[]> {
     return api.get('/users');
   },
-  async getRoles(): Promise<{ id: string; name: string }[]> {
+  async getRoles(): Promise<Role[]> {
     return api.get('/roles');
+  },
+  async updateRole(id: string, data: { permissions: string[] }): Promise<Role> {
+    return api.put(`/roles/${id}`, data);
   },
   async create(data: { organizationId: string; name: string; email: string; role: string; password?: string }): Promise<User> {
     return api.post('/users', data);
