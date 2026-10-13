@@ -170,7 +170,7 @@ export function ClassDetailPage() {
     try {
       const updated = await classService.updateItem(cls.id, editingItem.id, {
         quantity: editForm.quantity,
-        unitPrice: editForm.unitPrice,
+        unitPrice: editingItem.unitPrice,
         conditionIssued: editForm.conditionIssued,
       });
       setCls(updated);
@@ -707,20 +707,14 @@ export function ClassDetailPage() {
                   onChange={e => setItemForm({ ...itemForm, quantity: Number(e.target.value) })} className="text-sm" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">{t('Unit Price (₹)')}</Label>
-                <Input type="number" min={0} value={itemForm.unitPrice}
-                  onChange={e => setItemForm({ ...itemForm, unitPrice: Number(e.target.value) })} className="text-sm" />
+                <Label className="text-xs">{t('Condition')}</Label>
+                <Select value={itemForm.conditionIssued} onValueChange={v => setItemForm({ ...itemForm, conditionIssued: v })}>
+                  <SelectTrigger className="text-sm h-8"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {['New', 'Good', 'Fair', 'Poor'].map(c => <SelectItem key={c} value={c}>{t(c)}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs">{t('Condition')}</Label>
-              <Select value={itemForm.conditionIssued} onValueChange={v => setItemForm({ ...itemForm, conditionIssued: v })}>
-                <SelectTrigger className="text-sm h-8"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {['New', 'Good', 'Fair', 'Poor'].map(c => <SelectItem key={c} value={c}>{t(c)}</SelectItem>)}
-                </SelectContent>
-              </Select>
             </div>
           </div>
           <DialogFooter>
@@ -737,17 +731,10 @@ export function ClassDetailPage() {
         <DialogContent className="sm:max-w-xs">
           <DialogHeader><DialogTitle>{t('Edit Item')} — {editingItem?.itemName}</DialogTitle></DialogHeader>
           <div className="space-y-3 py-1">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">{t('Qty per student')}</Label>
-                <Input type="number" min={1} value={editForm.quantity}
-                  onChange={e => setEditForm({ ...editForm, quantity: Number(e.target.value) })} className="text-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">{t('Unit Price (₹)')}</Label>
-                <Input type="number" min={0} value={editForm.unitPrice}
-                  onChange={e => setEditForm({ ...editForm, unitPrice: Number(e.target.value) })} className="text-sm" />
-              </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t('Qty per student')}</Label>
+              <Input type="number" min={1} value={editForm.quantity}
+                onChange={e => setEditForm({ ...editForm, quantity: Number(e.target.value) })} className="text-sm" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">{t('Condition')}</Label>
