@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import Recipient, Assignment, Item, User, Organization, StockTransaction, compute_item_status
+from ..models import Recipient, Assignment, Item, User, Organization, StockTransaction, OrgClass, ClassEnrollmentHistory, compute_item_status
 from ..schemas import (
     RecipientOut, RecipientCreate, RecipientUpdate,
     AssignmentOut, AssignmentCreate, ReturnBody, LostBody,
@@ -27,18 +27,43 @@ def create_recipient(body: RecipientCreate, user: User = Depends(require("recipi
         existing = db.query(Recipient).filter(Recipient.organization_id == user.organization_id, Recipient.identifier == body.identifier).first()
         if existing:
             raise HTTPException(409, f"A recipient with identifier '{body.identifier}' already exists")
+    # Resolve class info if class_id provided
+    cls = None
+    if body.class_id:
+        cls = db.query(OrgClass).filter(
+            OrgClass.id == body.class_id,
+            OrgClass.organization_id == user.organization_id,
+        ).first()
+        if not cls:
+            raise HTTPException(404, "Class not found")
+
     r = Recipient(
         id=f"rec_{int(time.time() * 1000)}",
         organization_id=user.organization_id,
         name=body.name,
         identifier=body.identifier,
-        group=body.group,
+        group=cls.name if cls else body.group,
         contact=body.contact,
         extra_data=body.extra_data,
+        class_id=cls.id if cls else None,
     )
     db.add(r)
+    db.flush()
+
+    # Log enrollment history if assigned to a class
+    if cls:
+        db.add(ClassEnrollmentHistory(
+            id=f"ceh_{int(time.time() * 1000)}_{r.id[-6:]}",
+            organization_id=user.organization_id,
+            recipient_id=r.id,
+            class_id=cls.id,
+            class_name=cls.name,
+            academic_year=cls.academic_year,
+            joined_at=date.today().isoformat(),
+        ))
+
     log_action(db, user, "create", "recipient", r.id,
-               f"Created recipient: {body.name} [{body.identifier or '—'}] group={body.group or '—'}")
+               f"Created recipient: {body.name} [{body.identifier or '—'}] group={cls.name if cls else (body.group or '—')}")
     db.commit()
     db.refresh(r)
     return r

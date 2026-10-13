@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/hooks/useTranslation';
-import type { Recipient, Assignment, Item, FeeRecord } from '@/types';
+import type { Recipient, Assignment, Item, FeeRecord, ClassEnrollmentHistory } from '@/types';
 
 const STATUS_BADGE: Record<string, { label: string; class: string }> = {
   issued:           { label: 'Active',          class: 'bg-blue-50 text-blue-700 border-blue-200' },
@@ -67,6 +67,9 @@ export function RecipientDetailPage() {
   const [markingLost, setMarkingLost] = useState<Assignment | null>(null);
   const [lostForm, setLostForm] = useState({ fineAmount: '0', notes: '' });
 
+  // Class enrollment history
+  const [classHistory, setClassHistory] = useState<ClassEnrollmentHistory[]>([]);
+
   // Fee-first distribution
   const [fees, setFees] = useState<FeeRecord[]>([]);
   const [templates, setTemplates] = useState<{ id: string; name: string; items: unknown[] }[]>([]);
@@ -83,6 +86,7 @@ export function RecipientDetailPage() {
     inventoryService.getByOrganization(currentOrg.id).then(setItems);
     feeService.getByRecipient(id).then(setFees);
     classTemplateService.getByOrganization(currentOrg.id).then(setTemplates);
+    classService.getEnrollmentHistory(id).then(setClassHistory).catch(() => {});
   }
 
   useEffect(() => {
@@ -311,6 +315,35 @@ export function RecipientDetailPage() {
           </Card>
         ))}
       </div>
+
+      {/* Class enrollment history */}
+      {classHistory.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">{t('Class History')}</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {classHistory.map((h, i) => (
+                <div key={h.id} className="flex items-center gap-3 px-4 py-3">
+                  <div className={`h-2 w-2 rounded-full shrink-0 ${!h.leftAt ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{h.className}</p>
+                    {h.academicYear && <p className="text-xs text-muted-foreground">{h.academicYear}</p>}
+                  </div>
+                  <div className="text-right text-xs text-muted-foreground shrink-0">
+                    <p>{h.joinedAt}</p>
+                    {h.leftAt ? <p>→ {h.leftAt}</p> : <p className="text-emerald-600 font-medium">{t('Current')}</p>}
+                  </div>
+                  {i === 0 && !h.leftAt && (
+                    <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200 shrink-0">{t('Active')}</Badge>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Active assignments */}
       <Card className="mb-6">

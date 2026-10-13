@@ -52,6 +52,7 @@ export interface OrgConfig {
   enableFines: boolean;
   enableConditionTracking: boolean;
   fineLabel: string;
+  allowPartialPayments: boolean;
 }
 
 export const DEFAULT_ORG_CONFIG: OrgConfig = {
@@ -69,6 +70,7 @@ export const DEFAULT_ORG_CONFIG: OrgConfig = {
   enableFines: false,
   enableConditionTracking: true,
   fineLabel: 'Fine',
+  allowPartialPayments: false,
 };
 
 export interface Organization {
@@ -291,11 +293,44 @@ export interface FeeRecord {
   status: FeeStatus;
   paymentDate?: string;
   distributedDate?: string;
+  receiptNumber?: string;
   notes?: string;
   createdAt?: string;
 }
 
+export interface FeeReceiptItem {
+  itemName: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface FeeReceipt {
+  feeId: string;
+  receiptNumber?: string;
+  orgName: string;
+  recipientName: string;
+  className?: string;
+  templateName?: string;
+  totalAmount: number;
+  paidAmount: number;
+  status: string;
+  paymentDate?: string;
+  createdAt?: string;
+  items: FeeReceiptItem[];
+}
+
 // ─── OrgClass — class-based fee flow ─────────────────────────────────────────
+
+export interface ClassEnrollmentHistory {
+  id: string;
+  recipientId: string;
+  classId?: string;
+  className: string;
+  academicYear?: string;
+  joinedAt: string;
+  leftAt?: string;
+}
 
 export interface OrgClassItem {
   id: string;

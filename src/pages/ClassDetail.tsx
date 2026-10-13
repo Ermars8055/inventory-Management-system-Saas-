@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Plus, Trash2, Users, Package, IndianRupee,
-  CheckCircle2, Clock, XCircle, Download, UserPlus,
+  CheckCircle2, Clock, XCircle, Download, UserPlus, Printer,
 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { classService, feeService, inventoryService, classTemplateService, recipientService } from '@/services';
@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/hooks/useTranslation';
-import type { OrgClassDetail, OrgClassItem, ClassStudentRow, Item, Recipient, ClassTemplate } from '@/types';
+import type { OrgClassDetail, OrgClassItem, ClassStudentRow, Item, Recipient, ClassTemplate, FeeReceipt } from '@/types';
 
 // ── Status display helpers ────────────────────────────────────────────────────
 
@@ -41,6 +41,7 @@ export function ClassDetailPage() {
   const [inventoryItems, setInventoryItems] = useState<Item[]>([]);
   const [allRecipients, setAllRecipients] = useState<Recipient[]>([]);
   const [templates, setTemplates] = useState<ClassTemplate[]>([]);
+  const [allClasses, setAllClasses] = useState<{ id: string; name: string; academicYear?: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('students');
 
@@ -73,18 +74,29 @@ export function ClassDetailPage() {
   const [payAmount, setPayAmount] = useState(0);
   const [paySaving, setPaySaving] = useState(false);
 
+  // ── Receipt modal ──
+  const [receipt, setReceipt] = useState<FeeReceipt | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  // ── Promote class dialog ──
+  const [showPromote, setShowPromote] = useState(false);
+  const [promoteTargetId, setPromoteTargetId] = useState('');
+  const [promoteSaving, setPromoteSaving] = useState(false);
+
   const load = useCallback(async () => {
     if (!id || !currentOrg) return;
-    const [detail, inv, recs, tpls] = await Promise.all([
+    const [detail, inv, recs, tpls, classes] = await Promise.all([
       classService.getById(id),
       inventoryService.getByOrganization(currentOrg.id),
       recipientService.getByOrganization(currentOrg.id),
       classTemplateService.getByOrganization(currentOrg.id),
+      classService.getAll(),
     ]);
     setCls(detail);
     setInventoryItems(inv);
     setAllRecipients(recs);
     setTemplates(tpls);
+    setAllClasses(classes.filter(c => c.id !== id));
     setLoading(false);
   }, [id, currentOrg]);
 
@@ -242,22 +254,26 @@ export function ClassDetailPage() {
     if (!collectFor || !cls) return;
     setPaySaving(true);
     try {
+      let paidFee;
       // If no fee record yet, assign first then pay
       if (!collectFor.feeRecordId) {
         await classService.assignFees(cls.id, { recipientId: collectFor.recipientId });
-        await load();
-        // Find the newly created fee record
         const refreshed = await classService.getById(cls.id);
         const student = refreshed.students.find(s => s.recipientId === collectFor.recipientId);
         if (student?.feeRecordId) {
-          await feeService.pay(student.feeRecordId, payAmount);
+          paidFee = await feeService.pay(student.feeRecordId, payAmount);
         }
       } else {
-        await feeService.pay(collectFor.feeRecordId, payAmount);
+        paidFee = await feeService.pay(collectFor.feeRecordId, payAmount);
       }
       await load();
       setCollectFor(null);
       toast({ title: t('Payment recorded') });
+      // Load and show receipt
+      if (paidFee?.id) {
+        const rec = await feeService.getReceipt(paidFee.id);
+        setReceipt(rec);
+      }
     } catch {
       toast({ title: t('Error'), description: t('Failed to record payment'), variant: 'destructive' });
     } finally {
@@ -284,6 +300,22 @@ export function ClassDetailPage() {
       toast({ title: t('Fee waived') });
     } catch {
       toast({ title: t('Error'), description: t('Failed to waive fee'), variant: 'destructive' });
+    }
+  }
+
+  async function handlePromote() {
+    if (!cls || !promoteTargetId) return;
+    setPromoteSaving(true);
+    try {
+      const res = await classService.promoteClass(cls.id, promoteTargetId);
+      toast({ title: `${res.promoted} ${t('student(s) promoted to')} ${res.targetClass}` });
+      setShowPromote(false);
+      setPromoteTargetId('');
+      await load();
+    } catch (err: unknown) {
+      toast({ title: t('Error'), description: err instanceof Error ? err.message : t('Failed to promote'), variant: 'destructive' });
+    } finally {
+      setPromoteSaving(false);
     }
   }
 
@@ -334,9 +366,16 @@ export function ClassDetailPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle className="text-base">{t('Enrolled Students')}</CardTitle>
-              <Button size="sm" variant="outline" onClick={() => { setEnrolMode('new'); setShowEnrol(true); }}>
-                <UserPlus className="h-3.5 w-3.5 mr-1" /> {t('Enrol Student')}
-              </Button>
+              <div className="flex gap-2">
+                {(cls.students ?? []).length > 0 && (
+                  <Button size="sm" variant="outline" onClick={() => setShowPromote(true)}>
+                    {t('Promote Class')}
+                  </Button>
+                )}
+                <Button size="sm" variant="outline" onClick={() => { setEnrolMode('new'); setShowEnrol(true); }}>
+                  <UserPlus className="h-3.5 w-3.5 mr-1" /> {t('Enrol Student')}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {(cls.students ?? []).length === 0 ? (
@@ -806,17 +845,23 @@ export function ClassDetailPage() {
 
             <div className="space-y-1.5">
               <Label>{t('Amount Received (₹)')}</Label>
-              <Input
-                type="number"
-                min={0}
-                max={collectFor?.totalAmount ?? cls.totalFeePerStudent}
-                value={payAmount}
-                onChange={e => setPayAmount(Number(e.target.value))}
-                className="text-lg font-semibold"
-              />
-              <p className="text-xs text-muted-foreground">
-                {t('Outstanding')}: ₹{(collectFor?.totalAmount ?? cls.totalFeePerStudent) - (collectFor?.paidAmount ?? 0)}
-              </p>
+              {currentOrg?.config?.allowPartialPayments ? (
+                <>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={payAmount}
+                    value={payAmount}
+                    onChange={e => setPayAmount(Math.min(Number(e.target.value), collectFor?.totalAmount ?? cls.totalFeePerStudent))}
+                    className="text-lg font-semibold"
+                  />
+                  <p className="text-xs text-muted-foreground">{t('Max')}: ₹{collectFor?.totalAmount ?? cls.totalFeePerStudent}</p>
+                </>
+              ) : (
+                <div className="text-lg font-semibold px-3 py-2 border rounded-md bg-muted/50">
+                  ₹{payAmount}
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -825,6 +870,95 @@ export function ClassDetailPage() {
               {paySaving ? t('Recording…') : t('Record Payment')}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Promote Class Dialog ──────────────────────────────────────────────── */}
+      <Dialog open={showPromote} onOpenChange={v => { if (!v) { setShowPromote(false); setPromoteTargetId(''); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('Promote Class')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <p className="text-sm text-muted-foreground">
+              {t('Move all')} <span className="font-semibold">{(cls.students ?? []).length}</span> {t('students from')} <span className="font-semibold">{cls.name}</span> {t('to another class.')}
+            </p>
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t('Target Class')}</Label>
+              <Select value={promoteTargetId} onValueChange={setPromoteTargetId}>
+                <SelectTrigger className="text-sm"><SelectValue placeholder={t('Select target class…')} /></SelectTrigger>
+                <SelectContent>
+                  {allClasses.length === 0
+                    ? <SelectItem value="_none" disabled>{t('No other classes found')}</SelectItem>
+                    : allClasses.map(c => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}{c.academicYear ? ` (${c.academicYear})` : ''}
+                        </SelectItem>
+                      ))
+                  }
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-amber-600">{t('Students will be removed from this class and added to the selected class. Their history is preserved.')}</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setShowPromote(false)}>{t('Cancel')}</Button>
+            <Button size="sm" onClick={handlePromote} disabled={!promoteTargetId || promoteSaving}>
+              {promoteSaving ? t('Promoting…') : t('Promote')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Receipt Modal ──────────────────────────────────────────────────────── */}
+      <Dialog open={!!receipt} onOpenChange={v => { if (!v) setReceipt(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('Payment Receipt')}</DialogTitle>
+          </DialogHeader>
+          {receipt && (
+            <>
+              <div ref={printRef} className="space-y-4 py-1 print-receipt">
+                <div className="text-center border-b pb-3">
+                  <p className="font-bold text-base">{receipt.orgName}</p>
+                  <p className="text-xs text-muted-foreground">{t('Fee Payment Receipt')}</p>
+                  {receipt.receiptNumber && (
+                    <p className="text-xs font-mono mt-1 font-semibold">{receipt.receiptNumber}</p>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                  <span className="text-muted-foreground">{t('Student')}</span>
+                  <span className="font-medium">{receipt.recipientName}</span>
+                  <span className="text-muted-foreground">{t('Class')}</span>
+                  <span className="font-medium">{receipt.className || receipt.templateName || '—'}</span>
+                  <span className="text-muted-foreground">{t('Date')}</span>
+                  <span className="font-medium">{receipt.paymentDate || '—'}</span>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-3 space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground mb-1">{t('Items')}</p>
+                  {receipt.items.map((item, i) => (
+                    <div key={i} className="flex justify-between text-xs">
+                      <span>{item.itemName} × {item.quantity}</span>
+                      {item.unitPrice > 0 && <span className="font-medium">₹{item.total}</span>}
+                    </div>
+                  ))}
+                  <div className="border-t pt-2 mt-1 flex justify-between text-sm font-bold">
+                    <span>{t('Amount Paid')}</span>
+                    <span>₹{receipt.paidAmount}</span>
+                  </div>
+                </div>
+                {receipt.paidAmount < receipt.totalAmount && (
+                  <p className="text-xs text-amber-600 text-center">{t('Outstanding')}: ₹{receipt.totalAmount - receipt.paidAmount}</p>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" size="sm" onClick={() => setReceipt(null)}>{t('Close')}</Button>
+                <Button size="sm" onClick={() => window.print()}>
+                  <Printer className="h-3.5 w-3.5 mr-1" /> {t('Print')}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

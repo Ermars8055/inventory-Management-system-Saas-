@@ -474,8 +474,25 @@ class FeeRecord(Base):
     status = Column(String, default="unpaid")       # unpaid | partial | paid | distributed | waived
     payment_date = Column(String)
     distributed_date = Column(String)
+    receipt_number = Column(String)                 # e.g. RCP-2026-0001, set on first payment
     notes = Column(String)
     created_at = Column(String)
+
+
+class ClassEnrollmentHistory(Base):
+    """
+    Tracks a student's class membership over time.
+    One row per enrollment period. left_at=None means currently enrolled.
+    """
+    __tablename__ = "class_enrollment_history"
+    id = Column(String, primary_key=True)
+    organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
+    recipient_id = Column(String, ForeignKey("recipients.id"), nullable=False)
+    class_id = Column(String)           # not FK — preserved even if class is deleted
+    class_name = Column(String, nullable=False)
+    academic_year = Column(String)
+    joined_at = Column(String, nullable=False)   # ISO date
+    left_at = Column(String)                     # ISO date, null = currently enrolled
 
 
 class ClassTemplateItem(Base):

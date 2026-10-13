@@ -130,9 +130,19 @@ def record_payment(
     fee.payment_date = date.today().isoformat()
     if body.notes:
         fee.notes = (fee.notes or "") + f"\nPayment: ₹{body.amount} on {date.today().isoformat()}"
+
+    # Generate receipt number on first payment
+    if not fee.receipt_number:
+        year = date.today().year
+        count = db.query(FeeRecord).filter(
+            FeeRecord.organization_id == user.organization_id,
+            FeeRecord.receipt_number.isnot(None),
+        ).count() + 1
+        fee.receipt_number = f"RCP-{year}-{count:04d}"
+
     log_action(db, user, "fee_payment", "fee_record", fee.id,
                f"Fee payment for {fee.recipient_name}: ₹{body.amount} "
-               f"(paid {fee.paid_amount}/₹{fee.total_amount}, status={fee.status})",
+               f"(paid {fee.paid_amount}/₹{fee.total_amount}, status={fee.status}, receipt={fee.receipt_number})",
                before={"paid_amount": old_paid}, after={"paid_amount": fee.paid_amount})
     db.commit()
     db.refresh(fee)
@@ -301,3 +311,67 @@ def distribute(
     db.commit()
     db.refresh(fee)
     return fee
+
+
+# ─── Receipt detail ───────────────────────────────────────────────────────────
+
+class ReceiptItem(BaseModel):
+    item_name: str
+    quantity: int
+    unit_price: int
+    total: int
+
+class ReceiptOut(BaseModel):
+    model_config = {"populate_by_name": True}
+    from pydantic.alias_generators import to_camel
+    model_config = {"alias_generator": to_camel, "populate_by_name": True}
+
+    fee_id: str
+    receipt_number: Optional[str]
+    org_name: str
+    recipient_name: str
+    class_name: Optional[str]
+    template_name: Optional[str]
+    total_amount: int
+    paid_amount: int
+    status: str
+    payment_date: Optional[str]
+    created_at: Optional[str]
+    items: list[ReceiptItem]
+
+
+@router.get("/{fee_id}/receipt")
+def get_receipt(fee_id: str, user: User = Depends(require("assignments:read")), db: Session = Depends(get_db)):
+    fee = db.query(FeeRecord).filter(FeeRecord.id == fee_id).first()
+    if not fee:
+        raise HTTPException(404, "Fee record not found")
+    same_org(fee.organization_id, user)
+
+    org = db.query(Organization).filter(Organization.id == user.organization_id).first()
+    org_name = org.name if org else ""
+
+    # Resolve items from class or template
+    items: list[dict] = []
+    if fee.class_id:
+        cls = db.query(OrgClass).filter(OrgClass.id == fee.class_id).first()
+        if cls:
+            items = [{"item_name": i.item_name, "quantity": i.quantity, "unit_price": i.unit_price or 0, "total": (i.unit_price or 0) * i.quantity} for i in cls.items]
+    elif fee.template_id:
+        tmpl = db.query(ClassTemplate).filter(ClassTemplate.id == fee.template_id).first()
+        if tmpl:
+            items = [{"item_name": i.item_name, "quantity": i.quantity, "unit_price": i.unit_price or 0, "total": (i.unit_price or 0) * i.quantity} for i in tmpl.items]
+
+    return {
+        "feeId": fee.id,
+        "receiptNumber": fee.receipt_number,
+        "orgName": org_name,
+        "recipientName": fee.recipient_name,
+        "className": fee.class_name,
+        "templateName": fee.template_name,
+        "totalAmount": fee.total_amount,
+        "paidAmount": fee.paid_amount,
+        "status": fee.status,
+        "paymentDate": fee.payment_date,
+        "createdAt": fee.created_at,
+        "items": items,
+    }

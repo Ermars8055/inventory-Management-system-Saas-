@@ -351,6 +351,16 @@ export function OrganizationSettingsPage() {
                   onCheckedChange={(v) => setCfg({ ...cfg, enableFines: v })}
                 />
               </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Partial Fee Payments</p>
+                  <p className="text-xs text-muted-foreground">Allow staff to collect partial amounts (e.g. ₹50 of ₹100). When off, full amount is always collected.</p>
+                </div>
+                <Switch
+                  checked={cfg.allowPartialPayments ?? false}
+                  onCheckedChange={(v) => setCfg({ ...cfg, allowPartialPayments: v })}
+                />
+              </div>
               {cfg.enableFines && (
                 <div className="space-y-2 pl-4 border-l-2 border-border">
                   <Label>Fine / Penalty Label</Label>

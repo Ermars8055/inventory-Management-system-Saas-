@@ -51,6 +51,8 @@ def run():
         # Variant system
         "ALTER TABLE items ADD COLUMN variant_group_id VARCHAR REFERENCES item_variant_groups(id)",
         "ALTER TABLE items ADD COLUMN variant_label VARCHAR",
+        # Fee receipts
+        "ALTER TABLE fee_records ADD COLUMN receipt_number VARCHAR",
     ]
 
     with engine.connect() as conn:
@@ -214,6 +216,21 @@ def run():
                 unit_price INTEGER DEFAULT 0,
                 condition_issued VARCHAR DEFAULT 'New',
                 notes VARCHAR
+            )
+        """))
+        conn.commit()
+
+        # Class enrollment history
+        conn.execute(__import__('sqlalchemy').text("""
+            CREATE TABLE IF NOT EXISTS class_enrollment_history (
+                id VARCHAR PRIMARY KEY,
+                organization_id VARCHAR NOT NULL REFERENCES organizations(id),
+                recipient_id VARCHAR NOT NULL REFERENCES recipients(id),
+                class_id VARCHAR,
+                class_name VARCHAR NOT NULL,
+                academic_year VARCHAR,
+                joined_at VARCHAR NOT NULL,
+                left_at VARCHAR
             )
         """))
         conn.commit()

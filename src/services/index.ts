@@ -8,7 +8,8 @@ import type {
   Organization, ModuleId, OrgConfig, Item, Category, StockTransaction,
   Vendor, User, Recipient, Assignment, Batch, ReceiptTemplate, CustomField, Subscription,
   PurchaseOrder, POLineItem, MaintenanceTicket, Asset, ClassTemplate, ClassTemplateItem,
-  Quotation, FeeRecord, OrgClass, OrgClassDetail, OrgClassItem,
+  Quotation, FeeRecord, FeeReceipt, OrgClass, OrgClassDetail, OrgClassItem,
+  ClassEnrollmentHistory,
   ItemVariantGroup, VariantItemCreate, GroupedInventoryRow,
 } from '@/types';
 
@@ -403,6 +404,9 @@ export const feeService = {
   async waive(feeId: string): Promise<FeeRecord> {
     return api.patch(`/fees/${feeId}/waive`, {});
   },
+  async getReceipt(feeId: string): Promise<FeeReceipt> {
+    return api.get(`/fees/${feeId}/receipt`);
+  },
 };
 
 // ─── Class service ────────────────────────────────────────────────────────────
@@ -446,6 +450,12 @@ export const classService = {
   },
   async distributePaid(id: string): Promise<{ distributed: number }> {
     return api.post(`/classes/${id}/distribute-paid`, {});
+  },
+  async promoteClass(id: string, targetClassId: string): Promise<{ promoted: number; targetClass: string }> {
+    return api.post(`/classes/${id}/promote`, { targetClassId });
+  },
+  async getEnrollmentHistory(recipientId: string): Promise<ClassEnrollmentHistory[]> {
+    return api.get(`/classes/enrollment-history/${recipientId}`);
   },
 };
 

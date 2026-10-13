@@ -118,3 +118,10 @@
   height: 8px;
   border-radius: 50%;
 }
+
+@media print {
+  body > * { display: none !important; }
+  [data-radix-dialog-content] { display: block !important; position: static !important; transform: none !important; box-shadow: none !important; border: none !important; }
+  [data-radix-dialog-overlay] { display: none !important; }
+  .print-receipt { display: block !important; }
+}

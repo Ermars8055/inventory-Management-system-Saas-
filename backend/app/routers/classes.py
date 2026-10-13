@@ -29,13 +29,14 @@ from ..database import get_db
 from ..models import (
     OrgClass, OrgClassItem, Recipient, FeeRecord,
     Assignment, Item, ClassTemplate, Organization, StockTransaction, User,
-    compute_item_status,
+    ClassEnrollmentHistory, compute_item_status,
 )
 from ..schemas import (
     OrgClassOut, OrgClassDetail, OrgClassCreate, OrgClassUpdate,
     OrgClassItemOut, OrgClassItemCreate, OrgClassItemUpdate,
     ClassStudentRow, ImportClassTemplateBody,
     AssignClassFeesBody, EnrolStudentBody,
+    ClassEnrollmentHistoryOut, PromoteClassBody,
 )
 from ..dependencies import require, same_org
 from ..audit import log_action
@@ -450,6 +451,25 @@ def enrol_student(
         db.add(r)
 
     db.flush()
+    # Close any open enrollment history for this recipient (shouldn't happen, but safety)
+    open_history = db.query(ClassEnrollmentHistory).filter(
+        ClassEnrollmentHistory.recipient_id == r.id,
+        ClassEnrollmentHistory.left_at.is_(None),
+    ).all()
+    for h in open_history:
+        h.left_at = date.today().isoformat()
+
+    # Log new enrollment
+    db.add(ClassEnrollmentHistory(
+        id=f"ceh_{int(time.time() * 1000)}_{r.id[-6:]}",
+        organization_id=user.organization_id,
+        recipient_id=r.id,
+        class_id=cid,
+        class_name=cls.name,
+        academic_year=cls.academic_year,
+        joined_at=date.today().isoformat(),
+    ))
+
     # Auto-assign fee for the newly enrolled student (if class has items)
     _auto_assign_fees(cls, db, user.organization_id, recipient_ids=[r.id])
     log_action(db, user, "enrol", "class", cid,
@@ -476,6 +496,14 @@ def remove_student(
     if not r:
         raise HTTPException(404, "Student not enrolled in this class")
     r.class_id = None  # unenrol — do not delete the recipient
+    # Close enrollment history entry
+    open_h = db.query(ClassEnrollmentHistory).filter(
+        ClassEnrollmentHistory.recipient_id == rid,
+        ClassEnrollmentHistory.class_id == cid,
+        ClassEnrollmentHistory.left_at.is_(None),
+    ).first()
+    if open_h:
+        open_h.left_at = date.today().isoformat()
     log_action(db, user, "unenrol", "class", cid,
                f"Removed {r.name} [{r.identifier or '—'}] from {cls.name}")
     db.commit()
@@ -623,3 +651,87 @@ def distribute_paid(
                f"Bulk distributed to {distributed} student(s) in {cls.name}")
     db.commit()
     return {"distributed": distributed}
+
+
+# ── Promote class (move all students to a new class) ─────────────────────────
+
+@router.post("/{cid}/promote")
+def promote_class(
+    cid: str,
+    body: PromoteClassBody,
+    user: User = Depends(require("inventory:update")),
+    db: Session = Depends(get_db),
+):
+    """
+    Move all currently enrolled students from source class to target class.
+    Closes their history entry in source, opens a new one in target.
+    """
+    src = db.query(OrgClass).filter(OrgClass.id == cid).first()
+    if not src:
+        raise HTTPException(404, "Source class not found")
+    same_org(src.organization_id, user)
+
+    tgt = db.query(OrgClass).filter(OrgClass.id == body.target_class_id).first()
+    if not tgt:
+        raise HTTPException(404, "Target class not found")
+    same_org(tgt.organization_id, user)
+
+    if cid == body.target_class_id:
+        raise HTTPException(400, "Source and target class must be different")
+
+    students = db.query(Recipient).filter(Recipient.class_id == cid).all()
+    if not students:
+        raise HTTPException(400, "No students enrolled in this class")
+
+    today = date.today().isoformat()
+    ts = int(time.time() * 1000)
+
+    for r in students:
+        # Close old history entry
+        open_h = db.query(ClassEnrollmentHistory).filter(
+            ClassEnrollmentHistory.recipient_id == r.id,
+            ClassEnrollmentHistory.class_id == cid,
+            ClassEnrollmentHistory.left_at.is_(None),
+        ).first()
+        if open_h:
+            open_h.left_at = today
+
+        # Move to target class
+        r.class_id = tgt.id
+        r.group = tgt.name
+
+        # Open new history entry
+        db.add(ClassEnrollmentHistory(
+            id=f"ceh_{ts}_{r.id[-6:]}",
+            organization_id=user.organization_id,
+            recipient_id=r.id,
+            class_id=tgt.id,
+            class_name=tgt.name,
+            academic_year=tgt.academic_year,
+            joined_at=today,
+        ))
+        ts += 1
+
+    log_action(db, user, "promote", "class", cid,
+               f"Promoted {len(students)} student(s) from {src.name} → {tgt.name} ({tgt.academic_year or '—'})")
+    db.commit()
+    return {"promoted": len(students), "targetClass": tgt.name}
+
+
+# ── Enrollment history for a single recipient ─────────────────────────────────
+
+@router.get("/enrollment-history/{recipient_id}", response_model=list[ClassEnrollmentHistoryOut])
+def get_enrollment_history(
+    recipient_id: str,
+    user: User = Depends(require("inventory:read")),
+    db: Session = Depends(get_db),
+):
+    return (
+        db.query(ClassEnrollmentHistory)
+        .filter(
+            ClassEnrollmentHistory.recipient_id == recipient_id,
+            ClassEnrollmentHistory.organization_id == user.organization_id,
+        )
+        .order_by(ClassEnrollmentHistory.joined_at.desc())
+        .all()
+    )

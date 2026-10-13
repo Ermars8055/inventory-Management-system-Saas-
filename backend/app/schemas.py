@@ -836,6 +836,7 @@ class FeeRecordOut(CamelModel):
     status: str = "unpaid"
     payment_date: Optional[str] = None
     distributed_date: Optional[str] = None
+    receipt_number: Optional[str] = None
     notes: Optional[str] = None
     created_at: Optional[str] = None
 
@@ -1064,6 +1065,20 @@ class OrgClassOut(CamelModel):
 
 class OrgClassDetail(OrgClassOut):
     students: list[ClassStudentRow] = []
+
+
+class ClassEnrollmentHistoryOut(CamelModel):
+    id: str
+    recipient_id: str
+    class_id: Optional[str] = None
+    class_name: str
+    academic_year: Optional[str] = None
+    joined_at: str
+    left_at: Optional[str] = None
+
+
+class PromoteClassBody(CamelModel):
+    target_class_id: str
 
 
 class OrgClassCreate(CamelModel):
