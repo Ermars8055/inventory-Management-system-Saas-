@@ -4,7 +4,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import Item, ItemVariantGroup, Organization, User, compute_item_status
+from ..models import Item, ItemVariantGroup, Organization, User, compute_item_status, Location
 from ..schemas import ItemOut, ItemCreate, ItemUpdate, StockAdjust
 from ..dependencies import require, same_org, check_limit
 from ..audit import log_action
@@ -48,6 +48,27 @@ def create_item(body: ItemCreate, user: User = Depends(require("inventory:create
     if variant_group_id and not body.variant_label:
         raise HTTPException(422, "variant_label is required when assigning a variant group")
 
+    location_id = body.location_id
+    location_name = body.location
+    if location_id and not location_name:
+        loc = db.query(Location).filter(Location.id == location_id, Location.organization_id == user.organization_id).first()
+        if loc:
+            location_name = loc.name
+    elif location_name and not location_id:
+        loc = db.query(Location).filter(Location.name == location_name, Location.organization_id == user.organization_id).first()
+        if loc:
+            location_id = loc.id
+        else:
+            new_loc = Location(
+                id=f"loc_{int(time.time() * 1000)}",
+                organization_id=user.organization_id,
+                name=location_name,
+                is_active=True
+            )
+            db.add(new_loc)
+            db.flush()
+            location_id = new_loc.id
+
     item = Item(
         id=f"item_{int(time.time() * 1000)}",
         organization_id=user.organization_id,
@@ -61,7 +82,8 @@ def create_item(body: ItemCreate, user: User = Depends(require("inventory:create
         reserved=body.reserved,
         min_quantity=min_qty,
         reorder_qty=reorder_qty,
-        location=body.location,
+        location=location_name,
+        location_id=location_id,
         status=compute_item_status(body.quantity, min_qty),
         last_updated=date.today().isoformat(),
         uniform=body.uniform,
@@ -239,6 +261,31 @@ def update_item(item_id: str, body: ItemUpdate, user: User = Depends(require("in
     before = {k: getattr(item, k) for k in data}
     for field, value in data.items():
         setattr(item, field, value)
+    # Sync location_id and location name if either changed
+    if "location_id" in data or "location" in data:
+        loc_id = data.get("location_id")
+        loc_name = data.get("location")
+        if loc_id and not loc_name:
+            loc = db.query(Location).filter(Location.id == loc_id, Location.organization_id == user.organization_id).first()
+            if loc:
+                item.location = loc.name
+                item.location_id = loc.id
+        elif loc_name:
+            loc = db.query(Location).filter(Location.name == loc_name, Location.organization_id == user.organization_id).first()
+            if loc:
+                item.location = loc.name
+                item.location_id = loc.id
+            else:
+                new_loc = Location(
+                    id=f"loc_{int(time.time() * 1000)}",
+                    organization_id=user.organization_id,
+                    name=loc_name,
+                    is_active=True
+                )
+                db.add(new_loc)
+                db.flush()
+                item.location = new_loc.name
+                item.location_id = new_loc.id
     if "quantity" in data:
         item.status = compute_item_status(item.quantity, item.min_quantity or 10)
     if "min_quantity" in data and "quantity" not in data:

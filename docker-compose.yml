@@ -37,6 +37,8 @@ services:
     build:
       context: ./backend
     restart: unless-stopped
+    ports:
+      - "8000:8000"
     environment:
       DATABASE_URL:  ${DATABASE_URL:-sqlite:////data/stockpilot.db}
       ADMIN_DB_URL:  ${ADMIN_DB_URL:-sqlite:////data/admin.db}
@@ -51,9 +53,11 @@ services:
       SMTP_USER:          ${SMTP_USER:-ermarscaster11@gmail.com}
       SMTP_PASS:          ${SMTP_PASS:-ghpv wjdj anvi cxak}
       APP_URL:            ${APP_URL:-https://stockpilot.ermarscastar.in}
+      GROQ_API_KEY:       ${GROQ_API_KEY:-}
     volumes:
       - db_data:/data
       - uploads:/data/uploads
+      - ./backend/app:/app/app
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s

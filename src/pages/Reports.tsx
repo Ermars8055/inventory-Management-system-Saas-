@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell,
+  PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import { Download, Printer } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
@@ -99,6 +99,8 @@ export function ReportsPage() {
     { name: t('Out of Stock'), value: items.filter((i) => i.status === 'out_of_stock').length },
   ].filter((d) => d.value > 0), [items, t]);
 
+  const [txChartMode, setTxChartMode] = useState<'timeline' | 'types'>('timeline');
+
   const txTypeData = useMemo(() =>
     Object.entries(
       transactions.reduce((acc, tx) => {
@@ -107,6 +109,40 @@ export function ReportsPage() {
       }, {} as Record<string, number>)
     ).map(([type, count]) => ({ name: t(TX_LABELS[type] ?? type), count })),
   [transactions, t]);
+
+  const monthlyTxData = useMemo(() => {
+    const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const map = new Map<string, { month: string; received: number; issued: number; net: number }>();
+    const sorted = [...transactions].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    sorted.forEach(tx => {
+      const ym = tx.date ? tx.date.slice(0, 7) : '';
+      if (!ym || ym.length < 7 || !ym.includes('-')) return;
+      if (!map.has(ym)) {
+        const [year, month] = ym.split('-');
+        const monthIdx = parseInt(month, 10) - 1;
+        const monthLabel = `${MONTH_NAMES[monthIdx] ?? month} '${year.slice(2)}`;
+        map.set(ym, { month: monthLabel, received: 0, issued: 0, net: 0 });
+      }
+      const entry = map.get(ym)!;
+      const qty = Math.abs(tx.quantity);
+      if (tx.type === 'received' || tx.type === 'returned') {
+        entry.received += qty;
+        entry.net += qty;
+      } else if (tx.type === 'issued' || tx.type === 'damaged') {
+        entry.issued += qty;
+        entry.net -= qty;
+      } else if (tx.type === 'adjusted') {
+        if (tx.quantity >= 0) {
+          entry.received += qty;
+          entry.net += qty;
+        } else {
+          entry.issued += qty;
+          entry.net -= qty;
+        }
+      }
+    });
+    return Array.from(map.values());
+  }, [transactions]);
 
   const totalUnits = items.reduce((a, i) => a + i.quantity, 0);
   const lowStock = items.filter((i) => i.status === 'low_stock').length;
@@ -212,21 +248,65 @@ export function ReportsPage() {
 
       {/* Transaction summary */}
       <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-base">{t("Transaction Summary")} ({transactions.length} {t("total")})</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div>
+            <CardTitle className="text-base">
+              {txChartMode === 'timeline'
+                ? t('Stock Movement Over Time (Monthly)')
+                : `${t('Transaction Summary')} (${transactions.length} ${t('total')})`}
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {txChartMode === 'timeline'
+                ? t('Monthly stock received vs issued across all school inventory')
+                : t('Distribution across transaction operation types')}
+            </p>
+          </div>
+          <div className="flex items-center gap-1 bg-muted/70 p-1 rounded-lg text-xs font-medium">
+            <button
+              type="button"
+              onClick={() => setTxChartMode('timeline')}
+              className={`px-2.5 py-1 rounded-md transition-all ${
+                txChartMode === 'timeline'
+                  ? 'bg-background text-foreground shadow-sm font-semibold'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {t('Monthly Timeline')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setTxChartMode('types')}
+              className={`px-2.5 py-1 rounded-md transition-all ${
+                txChartMode === 'types'
+                  ? 'bg-background text-foreground shadow-sm font-semibold'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {t('By Type')}
+            </button>
+          </div>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart
-              data={txTypeData}
-              margin={{ top: 4, right: 12, left: -20, bottom: 4 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Bar dataKey="count" fill={TX_COLOR} radius={[4, 4, 0, 0]} name={t("Count")} />
-            </BarChart>
+          <ResponsiveContainer width="100%" height={220}>
+            {txChartMode === 'timeline' ? (
+              <BarChart data={monthlyTxData} margin={{ top: 8, right: 12, left: -10, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(value: any, name: any) => [`${Number(value).toLocaleString()} units`, name]} />
+                <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '4px' }} />
+                <Bar dataKey="received" name={t("Received (Stock In)")} fill="#10B981" radius={[4, 4, 0, 0]} barSize={24} />
+                <Bar dataKey="issued" name={t("Issued (Stock Out)")} fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={24} />
+              </BarChart>
+            ) : (
+              <BarChart data={txTypeData} margin={{ top: 4, right: 12, left: -20, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Bar dataKey="count" fill={TX_COLOR} radius={[4, 4, 0, 0]} name={t("Count")} />
+              </BarChart>
+            )}
           </ResponsiveContainer>
         </CardContent>
       </Card>

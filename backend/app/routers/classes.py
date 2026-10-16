@@ -37,6 +37,7 @@ from ..schemas import (
     ClassStudentRow, ImportClassTemplateBody,
     AssignClassFeesBody, EnrolStudentBody,
     ClassEnrollmentHistoryOut, PromoteClassBody,
+    BatchClassCreate, CloneYearClassesBody, TransferStudentBody, StudentPromotionItem,
 )
 from ..dependencies import require, same_org
 from ..audit import log_action
@@ -228,6 +229,160 @@ def create_class(
     db.commit()
     db.refresh(cls)
     return _build_out(cls, db)
+
+
+@router.post("/batch", status_code=201)
+def create_batch_classes(
+    body: BatchClassCreate,
+    user: User = Depends(require("inventory:create")),
+    db: Session = Depends(get_db),
+):
+    """
+    Generate multiple classes in bulk from Grade levels + Sections.
+    e.g. Grades: ['Grade 1', 'Grade 2'], Sections: ['A', 'B']
+    -> 'Grade 1A', 'Grade 1B', 'Grade 2A', 'Grade 2B'
+    Skips duplicates automatically and returns created and skipped counts.
+    """
+    if not body.grades or not body.sections:
+        raise HTTPException(400, "Provide at least one grade and one section")
+
+    existing_classes = db.query(OrgClass).filter(
+        OrgClass.organization_id == user.organization_id,
+        OrgClass.academic_year == body.academic_year,
+    ).all()
+    existing_names = {c.name.strip().lower() for c in existing_classes}
+
+    created_classes = []
+    skipped_count = 0
+    today = date.today().isoformat()
+    ts = int(time.time() * 1000)
+
+    for g in body.grades:
+        g_clean = g.strip()
+        if not g_clean:
+            continue
+        for s in body.sections:
+            s_clean = s.strip()
+            if not s_clean:
+                continue
+
+            # Format name: Grade 5 + A -> Grade 5A; Grade 5 + Section A -> Grade 5 Section A
+            if s_clean.lower().startswith("section") or s_clean.startswith("-"):
+                name = f"{g_clean} {s_clean}".strip()
+            elif g_clean and g_clean[-1].isdigit() and (s_clean.isalpha() and len(s_clean) == 1):
+                name = f"{g_clean}{s_clean}"
+            elif g_clean.endswith(" "):
+                name = f"{g_clean}{s_clean}"
+            else:
+                name = f"{g_clean} {s_clean}"
+
+            if name.lower() in existing_names:
+                skipped_count += 1
+                continue
+
+            cls = OrgClass(
+                id=f"cls_{ts}_{len(created_classes)}",
+                organization_id=user.organization_id,
+                name=name,
+                academic_year=body.academic_year,
+                notes=body.notes,
+                status="active",
+                created_at=today,
+            )
+            db.add(cls)
+            existing_names.add(name.lower())
+            created_classes.append(cls)
+
+    if created_classes:
+        log_action(db, user, "batch_create", "class", "bulk",
+                   f"Batch created {len(created_classes)} classes for year {body.academic_year or 'none'}")
+        db.commit()
+        for c in created_classes:
+            db.refresh(c)
+
+    return {
+        "createdCount": len(created_classes),
+        "skippedCount": skipped_count,
+        "classes": [_build_out(c, db) for c in created_classes],
+    }
+
+
+@router.post("/clone-year", status_code=201)
+def clone_year_classes(
+    body: CloneYearClassesBody,
+    user: User = Depends(require("inventory:create")),
+    db: Session = Depends(get_db),
+):
+    """
+    Clone class structure from source_academic_year to target_academic_year.
+    Optionally copies items/templates as well with clean student rosters.
+    """
+    if body.source_academic_year == body.target_academic_year:
+        raise HTTPException(400, "Source and target academic year must be different")
+
+    source_classes = db.query(OrgClass).filter(
+        OrgClass.organization_id == user.organization_id,
+        OrgClass.academic_year == body.source_academic_year,
+    ).all()
+
+    if not source_classes:
+        raise HTTPException(404, f"No classes found for academic year '{body.source_academic_year}'")
+
+    existing_target = db.query(OrgClass).filter(
+        OrgClass.organization_id == user.organization_id,
+        OrgClass.academic_year == body.target_academic_year,
+    ).all()
+    existing_names = {c.name.strip().lower() for c in existing_target}
+
+    created_classes = []
+    skipped_count = 0
+    today = date.today().isoformat()
+    ts = int(time.time() * 1000)
+
+    for src in source_classes:
+        if src.name.strip().lower() in existing_names:
+            skipped_count += 1
+            continue
+
+        new_cls = OrgClass(
+            id=f"cls_{ts}_{len(created_classes)}",
+            organization_id=user.organization_id,
+            name=src.name,
+            academic_year=body.target_academic_year,
+            notes=src.notes,
+            status="active",
+            created_at=today,
+        )
+        db.add(new_cls)
+
+        if body.copy_template_items and src.items:
+            for idx, item in enumerate(src.items):
+                db.add(OrgClassItem(
+                    id=f"oci_{ts}_{len(created_classes)}_{idx}",
+                    class_id=new_cls.id,
+                    item_id=item.item_id,
+                    item_name=item.item_name,
+                    quantity=item.quantity,
+                    unit_price=item.unit_price,
+                    condition_issued=item.condition_issued,
+                    notes=item.notes,
+                ))
+
+        created_classes.append(new_cls)
+        existing_names.add(src.name.strip().lower())
+
+    if created_classes:
+        log_action(db, user, "clone_year", "class", "bulk",
+                   f"Cloned {len(created_classes)} classes from {body.source_academic_year} → {body.target_academic_year}")
+        db.commit()
+        for c in created_classes:
+            db.refresh(c)
+
+    return {
+        "createdCount": len(created_classes),
+        "skippedCount": skipped_count,
+        "classes": [_build_out(c, db) for c in created_classes],
+    }
 
 
 @router.get("/{cid}")
@@ -468,6 +623,8 @@ def enrol_student(
         class_name=cls.name,
         academic_year=cls.academic_year,
         joined_at=date.today().isoformat(),
+        action_type="enrolled",
+        performed_by=user.name,
     ))
 
     # Auto-assign fee for the newly enrolled student (if class has items)
@@ -509,6 +666,89 @@ def remove_student(
     db.commit()
     db.refresh(cls)
     return _build_detail(cls, db)
+
+
+@router.post("/{cid}/students/{rid}/transfer")
+def transfer_student(
+    cid: str,
+    rid: str,
+    body: TransferStudentBody,
+    user: User = Depends(require("inventory:update")),
+    db: Session = Depends(get_db),
+):
+    """
+    Transfer a student from class cid to target_class_id (e.g. section change 5A -> 5B).
+    Preserves audit history with transfer reason and staff actor.
+    If keep_fees is True, transfers active fee records to the target class so
+    student doesn't get double billed.
+    """
+    src = db.query(OrgClass).filter(OrgClass.id == cid).first()
+    if not src:
+        raise HTTPException(404, "Source class not found")
+    same_org(src.organization_id, user)
+
+    if cid == body.target_class_id:
+        raise HTTPException(400, "Source and target class must be different")
+
+    tgt = db.query(OrgClass).filter(OrgClass.id == body.target_class_id).first()
+    if not tgt:
+        raise HTTPException(404, "Target class not found")
+    same_org(tgt.organization_id, user)
+
+    r = db.query(Recipient).filter(Recipient.id == rid, Recipient.class_id == cid).first()
+    if not r:
+        raise HTTPException(404, "Student not enrolled in source class")
+
+    today = date.today().isoformat()
+    ts = int(time.time() * 1000)
+
+    # Close current enrollment
+    open_h = db.query(ClassEnrollmentHistory).filter(
+        ClassEnrollmentHistory.recipient_id == rid,
+        ClassEnrollmentHistory.class_id == cid,
+        ClassEnrollmentHistory.left_at.is_(None),
+    ).first()
+    if open_h:
+        open_h.left_at = today
+
+    # Move to target
+    r.class_id = tgt.id
+    r.group = tgt.name
+
+    # Create transfer history record
+    db.add(ClassEnrollmentHistory(
+        id=f"ceh_{ts}_{r.id[-6:]}",
+        organization_id=user.organization_id,
+        recipient_id=r.id,
+        class_id=tgt.id,
+        class_name=tgt.name,
+        academic_year=tgt.academic_year,
+        joined_at=today,
+        action_type="section_transfer",
+        from_class_id=src.id,
+        from_class_name=src.name,
+        reason=body.reason,
+        performed_by=user.name,
+    ))
+
+    # Fee handling
+    if body.keep_fees:
+        fees = db.query(FeeRecord).filter(
+            FeeRecord.recipient_id == rid,
+            FeeRecord.class_id == src.id,
+        ).all()
+        for f in fees:
+            f.class_id = tgt.id
+            f.class_name = tgt.name
+    else:
+        # Auto-assign fee for new class if target class has items
+        _auto_assign_fees(tgt, db, user.organization_id, recipient_ids=[r.id])
+
+    log_action(db, user, "transfer_student", "class", cid,
+               f"Transferred {r.name} from {src.name} → {tgt.name} (Reason: {body.reason or 'None'})")
+    db.commit()
+    db.refresh(src)
+    return _build_detail(src, db)
 
 
 # ── Fee Assignment ────────────────────────────────────────────────────────────
@@ -663,59 +903,198 @@ def promote_class(
     db: Session = Depends(get_db),
 ):
     """
-    Move all currently enrolled students from source class to target class.
-    Closes their history entry in source, opens a new one in target.
+    Promote class students with support for both granular per-student assignments
+    (promote to specific section, retain, graduate) and bulk promotion.
+    Preserves audit history with action_type, reason, and actor.
     """
     src = db.query(OrgClass).filter(OrgClass.id == cid).first()
     if not src:
         raise HTTPException(404, "Source class not found")
     same_org(src.organization_id, user)
 
-    tgt = db.query(OrgClass).filter(OrgClass.id == body.target_class_id).first()
-    if not tgt:
-        raise HTTPException(404, "Target class not found")
-    same_org(tgt.organization_id, user)
-
-    if cid == body.target_class_id:
-        raise HTTPException(400, "Source and target class must be different")
-
     students = db.query(Recipient).filter(Recipient.class_id == cid).all()
     if not students:
         raise HTTPException(400, "No students enrolled in this class")
 
+    student_map = {r.id: r for r in students}
     today = date.today().isoformat()
     ts = int(time.time() * 1000)
 
-    for r in students:
-        # Close old history entry
-        open_h = db.query(ClassEnrollmentHistory).filter(
-            ClassEnrollmentHistory.recipient_id == r.id,
-            ClassEnrollmentHistory.class_id == cid,
-            ClassEnrollmentHistory.left_at.is_(None),
-        ).first()
-        if open_h:
-            open_h.left_at = today
+    # Cache for target classes to avoid repetitive DB queries
+    target_cache: dict[str, OrgClass] = {}
 
-        # Move to target class
-        r.class_id = tgt.id
-        r.group = tgt.name
+    def get_target(t_id: str) -> OrgClass:
+        if t_id not in target_cache:
+            t = db.query(OrgClass).filter(OrgClass.id == t_id).first()
+            if not t:
+                raise HTTPException(404, f"Target class '{t_id}' not found")
+            same_org(t.organization_id, user)
+            target_cache[t_id] = t
+        return target_cache[t_id]
 
-        # Open new history entry
-        db.add(ClassEnrollmentHistory(
-            id=f"ceh_{ts}_{r.id[-6:]}",
-            organization_id=user.organization_id,
-            recipient_id=r.id,
-            class_id=tgt.id,
-            class_name=tgt.name,
-            academic_year=tgt.academic_year,
-            joined_at=today,
-        ))
-        ts += 1
+    promoted_count = 0
+    retained_count = 0
+    graduated_count = 0
+    withdrawn_count = 0
+
+    if body.student_promotions:
+        for p in body.student_promotions:
+            r = student_map.get(p.recipient_id)
+            if not r:
+                continue
+
+            # Close existing enrollment
+            open_h = db.query(ClassEnrollmentHistory).filter(
+                ClassEnrollmentHistory.recipient_id == r.id,
+                ClassEnrollmentHistory.class_id == cid,
+                ClassEnrollmentHistory.left_at.is_(None),
+            ).first()
+            if open_h:
+                open_h.left_at = today
+
+            action = p.action or "promote"
+            target_id = p.target_class_id or body.target_class_id
+
+            if action == "promote" and target_id:
+                if target_id == cid:
+                    raise HTTPException(400, "Cannot promote student into the same class")
+                tgt = get_target(target_id)
+                r.class_id = tgt.id
+                r.group = tgt.name
+                r.status = "active"
+                db.add(ClassEnrollmentHistory(
+                    id=f"ceh_{ts}_{r.id[-6:]}",
+                    organization_id=user.organization_id,
+                    recipient_id=r.id,
+                    class_id=tgt.id,
+                    class_name=tgt.name,
+                    academic_year=tgt.academic_year,
+                    joined_at=today,
+                    action_type="promoted",
+                    from_class_id=src.id,
+                    from_class_name=src.name,
+                    reason=p.reason,
+                    performed_by=user.name,
+                ))
+                promoted_count += 1
+
+            elif action == "retain":
+                # Retained in same grade level (can move to new academic year repeat class or stay)
+                if target_id and target_id != cid:
+                    tgt = get_target(target_id)
+                    r.class_id = tgt.id
+                    r.group = tgt.name
+                    class_id_val = tgt.id
+                    class_name_val = tgt.name
+                    acad_year_val = tgt.academic_year
+                else:
+                    class_id_val = src.id
+                    class_name_val = src.name
+                    acad_year_val = src.academic_year
+
+                db.add(ClassEnrollmentHistory(
+                    id=f"ceh_{ts}_{r.id[-6:]}",
+                    organization_id=user.organization_id,
+                    recipient_id=r.id,
+                    class_id=class_id_val,
+                    class_name=class_name_val,
+                    academic_year=acad_year_val,
+                    joined_at=today,
+                    action_type="retained",
+                    from_class_id=src.id,
+                    from_class_name=src.name,
+                    reason=p.reason or "Retained in grade",
+                    performed_by=user.name,
+                ))
+                retained_count += 1
+
+            elif action == "graduate":
+                r.class_id = None
+                r.status = "graduated"
+                db.add(ClassEnrollmentHistory(
+                    id=f"ceh_{ts}_{r.id[-6:]}",
+                    organization_id=user.organization_id,
+                    recipient_id=r.id,
+                    class_id=None,
+                    class_name="Graduated / Alumni",
+                    academic_year=src.academic_year,
+                    joined_at=today,
+                    left_at=today,
+                    action_type="graduated",
+                    from_class_id=src.id,
+                    from_class_name=src.name,
+                    reason=p.reason or "Course completed",
+                    performed_by=user.name,
+                ))
+                graduated_count += 1
+
+            elif action == "withdraw":
+                r.class_id = None
+                r.status = "withdrawn"
+                db.add(ClassEnrollmentHistory(
+                    id=f"ceh_{ts}_{r.id[-6:]}",
+                    organization_id=user.organization_id,
+                    recipient_id=r.id,
+                    class_id=None,
+                    class_name=src.name,
+                    academic_year=src.academic_year,
+                    joined_at=today,
+                    left_at=today,
+                    action_type="withdrawn",
+                    from_class_id=src.id,
+                    from_class_name=src.name,
+                    reason=p.reason or "Withdrawn from institution",
+                    performed_by=user.name,
+                ))
+                withdrawn_count += 1
+            ts += 1
+
+    else:
+        # Bulk promote all students to target_class_id
+        if not body.target_class_id:
+            raise HTTPException(400, "Provide target_class_id or student_promotions")
+        if body.target_class_id == cid:
+            raise HTTPException(400, "Source and target class must be different")
+
+        tgt = get_target(body.target_class_id)
+        for r in students:
+            open_h = db.query(ClassEnrollmentHistory).filter(
+                ClassEnrollmentHistory.recipient_id == r.id,
+                ClassEnrollmentHistory.class_id == cid,
+                ClassEnrollmentHistory.left_at.is_(None),
+            ).first()
+            if open_h:
+                open_h.left_at = today
+
+            r.class_id = tgt.id
+            r.group = tgt.name
+            db.add(ClassEnrollmentHistory(
+                id=f"ceh_{ts}_{r.id[-6:]}",
+                organization_id=user.organization_id,
+                recipient_id=r.id,
+                class_id=tgt.id,
+                class_name=tgt.name,
+                academic_year=tgt.academic_year,
+                joined_at=today,
+                action_type="promoted",
+                from_class_id=src.id,
+                from_class_name=src.name,
+                performed_by=user.name,
+            ))
+            ts += 1
+            promoted_count += 1
 
     log_action(db, user, "promote", "class", cid,
-               f"Promoted {len(students)} student(s) from {src.name} → {tgt.name} ({tgt.academic_year or '—'})")
+               f"Promoted {promoted_count}, Retained {retained_count}, Graduated {graduated_count} from {src.name}")
     db.commit()
-    return {"promoted": len(students), "targetClass": tgt.name}
+    return {
+        "promoted": promoted_count,
+        "retained": retained_count,
+        "graduated": graduated_count,
+        "withdrawn": withdrawn_count,
+        "targetClass": tgt.name if (not body.student_promotions and body.target_class_id and 'tgt' in locals()) else (src.name),
+        "totalProcessed": promoted_count + retained_count + graduated_count + withdrawn_count,
+    }
 
 
 # ── Enrollment history for a single recipient ─────────────────────────────────
@@ -732,6 +1111,6 @@ def get_enrollment_history(
             ClassEnrollmentHistory.recipient_id == recipient_id,
             ClassEnrollmentHistory.organization_id == user.organization_id,
         )
-        .order_by(ClassEnrollmentHistory.joined_at.desc())
+        .order_by(ClassEnrollmentHistory.joined_at.desc(), ClassEnrollmentHistory.id.desc())
         .all()
     )

@@ -28,6 +28,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { normalizeSku, incrementSku } from '@/lib/sku';
 import type { Item, Category, Recipient, GroupedInventoryRow, ItemVariantGroup } from '@/types';
+import { LocationSelect } from '@/components/inventory/LocationSelect';
+import { capitalizeWords } from '@/lib/formatters';
 
 const EMPTY_FORM = { name: '', sku: '', categoryId: '', categoryName: '', module: 'general', quantity: '', location: '', minQuantity: '10', reorderQty: '50', attributes: {} as Record<string, string | number | boolean>, uniform: null as { size: string; gender: string } | null, book: null as { isbn: string; subject: string } | null, medicine: null as { batchNumber: string; expiryDate: string } | null };
 
@@ -684,6 +686,7 @@ export function InventoryPage() {
             return (
               <div
                 key={item.id}
+                data-inventory-card="true"
                 className="bg-white rounded-2xl border border-gray-100 hover:border-gray-200 hover:shadow-xl transition-all duration-200 cursor-pointer overflow-hidden flex flex-col group"
                 onClick={() => navigate(`/inventory/${item.id}`)}
               >
@@ -836,6 +839,7 @@ export function InventoryPage() {
                   return (
                     <TableRow
                       key={item.id}
+                      data-inventory-row="true"
                       className="cursor-pointer hover:bg-gray-50/70 transition-colors"
                       onClick={() => navigate(`/inventory/${item.id}`)}
                     >
@@ -1252,8 +1256,14 @@ export function InventoryPage() {
           <form onSubmit={handleAddItem} className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label htmlFor="item-name">{t('Item Name')} *</Label>
-              <Input id="item-name" placeholder={t('e.g. School Shirt')} required
-                value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+              <Input
+                id="item-name"
+                placeholder={t('e.g. School Shirt')}
+                required
+                value={form.name}
+                onChange={e => setForm({ ...form, name: capitalizeWords(e.target.value) })}
+                autoCapitalize="words"
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="item-sku">{t('SKU')} *</Label>
@@ -1318,8 +1328,14 @@ export function InventoryPage() {
             )}
             <div className="space-y-1.5">
               <Label htmlFor="item-loc">{t('Location')} *</Label>
-              <Input id="item-loc" placeholder={t('e.g. Main Store')} required
-                value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} />
+              <LocationSelect
+                value={form.location}
+                onChange={(loc) => setForm(f => ({ ...f, location: loc }))}
+                categoryName={categories.find(c => c.id === form.categoryId)?.name || form.categoryName}
+                module={form.module}
+                quantity={form.quantity}
+                required
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -1390,9 +1406,12 @@ export function InventoryPage() {
             </div>
             <div className="space-y-1.5">
               <Label>{t('Location')}</Label>
-              <Input placeholder={t('e.g. Main Store')}
+              <LocationSelect
                 value={addVariantRow.location}
-                onChange={e => setAddVariantRow(r => ({ ...r, location: e.target.value }))} />
+                onChange={(loc) => setAddVariantRow(r => ({ ...r, location: loc }))}
+                categoryName={categories.find(c => c.id === addVariantGroup?.categoryId)?.name}
+                quantity={addVariantRow.quantity}
+              />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setAddVariantGroup(null)}>{t('Cancel')}</Button>
@@ -1415,7 +1434,7 @@ export function InventoryPage() {
             {restockItem && (
               <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-100">
                 <div className="text-center">
-                  <p className="text-[11px] text-gray-400 mb-0.5">{t('Current Stock')}</p>
+                  <p className="text-[11px] text-gray-400 mb-0.5">{t('Total Stock')}</p>
                   <p className="text-[22px] font-bold text-gray-900 leading-none">{restockItem.quantity}</p>
                 </div>
                 <div className="h-8 w-px bg-gray-200" />
@@ -1438,9 +1457,11 @@ export function InventoryPage() {
                 onChange={e => setRestockForm({ ...restockForm, quantity: e.target.value })}
               />
               {restockForm.quantity && parseInt(restockForm.quantity) > 0 && restockItem && (
-                <p className="text-xs text-emerald-600 font-medium">
-                  {t('New total will be')} {restockItem.quantity + parseInt(restockForm.quantity)} {t('units')}
-                </p>
+                <div className="text-xs text-emerald-600 font-medium flex flex-wrap items-center gap-x-2 gap-y-0.5 pt-0.5">
+                  <span>{t('Available')}: {restockItem.available} → <strong className="font-semibold">{restockItem.available + parseInt(restockForm.quantity)}</strong></span>
+                  <span className="text-gray-300">·</span>
+                  <span className="text-gray-500">{t('Total Stock')}: {restockItem.quantity} → <strong className="font-semibold text-gray-700">{restockItem.quantity + parseInt(restockForm.quantity)}</strong></span>
+                </div>
               )}
             </div>
             <div className="space-y-1.5">

@@ -24,8 +24,13 @@ export function LoginPage() {
       // On subdomain → go to dashboard directly
       // On main domain → let RootRoute handle redirect to subdomain
       navigate('/dashboard');
-    } catch {
-      setError('Invalid email or password');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.toLowerCase().includes('network') || msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('connection')) {
+        setError(msg);
+      } else {
+        setError('Invalid email or password');
+      }
     } finally {
       setLoading(false);
     }

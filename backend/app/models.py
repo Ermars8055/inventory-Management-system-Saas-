@@ -54,6 +54,41 @@ class ItemVariantGroup(Base):
     created_at = Column(String)
 
 
+class Location(Base):
+    __tablename__ = "locations"
+    __table_args__ = (UniqueConstraint('organization_id', 'name', name='uq_location_org_name'),)
+    id = Column(String, primary_key=True)
+    organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
+    name = Column(String, nullable=False)
+    code = Column(String, nullable=True)
+    building = Column(String, nullable=True)
+    floor = Column(String, nullable=True)
+    type = Column(String, default="classroom")
+    supervisor_name = Column(String, nullable=True)
+    supervisor_phone = Column(String, nullable=True)
+    max_capacity = Column(Integer, nullable=True, default=None)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(String)
+    updated_at = Column(String)
+
+
+class Warehouse(Base):
+    __tablename__ = "warehouses"
+    __table_args__ = (UniqueConstraint('organization_id', 'name', name='uq_warehouse_org_name'),)
+    id = Column(String, primary_key=True)
+    organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
+    name = Column(String, nullable=False)
+    code = Column(String, nullable=True)
+    building = Column(String, nullable=True)
+    address = Column(String, nullable=True)
+    supervisor_name = Column(String, nullable=True)
+    supervisor_phone = Column(String, nullable=True)
+    max_capacity = Column(Integer, default=5000)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(String)
+    updated_at = Column(String)
+
+
 class Item(Base):
     __tablename__ = "items"
     __table_args__ = (UniqueConstraint('organization_id', 'sku', name='uq_item_org_sku'),)
@@ -68,6 +103,8 @@ class Item(Base):
     available = Column(Integer, default=0)
     reserved = Column(Integer, default=0)
     location = Column(String)
+    location_id = Column(String, ForeignKey("locations.id"), nullable=True)
+    warehouse_id = Column(String, ForeignKey("warehouses.id"), nullable=True)
     status = Column(String, default="in_stock")
     last_updated = Column(String)
     min_quantity = Column(Integer, default=10)
@@ -261,6 +298,7 @@ class Recipient(Base):
     contact = Column(String)
     extra_data = Column(JSON)        # Org-defined custom fields as key-value
     class_id = Column(String, ForeignKey("org_classes.id"), nullable=True)
+    status = Column(String, default="active")        # active | graduated | withdrawn
 
 
 class Assignment(Base):
@@ -494,6 +532,11 @@ class ClassEnrollmentHistory(Base):
     academic_year = Column(String)
     joined_at = Column(String, nullable=False)   # ISO date
     left_at = Column(String)                     # ISO date, null = currently enrolled
+    action_type = Column(String, default="enrolled")  # enrolled | promoted | section_transfer | retained | graduated | withdrawn
+    from_class_id = Column(String, nullable=True)
+    from_class_name = Column(String, nullable=True)
+    reason = Column(String, nullable=True)
+    performed_by = Column(String, nullable=True)
 
 
 class ClassTemplateItem(Base):

@@ -86,6 +86,41 @@ def update_recipient(recipient_id: str, body: RecipientUpdate, user: User = Depe
     same_org(r.organization_id, user)
     changes = body.model_dump(exclude_none=True, by_alias=False)
     before = {k: getattr(r, k) for k in changes}
+
+    # If class_id changed, sync enrollment history and group
+    if "class_id" in changes and changes["class_id"] != before.get("class_id"):
+        new_cid = changes["class_id"]
+        old_cid = before.get("class_id")
+        today = date.today().isoformat()
+        
+        # Close any open enrollment history
+        open_h = db.query(ClassEnrollmentHistory).filter(
+            ClassEnrollmentHistory.recipient_id == r.id,
+            ClassEnrollmentHistory.left_at.is_(None),
+        ).all()
+        for h in open_h:
+            h.left_at = today
+
+        if new_cid:
+            new_cls = db.query(OrgClass).filter(
+                OrgClass.id == new_cid,
+                OrgClass.organization_id == user.organization_id,
+            ).first()
+            if new_cls:
+                changes["group"] = new_cls.name
+                db.add(ClassEnrollmentHistory(
+                    id=f"ceh_{int(time.time() * 1000)}_{r.id[-6:]}",
+                    organization_id=user.organization_id,
+                    recipient_id=r.id,
+                    class_id=new_cls.id,
+                    class_name=new_cls.name,
+                    academic_year=new_cls.academic_year,
+                    joined_at=today,
+                    action_type="section_transfer" if old_cid else "enrolled",
+                    from_class_id=old_cid,
+                    performed_by=user.name,
+                ))
+
     for field, value in changes.items():
         setattr(r, field, value)
     log_action(db, user, "update", "recipient", r.id,

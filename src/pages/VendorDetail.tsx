@@ -17,6 +17,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import type { Vendor, PurchaseOrder, POStatus } from '@/types';
+import { capitalizeWords } from '@/lib/formatters';
+import { CountryPhoneInput } from '@/components/ui/country-phone-input';
 
 const STATUS_CONFIG: Record<POStatus, { label: string; className: string }> = {
   draft:               { label: 'Draft',              className: 'bg-muted text-muted-foreground' },
@@ -331,16 +333,29 @@ export function VendorDetailPage() {
           <form onSubmit={handleEditVendor} className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label>{t('Name')}</Label>
-              <Input value={editVendorForm.name} onChange={(e) => setEditVendorForm({ ...editVendorForm, name: e.target.value })} required />
+              <Input
+                value={editVendorForm.name}
+                onChange={(e) => setEditVendorForm({ ...editVendorForm, name: capitalizeWords(e.target.value) })}
+                autoCapitalize="words"
+                required
+              />
             </div>
             <div className="space-y-1.5">
               <Label>{t('Contact Person')}</Label>
-              <Input value={editVendorForm.contactPerson} onChange={(e) => setEditVendorForm({ ...editVendorForm, contactPerson: e.target.value })} />
+              <Input
+                value={editVendorForm.contactPerson}
+                onChange={(e) => setEditVendorForm({ ...editVendorForm, contactPerson: capitalizeWords(e.target.value) })}
+                autoCapitalize="words"
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>{t('Phone')}</Label>
-                <Input value={editVendorForm.phone} onChange={(e) => setEditVendorForm({ ...editVendorForm, phone: e.target.value })} />
+                <CountryPhoneInput
+                  value={editVendorForm.phone}
+                  onChange={(val) => setEditVendorForm({ ...editVendorForm, phone: val })}
+                  placeholder="98765 43210"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>{t('Email')}</Label>
@@ -349,7 +364,11 @@ export function VendorDetailPage() {
             </div>
             <div className="space-y-1.5">
               <Label>{t('Address')}</Label>
-              <Input value={editVendorForm.address} onChange={(e) => setEditVendorForm({ ...editVendorForm, address: e.target.value })} />
+              <Input
+                value={editVendorForm.address}
+                onChange={(e) => setEditVendorForm({ ...editVendorForm, address: capitalizeWords(e.target.value) })}
+                autoCapitalize="words"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>{t('Vendor Type')}</Label>

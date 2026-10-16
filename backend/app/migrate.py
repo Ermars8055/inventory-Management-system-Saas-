@@ -55,9 +55,61 @@ def run():
         "ALTER TABLE fee_records ADD COLUMN receipt_number VARCHAR",
         # Roles: organization_id for tenant-specific role customization
         "ALTER TABLE roles ADD COLUMN organization_id VARCHAR REFERENCES organizations(id)",
+        # Locations system
+        "ALTER TABLE items ADD COLUMN location_id VARCHAR REFERENCES locations(id)",
+        "ALTER TABLE locations ADD COLUMN supervisor_phone VARCHAR",
+        "ALTER TABLE locations ADD COLUMN floor VARCHAR",
+        # Warehouse system
+        "ALTER TABLE items ADD COLUMN warehouse_id VARCHAR REFERENCES warehouses(id)",
+        # Recipient status
+        "ALTER TABLE recipients ADD COLUMN status VARCHAR DEFAULT 'active'",
+        # Class enrollment history detailed audit trail
+        "ALTER TABLE class_enrollment_history ADD COLUMN action_type VARCHAR DEFAULT 'enrolled'",
+        "ALTER TABLE class_enrollment_history ADD COLUMN from_class_id VARCHAR",
+        "ALTER TABLE class_enrollment_history ADD COLUMN from_class_name VARCHAR",
+        "ALTER TABLE class_enrollment_history ADD COLUMN reason VARCHAR",
+        "ALTER TABLE class_enrollment_history ADD COLUMN performed_by VARCHAR",
     ]
 
     with engine.connect() as conn:
+        # Create locations table if it doesn't exist
+        conn.execute(__import__('sqlalchemy').text("""
+            CREATE TABLE IF NOT EXISTS locations (
+                id VARCHAR(64) PRIMARY KEY,
+                organization_id VARCHAR(64) NOT NULL REFERENCES organizations(id),
+                name VARCHAR(128) NOT NULL,
+                code VARCHAR(32),
+                building VARCHAR(64),
+                floor VARCHAR(64),
+                type VARCHAR(32) DEFAULT 'classroom',
+                supervisor_name VARCHAR(128),
+                supervisor_phone VARCHAR(64),
+                max_capacity INTEGER,
+                is_active BOOLEAN DEFAULT 1,
+                created_at VARCHAR(32),
+                updated_at VARCHAR(32)
+            )
+        """))
+        conn.commit()
+
+        # Create warehouses table if it doesn't exist
+        conn.execute(__import__('sqlalchemy').text("""
+            CREATE TABLE IF NOT EXISTS warehouses (
+                id VARCHAR(64) PRIMARY KEY,
+                organization_id VARCHAR(64) NOT NULL REFERENCES organizations(id),
+                name VARCHAR(128) NOT NULL,
+                code VARCHAR(32),
+                building VARCHAR(64),
+                address VARCHAR(256),
+                supervisor_name VARCHAR(128),
+                supervisor_phone VARCHAR(64),
+                max_capacity INTEGER DEFAULT 5000,
+                is_active BOOLEAN DEFAULT 1,
+                created_at VARCHAR(32),
+                updated_at VARCHAR(32)
+            )
+        """))
+        conn.commit()
         # Create vendors table if it doesn't exist
         conn.execute(__import__('sqlalchemy').text("""
             CREATE TABLE IF NOT EXISTS vendors (
@@ -232,7 +284,12 @@ def run():
                 class_name VARCHAR NOT NULL,
                 academic_year VARCHAR,
                 joined_at VARCHAR NOT NULL,
-                left_at VARCHAR
+                left_at VARCHAR,
+                action_type VARCHAR DEFAULT 'enrolled',
+                from_class_id VARCHAR,
+                from_class_name VARCHAR,
+                reason VARCHAR,
+                performed_by VARCHAR
             )
         """))
         conn.commit()

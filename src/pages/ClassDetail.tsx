@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Plus, Trash2, Users, Package, IndianRupee,
   CheckCircle2, Clock, XCircle, Download, UserPlus, Printer,
+  ArrowLeftRight, GraduationCap, RotateCcw, Sparkles,
 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useAuth } from '@/context/AuthContext';
@@ -14,11 +15,19 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/hooks/useTranslation';
-import type { OrgClassDetail, OrgClassItem, ClassStudentRow, Item, Recipient, ClassTemplate, FeeReceipt } from '@/types';
+import type { OrgClassDetail, OrgClassItem, ClassStudentRow, Item, Recipient, ClassTemplate, FeeReceipt, StudentPromotionItem } from '@/types';
+
+const TRANSFER_REASON_PRESETS = [
+  'Section balancing',
+  'Second language / Elective switch',
+  'Parent request',
+  'Academic readjustment',
+  'Disciplinary reassignment',
+];
 
 // ── Status display helpers ────────────────────────────────────────────────────
 
@@ -85,9 +94,18 @@ export function ClassDetailPage() {
   const [receipt, setReceipt] = useState<FeeReceipt | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
+  // ── Transfer student dialog ──
+  const [transferStudent, setTransferStudent] = useState<ClassStudentRow | null>(null);
+  const [transferTargetId, setTransferTargetId] = useState('');
+  const [transferReason, setTransferReason] = useState('');
+  const [transferKeepFees, setTransferKeepFees] = useState(true);
+  const [transferSaving, setTransferSaving] = useState(false);
+
   // ── Promote class dialog ──
   const [showPromote, setShowPromote] = useState(false);
   const [promoteTargetId, setPromoteTargetId] = useState('');
+  const [promoteMode, setPromoteMode] = useState<'bulk' | 'granular'>('bulk');
+  const [studentPromotions, setStudentPromotions] = useState<Record<string, { action: 'promote' | 'retain' | 'graduate'; targetClassId?: string; reason?: string }>>({});
   const [promoteSaving, setPromoteSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -310,19 +328,93 @@ export function ClassDetailPage() {
     }
   }
 
-  async function handlePromote() {
-    if (!cls || !promoteTargetId) return;
-    setPromoteSaving(true);
+  function openTransfer(s: ClassStudentRow) {
+    setTransferStudent(s);
+    const defaultTarget = allClasses.find(c => c.academicYear === cls?.academicYear)?.id || allClasses[0]?.id || '';
+    setTransferTargetId(defaultTarget);
+    setTransferReason('');
+    setTransferKeepFees(true);
+  }
+
+  async function handleTransfer() {
+    if (!cls || !transferStudent || !transferTargetId) return;
+    setTransferSaving(true);
     try {
-      const res = await classService.promoteClass(cls.id, promoteTargetId);
-      toast({ title: `${res.promoted} ${t('student(s) promoted to')} ${res.targetClass}` });
-      setShowPromote(false);
-      setPromoteTargetId('');
+      await classService.transferStudent(cls.id, transferStudent.recipientId, {
+        targetClassId: transferTargetId,
+        reason: transferReason || undefined,
+        keepFees: transferKeepFees,
+      });
+      const tgt = allClasses.find(c => c.id === transferTargetId);
+      toast({ title: `${transferStudent.name} ${t('transferred to')} ${tgt?.name || t('new class')}` });
+      setTransferStudent(null);
       await load();
     } catch (err: unknown) {
-      toast({ title: t('Error'), description: err instanceof Error ? err.message : t('Failed to promote'), variant: 'destructive' });
+      toast({
+        title: t('Error'),
+        description: err instanceof Error ? err.message : t('Failed to transfer student'),
+        variant: 'destructive',
+      });
     } finally {
-      setPromoteSaving(false);
+      setTransferSaving(false);
+    }
+  }
+
+  function openPromoteDialog() {
+    setShowPromote(true);
+    setPromoteMode('bulk');
+    const initialPromotions: Record<string, { action: 'promote' | 'retain' | 'graduate'; targetClassId?: string; reason?: string }> = {};
+    (cls?.students ?? []).forEach(s => {
+      initialPromotions[s.recipientId] = { action: 'promote' };
+    });
+    setStudentPromotions(initialPromotions);
+  }
+
+  async function handlePromote() {
+    if (!cls) return;
+    if (promoteMode === 'bulk') {
+      if (!promoteTargetId) return;
+      setPromoteSaving(true);
+      try {
+        const res = await classService.promoteClass(cls.id, { targetClassId: promoteTargetId });
+        toast({ title: `${res.promoted} ${t('student(s) promoted to')} ${res.targetClass || t('target class')}` });
+        setShowPromote(false);
+        setPromoteTargetId('');
+        await load();
+      } catch (err: unknown) {
+        toast({ title: t('Error'), description: err instanceof Error ? err.message : t('Failed to promote'), variant: 'destructive' });
+      } finally {
+        setPromoteSaving(false);
+      }
+    } else {
+      const list: StudentPromotionItem[] = (cls.students ?? []).map(s => {
+        const p = studentPromotions[s.recipientId] || { action: 'promote' };
+        return {
+          recipientId: s.recipientId,
+          targetClassId: p.targetClassId || promoteTargetId || undefined,
+          action: p.action,
+          reason: p.reason,
+        };
+      });
+
+      setPromoteSaving(true);
+      try {
+        const res = await classService.promoteClass(cls.id, {
+          targetClassId: promoteTargetId || undefined,
+          studentPromotions: list,
+        });
+        toast({
+          title: t('Promotions completed'),
+          description: `${res.promoted ?? 0} ${t('promoted')}, ${res.retained ?? 0} ${t('retained')}, ${res.graduated ?? 0} ${t('graduated')}`,
+        });
+        setShowPromote(false);
+        setPromoteTargetId('');
+        await load();
+      } catch (err: unknown) {
+        toast({ title: t('Error'), description: err instanceof Error ? err.message : t('Failed to execute promotions'), variant: 'destructive' });
+      } finally {
+        setPromoteSaving(false);
+      }
     }
   }
 
@@ -419,7 +511,8 @@ export function ClassDetailPage() {
                   </Button>
                 )}
                 {canUpdate && (cls.students ?? []).length > 0 && (
-                  <Button size="sm" variant="outline" onClick={() => setShowPromote(true)}>
+                  <Button size="sm" variant="outline" onClick={openPromoteDialog}>
+                    <GraduationCap className="h-3.5 w-3.5 mr-1 text-emerald-600" />
                     {t('Promote Class')}
                   </Button>
                 )}
@@ -644,6 +737,18 @@ export function ClassDetailPage() {
                                   <Button size="sm" className="h-7 text-xs"
                                     onClick={() => handleDistributeOne(s)}>
                                     <Package className="h-3 w-3 mr-1" /> {t('Distribute')}
+                                  </Button>
+                                )}
+                                {canUpdate && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    title={t('Transfer / Change Section')}
+                                    className="h-7 px-2 text-xs text-muted-foreground hover:text-blue-600 hover:bg-blue-50"
+                                    onClick={() => openTransfer(s)}
+                                  >
+                                    <ArrowLeftRight className="h-3.5 w-3.5 mr-1" />
+                                    <span className="hidden sm:inline">{t('Transfer')}</span>
                                   </Button>
                                 )}
                               </div>
@@ -936,38 +1041,298 @@ export function ClassDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Promote Class Dialog ──────────────────────────────────────────────── */}
-      <Dialog open={showPromote} onOpenChange={v => { if (!v) { setShowPromote(false); setPromoteTargetId(''); } }}>
-        <DialogContent className="sm:max-w-sm">
+      {/* ── Transfer Student Dialog ────────────────────────────────────────── */}
+      <Dialog open={!!transferStudent} onOpenChange={v => { if (!v) setTransferStudent(null); }}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('Promote Class')}</DialogTitle>
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-md bg-blue-100 text-blue-700">
+                <ArrowLeftRight className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle>{t('Transfer / Change Section')}</DialogTitle>
+                <DialogDescription className="text-xs">
+                  {t('Move a student to another section or class with complete historical audit tracking.')}
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
-          <div className="space-y-3 py-1">
-            <p className="text-sm text-muted-foreground">
-              {t('Move all')} <span className="font-semibold">{(cls.students ?? []).length}</span> {t('students from')} <span className="font-semibold">{cls.name}</span> {t('to another class.')}
-            </p>
-            <div className="space-y-1.5">
-              <Label className="text-xs">{t('Target Class')}</Label>
-              <Select value={promoteTargetId} onValueChange={setPromoteTargetId}>
-                <SelectTrigger className="text-sm"><SelectValue placeholder={t('Select target class…')} /></SelectTrigger>
-                <SelectContent>
-                  {allClasses.length === 0
-                    ? <SelectItem value="_none" disabled>{t('No other classes found')}</SelectItem>
-                    : allClasses.map(c => (
+
+          {transferStudent && (
+            <div className="space-y-4 py-2">
+              {/* Student info summary */}
+              <div className="p-3 bg-muted/40 rounded-lg border text-xs space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-sm text-foreground">{transferStudent.name}</span>
+                  {transferStudent.identifier && (
+                    <Badge variant="outline" className="text-xs font-mono">{transferStudent.identifier}</Badge>
+                  )}
+                </div>
+                <p className="text-muted-foreground">
+                  {t('Currently in')}: <span className="font-medium text-foreground">{cls.name}</span>
+                  {cls.academicYear ? ` (${cls.academicYear})` : ''}
+                </p>
+              </div>
+
+              {/* Destination class */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">{t('Destination Class / Section')} *</Label>
+                <Select value={transferTargetId} onValueChange={setTransferTargetId}>
+                  <SelectTrigger className="text-sm">
+                    <SelectValue placeholder={t('Select destination class…')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allClasses.length === 0 ? (
+                      <SelectItem value="_none" disabled>{t('No other classes available')}</SelectItem>
+                    ) : (
+                      allClasses.map(c => (
                         <SelectItem key={c.id} value={c.id}>
                           {c.name}{c.academicYear ? ` (${c.academicYear})` : ''}
                         </SelectItem>
                       ))
-                  }
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Transfer reason presets + input */}
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">{t('Reason for Transfer')}</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {TRANSFER_REASON_PRESETS.map(preset => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setTransferReason(preset)}
+                      className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                        transferReason === preset
+                          ? 'bg-primary text-primary-foreground border-primary font-medium'
+                          : 'bg-muted/40 hover:bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+                <Input
+                  placeholder={t('Or type a custom reason (e.g. parent request, language change)…')}
+                  value={transferReason}
+                  onChange={e => setTransferReason(e.target.value)}
+                  className="text-xs h-8"
+                />
+              </div>
+
+              {/* Fee handling checkbox */}
+              <div className="flex items-start gap-2 p-3 bg-muted/30 rounded-lg border">
+                <input
+                  type="checkbox"
+                  id="keepFees"
+                  checked={transferKeepFees}
+                  onChange={e => setTransferKeepFees(e.target.checked)}
+                  className="mt-0.5 rounded border-gray-300"
+                />
+                <label htmlFor="keepFees" className="text-xs cursor-pointer">
+                  <span className="font-medium">{t('Keep existing fee record & payments')}</span>
+                  <p className="text-muted-foreground mt-0.5">
+                    {t('Reassigns the active fee record to the new class so the student is not double-billed.')}
+                  </p>
+                </label>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" size="sm" onClick={() => setTransferStudent(null)}>
+                  {t('Cancel')}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleTransfer}
+                  disabled={!transferTargetId || transferSaving}
+                >
+                  {transferSaving ? t('Transferring…') : t('Confirm Transfer')}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Promote Class Dialog ──────────────────────────────────────────────── */}
+      <Dialog open={showPromote} onOpenChange={v => { if (!v) { setShowPromote(false); setPromoteTargetId(''); } }}>
+        <DialogContent className={promoteMode === 'granular' ? 'sm:max-w-2xl max-h-[90vh] flex flex-col' : 'sm:max-w-md'}>
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-md bg-emerald-100 text-emerald-700">
+                  <GraduationCap className="h-5 w-5" />
+                </div>
+                <div>
+                  <DialogTitle>{t('Promote Class Roster')}</DialogTitle>
+                  <DialogDescription className="text-xs">
+                    {t('Advance students from')} <span className="font-semibold text-foreground">{cls.name}</span> {t('to next academic year.')}
+                  </DialogDescription>
+                </div>
+              </div>
+
+              <div className="flex rounded-md border p-0.5 bg-muted/40 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setPromoteMode('bulk')}
+                  className={`text-xs px-2.5 py-1 rounded transition-colors ${
+                    promoteMode === 'bulk' ? 'bg-background font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {t('Bulk All')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPromoteMode('granular')}
+                  className={`text-xs px-2.5 py-1 rounded transition-colors ${
+                    promoteMode === 'granular' ? 'bg-background font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {t('Custom Roster')}
+                </button>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 flex-1 overflow-y-auto">
+            {/* Target Class Selector */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">
+                {promoteMode === 'bulk' ? t('Target Class') : t('Default Target Class')} *
+              </Label>
+              <Select value={promoteTargetId} onValueChange={setPromoteTargetId}>
+                <SelectTrigger className="text-sm">
+                  <SelectValue placeholder={t('Select target class…')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {allClasses.length === 0 ? (
+                    <SelectItem value="_none" disabled>{t('No other classes found')}</SelectItem>
+                  ) : (
+                    allClasses.map(c => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}{c.academicYear ? ` (${c.academicYear})` : ''}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
-            <p className="text-xs text-amber-600">{t('Students will be removed from this class and added to the selected class. Their history is preserved.')}</p>
+
+            {promoteMode === 'bulk' ? (
+              <div className="p-3 bg-muted/30 rounded-lg border text-xs space-y-2">
+                <p className="text-muted-foreground">
+                  {t('Will move all')} <span className="font-bold text-foreground">{(cls.students ?? []).length}</span> {t('students directly into the chosen target class.')}
+                </p>
+                <p className="text-emerald-700 font-medium">
+                  ✓ {t('All previous enrollment records and audit logs will be permanently preserved.')}
+                </p>
+              </div>
+            ) : (
+              /* Granular Roster Table */
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{t('Set individual promotion status for each student')}:</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allPromote: Record<string, { action: 'promote' | 'retain' | 'graduate'; targetClassId?: string; reason?: string }> = {};
+                        (cls.students ?? []).forEach(s => {
+                          allPromote[s.recipientId] = { action: 'promote', targetClassId: promoteTargetId };
+                        });
+                        setStudentPromotions(allPromote);
+                      }}
+                      className="text-blue-600 hover:underline"
+                    >
+                      {t('Reset all to Promote')}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg max-h-64 overflow-y-auto divide-y text-xs">
+                  {(cls.students ?? []).map(s => {
+                    const current = studentPromotions[s.recipientId] || { action: 'promote' };
+                    return (
+                      <div key={s.recipientId} className="p-2.5 flex items-center justify-between gap-3 hover:bg-muted/30">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium truncate">{s.name}</p>
+                          <p className="text-[11px] text-muted-foreground font-mono">{s.identifier ?? 'No Roll No'}</p>
+                        </div>
+
+                        {/* Action selector */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Select
+                            value={current.action}
+                            onValueChange={action =>
+                              setStudentPromotions(prev => ({
+                                ...prev,
+                                [s.recipientId]: {
+                                  ...prev[s.recipientId],
+                                  action: action as 'promote' | 'retain' | 'graduate',
+                                },
+                              }))
+                            }
+                          >
+                            <SelectTrigger className="h-7 text-xs w-28">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="promote">{t('Promote')}</SelectItem>
+                              <SelectItem value="retain">{t('Retain (Repeat)')}</SelectItem>
+                              <SelectItem value="graduate">{t('Graduate / Alumni')}</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          {/* Specific target class override if action == 'promote' */}
+                          {current.action === 'promote' && (
+                            <Select
+                              value={current.targetClassId || promoteTargetId || '_default'}
+                              onValueChange={v =>
+                                setStudentPromotions(prev => ({
+                                  ...prev,
+                                  [s.recipientId]: {
+                                    ...prev[s.recipientId],
+                                    targetClassId: v === '_default' ? undefined : v,
+                                  },
+                                }))
+                              }
+                            >
+                              <SelectTrigger className="h-7 text-xs w-36">
+                                <SelectValue placeholder={t('Default target')} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="_default">{t('Use Main Target')}</SelectItem>
+                                {allClasses.map(c => (
+                                  <SelectItem key={c.id} value={c.id}>
+                                    {c.name}{c.academicYear ? ` (${c.academicYear})` : ''}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
+
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setShowPromote(false)}>{t('Cancel')}</Button>
-            <Button size="sm" onClick={handlePromote} disabled={!promoteTargetId || promoteSaving}>
-              {promoteSaving ? t('Promoting…') : t('Promote')}
+            <Button variant="outline" size="sm" onClick={() => setShowPromote(false)}>
+              {t('Cancel')}
+            </Button>
+            <Button
+              size="sm"
+              onClick={handlePromote}
+              disabled={promoteSaving || (promoteMode === 'bulk' && !promoteTargetId)}
+            >
+              {promoteSaving
+                ? t('Processing…')
+                : `${t('Execute Promotions')} (${(cls.students ?? []).length})`}
             </Button>
           </DialogFooter>
         </DialogContent>

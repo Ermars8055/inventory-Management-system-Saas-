@@ -16,6 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { LANGUAGES, CURRENCIES, TIMEZONES } from '@/i18n';
 import type { OrgConfig } from '@/types';
+import { capitalizeWords } from '@/lib/formatters';
+import { CountryPhoneInput } from '@/components/ui/country-phone-input';
 
 export function OrganizationSettingsPage() {
   const { currentOrg, refreshOrganizations, updateConfig } = useOrganization();
@@ -137,7 +139,11 @@ export function OrganizationSettingsPage() {
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Organization Name</Label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <Input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: capitalizeWords(e.target.value) })}
+                autoCapitalize="words"
+              />
             </div>
             <div className="space-y-2">
               <Label>Industry</Label>
@@ -151,12 +157,20 @@ export function OrganizationSettingsPage() {
             </div>
             <div className="space-y-2">
               <Label>Phone</Label>
-              <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              <CountryPhoneInput
+                value={form.phone}
+                onChange={(v) => setForm({ ...form, phone: v })}
+                placeholder="98765 43210"
+              />
             </div>
           </div>
           <div className="space-y-2">
             <Label>Address</Label>
-            <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+            <Input
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: capitalizeWords(e.target.value) })}
+              autoCapitalize="words"
+            />
           </div>
           <div className="pt-2 flex justify-end">
             <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save Profile'}</Button>

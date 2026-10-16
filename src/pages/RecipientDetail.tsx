@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Plus, RotateCcw, AlertTriangle, CheckCircle2, Clock,
   XCircle, DollarSign, Package, Pencil, CreditCard, Truck, Printer,
+  ArrowUpRight, ArrowLeftRight, GraduationCap, History,
 } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
 import { useAuth } from '@/context/AuthContext';
@@ -21,6 +22,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { Recipient, Assignment, Item, FeeRecord, ClassEnrollmentHistory } from '@/types';
+
+const ENROLLMENT_ACTION_CONFIG: Record<string, { label: string; icon: React.ElementType; badgeClass: string; iconBg: string }> = {
+  enrolled:         { label: 'Enrolled',         icon: CheckCircle2,  badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',  iconBg: 'bg-purple-100 text-purple-700' },
+  promoted:         { label: 'Promoted',         icon: ArrowUpRight,  badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200', iconBg: 'bg-emerald-100 text-emerald-700' },
+  section_transfer: { label: 'Section Switch',   icon: ArrowLeftRight, badgeClass: 'bg-blue-50 text-blue-700 border-blue-200',       iconBg: 'bg-blue-100 text-blue-700' },
+  retained:         { label: 'Retained',         icon: RotateCcw,     badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',     iconBg: 'bg-amber-100 text-amber-700' },
+  graduated:        { label: 'Graduated',        icon: GraduationCap, badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200',   iconBg: 'bg-indigo-100 text-indigo-700' },
+  withdrawn:        { label: 'Withdrawn',        icon: XCircle,       badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',         iconBg: 'bg-rose-100 text-rose-700' },
+};
 
 const STATUS_BADGE: Record<string, { label: string; class: string }> = {
   issued:           { label: 'Active',          class: 'bg-blue-50 text-blue-700 border-blue-200' },
@@ -323,30 +333,79 @@ export function RecipientDetailPage() {
         ))}
       </div>
 
-      {/* Class enrollment history */}
+      {/* Class enrollment history & Academic Journey */}
       {classHistory.length > 0 && (
         <Card className="mb-6">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">{t('Class History')}</CardTitle>
+          <CardHeader className="pb-3 border-b">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <History className="h-4 w-4 text-primary" />
+                <CardTitle className="text-base">{t('Academic Journey & Class History')}</CardTitle>
+              </div>
+              <Badge variant="outline" className="text-xs">
+                {classHistory.length} {classHistory.length === 1 ? t('period') : t('periods')}
+              </Badge>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y">
-              {classHistory.map((h, i) => (
-                <div key={h.id} className="flex items-center gap-3 px-4 py-3">
-                  <div className={`h-2 w-2 rounded-full shrink-0 ${!h.leftAt ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{h.className}</p>
-                    {h.academicYear && <p className="text-xs text-muted-foreground">{h.academicYear}</p>}
+              {classHistory.map((h, i) => {
+                const actionKey = h.actionType || (i === classHistory.length - 1 ? 'enrolled' : 'promoted');
+                const actionCfg = ENROLLMENT_ACTION_CONFIG[actionKey] ?? ENROLLMENT_ACTION_CONFIG.enrolled;
+                const ActionIcon = actionCfg.icon;
+
+                return (
+                  <div key={h.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3.5 hover:bg-muted/20 transition-colors">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className={`p-1.5 rounded-md shrink-0 mt-0.5 ${actionCfg.iconBg}`}>
+                        <ActionIcon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-foreground">
+                            {h.fromClassName ? `${h.fromClassName} → ${h.className}` : h.className}
+                          </p>
+                          <Badge variant="outline" className={`text-[10px] font-medium ${actionCfg.badgeClass}`}>
+                            {t(actionCfg.label)}
+                          </Badge>
+                          {i === 0 && !h.leftAt && (
+                            <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
+                              {t('Current Active')}
+                            </Badge>
+                          )}
+                        </div>
+
+                        {h.academicYear && (
+                          <p className="text-xs text-muted-foreground">
+                            {t('Academic Year')}: <span className="font-medium text-foreground">{h.academicYear}</span>
+                          </p>
+                        )}
+
+                        {h.reason && (
+                          <p className="text-xs text-muted-foreground italic">
+                            "{h.reason}"
+                          </p>
+                        )}
+
+                        {h.performedBy && (
+                          <p className="text-[11px] text-muted-foreground/80">
+                            {t('Recorded by')}: {h.performedBy}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-left sm:text-right text-xs text-muted-foreground shrink-0 pl-10 sm:pl-0">
+                      <p className="font-medium text-foreground">{h.joinedAt}</p>
+                      {h.leftAt ? (
+                        <p className="text-muted-foreground">→ {h.leftAt}</p>
+                      ) : (
+                        <p className="text-emerald-600 font-semibold">{t('Enrolled Currently')}</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right text-xs text-muted-foreground shrink-0">
-                    <p>{h.joinedAt}</p>
-                    {h.leftAt ? <p>→ {h.leftAt}</p> : <p className="text-emerald-600 font-medium">{t('Current')}</p>}
-                  </div>
-                  {i === 0 && !h.leftAt && (
-                    <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200 shrink-0">{t('Active')}</Badge>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>

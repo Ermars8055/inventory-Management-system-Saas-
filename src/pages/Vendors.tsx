@@ -19,6 +19,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import type { Vendor } from '@/types';
+import { capitalizeWords } from '@/lib/formatters';
+import { CountryPhoneInput } from '@/components/ui/country-phone-input';
 
 const EMPTY_FORM = {
   name: '', contactPerson: '', phone: '', email: '',
@@ -226,19 +228,31 @@ export function VendorsPage() {
           <form onSubmit={handleSubmit} className="space-y-3 py-2">
             <div className="space-y-1.5">
               <Label>{t('Vendor Name')} *</Label>
-              <Input required placeholder={t('e.g. ABC Trading Co.')} value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <Input
+                required
+                placeholder={t('e.g. ABC Trading Co.')}
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: capitalizeWords(e.target.value) })}
+                autoCapitalize="words"
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>{t('Contact Person')}</Label>
-                <Input placeholder={t('e.g. Rajesh Kumar')} value={form.contactPerson}
-                  onChange={(e) => setForm({ ...form, contactPerson: e.target.value })} />
+                <Input
+                  placeholder={t('e.g. Rajesh Kumar')}
+                  value={form.contactPerson}
+                  onChange={(e) => setForm({ ...form, contactPerson: capitalizeWords(e.target.value) })}
+                  autoCapitalize="words"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>{t('Phone')}</Label>
-                <Input placeholder={t('+91 98765 43210')} value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                <CountryPhoneInput
+                  value={form.phone}
+                  onChange={(val) => setForm({ ...form, phone: val })}
+                  placeholder="98765 43210"
+                />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -248,8 +262,12 @@ export function VendorsPage() {
             </div>
             <div className="space-y-1.5">
               <Label>{t('Address')}</Label>
-              <Input placeholder={t('City, State')} value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })} />
+              <Input
+                placeholder={t('City, State')}
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: capitalizeWords(e.target.value) })}
+                autoCapitalize="words"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>{t('Vendor Type')}</Label>

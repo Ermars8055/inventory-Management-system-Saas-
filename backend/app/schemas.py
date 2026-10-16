@@ -188,6 +188,8 @@ class ItemOut(CamelModel):
     min_quantity: int = 10
     reorder_qty: int = 50
     location: Optional[str] = None
+    location_id: Optional[str] = None
+    warehouse_id: Optional[str] = None
     status: str = "in_stock"
     last_updated: Optional[str] = None
     uniform: Optional[dict[str, Any]] = None
@@ -211,6 +213,8 @@ class ItemCreate(CamelModel):
     min_quantity: Optional[int] = Field(default=None, ge=0)
     reorder_qty: Optional[int] = Field(default=None, ge=0)
     location: Optional[str] = None
+    location_id: Optional[str] = None
+    warehouse_id: Optional[str] = None
     uniform: Optional[dict[str, Any]] = None
     book: Optional[dict[str, Any]] = None
     medicine: Optional[dict[str, Any]] = None
@@ -233,12 +237,134 @@ class ItemUpdate(CamelModel):
     min_quantity: Optional[int] = Field(default=None, ge=0)
     reorder_qty: Optional[int] = Field(default=None, ge=0)
     location: Optional[str] = None
+    location_id: Optional[str] = None
+    warehouse_id: Optional[str] = None
     uniform: Optional[dict[str, Any]] = None
     book: Optional[dict[str, Any]] = None
     medicine: Optional[dict[str, Any]] = None
     attributes: Optional[dict[str, Any]] = None
     variant_group_id: Optional[str] = None
     variant_label: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Location Schemas (Physical Places / Rooms / Labs / Shelves)
+# ---------------------------------------------------------------------------
+
+class LocationOut(CamelModel):
+    id: str
+    organization_id: str
+    name: str
+    code: Optional[str] = None
+    building: Optional[str] = None
+    floor: Optional[str] = None
+    type: str = "classroom"
+    supervisor_name: Optional[str] = None
+    supervisor_phone: Optional[str] = None
+    max_capacity: Optional[int] = None
+    is_active: bool = True
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    total_items: Optional[int] = 0
+    total_units: Optional[int] = 0
+    available_capacity: Optional[int] = None
+    utilization_pct: Optional[float] = None
+
+
+class LocationCreate(CamelModel):
+    name: str
+    code: Optional[str] = None
+    building: Optional[str] = None
+    floor: Optional[str] = None
+    type: Optional[str] = "classroom"
+    supervisor_name: Optional[str] = None
+    supervisor_phone: Optional[str] = None
+    max_capacity: Optional[int] = None
+
+
+class LocationUpdate(CamelModel):
+    name: Optional[str] = None
+    code: Optional[str] = None
+    building: Optional[str] = None
+    floor: Optional[str] = None
+    type: Optional[str] = None
+    supervisor_name: Optional[str] = None
+    supervisor_phone: Optional[str] = None
+    max_capacity: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class StockTransferCreate(CamelModel):
+    item_id: str
+    from_location: str
+    to_location: str
+    quantity: int = Field(..., gt=0)
+    notes: Optional[str] = None
+
+
+class LocationRecommendation(CamelModel):
+    id: str
+    name: str
+    building: Optional[str] = None
+    type: str
+    current_units: int
+    max_capacity: Optional[int] = None
+    available_capacity: Optional[int] = None
+    is_recommended: bool
+    recommendation_reason: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Warehouse Schemas (Central Storage Depots / Facilities with Capacity)
+# ---------------------------------------------------------------------------
+
+class WarehouseOut(CamelModel):
+    id: str
+    organization_id: str
+    name: str
+    code: Optional[str] = None
+    building: Optional[str] = None
+    address: Optional[str] = None
+    supervisor_name: Optional[str] = None
+    supervisor_phone: Optional[str] = None
+    max_capacity: int = 5000
+    is_active: bool = True
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    total_items: Optional[int] = 0
+    total_units: Optional[int] = 0
+    available_capacity: Optional[int] = 5000
+    utilization_pct: Optional[float] = 0.0
+
+
+class WarehouseCreate(CamelModel):
+    name: str
+    code: Optional[str] = None
+    building: Optional[str] = None
+    address: Optional[str] = None
+    supervisor_name: Optional[str] = None
+    supervisor_phone: Optional[str] = None
+    max_capacity: Optional[int] = Field(default=5000, ge=1)
+
+
+class WarehouseUpdate(CamelModel):
+    name: Optional[str] = None
+    code: Optional[str] = None
+    building: Optional[str] = None
+    address: Optional[str] = None
+    supervisor_name: Optional[str] = None
+    supervisor_phone: Optional[str] = None
+    max_capacity: Optional[int] = Field(default=None, ge=1)
+    is_active: Optional[bool] = None
+
+
+class WarehouseTransferCreate(CamelModel):
+    item_id: str
+    from_warehouse_id: Optional[str] = None
+    to_warehouse_id: Optional[str] = None
+    to_location_id: Optional[str] = None
+    quantity: int = Field(..., gt=0)
+    notes: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -416,6 +542,7 @@ class RecipientOut(CamelModel):
     contact: Optional[str] = None
     extra_data: Optional[dict[str, Any]] = None
     class_id: Optional[str] = None
+    status: Optional[str] = "active"
 
 
 class RecipientCreate(CamelModel):
@@ -426,6 +553,7 @@ class RecipientCreate(CamelModel):
     contact: Optional[str] = None
     extra_data: Optional[dict[str, Any]] = None
     class_id: Optional[str] = None
+    status: Optional[str] = "active"
 
     @field_validator('contact', mode='before')
     @classmethod
@@ -440,6 +568,7 @@ class RecipientUpdate(CamelModel):
     contact: Optional[str] = None
     extra_data: Optional[dict[str, Any]] = None
     class_id: Optional[str] = None
+    status: Optional[str] = None
 
     @field_validator('contact', mode='before')
     @classmethod
@@ -1079,10 +1208,53 @@ class ClassEnrollmentHistoryOut(CamelModel):
     academic_year: Optional[str] = None
     joined_at: str
     left_at: Optional[str] = None
+    action_type: Optional[str] = "enrolled"
+    from_class_id: Optional[str] = None
+    from_class_name: Optional[str] = None
+    reason: Optional[str] = None
+    performed_by: Optional[str] = None
+
+
+class StudentPromotionItem(CamelModel):
+    recipient_id: str
+    target_class_id: Optional[str] = None
+    action: str = "promote"  # "promote" | "retain" | "graduate" | "withdraw"
+    reason: Optional[str] = None
 
 
 class PromoteClassBody(CamelModel):
+    target_class_id: Optional[str] = None
+    student_promotions: Optional[list[StudentPromotionItem]] = None
+    default_action: Optional[str] = "promote"
+
+
+class TransferStudentBody(CamelModel):
     target_class_id: str
+    reason: Optional[str] = None
+    keep_fees: bool = True
+
+
+class BatchClassCreate(CamelModel):
+    grades: list[str]
+    sections: list[str]
+    academic_year: Optional[str] = None
+    notes: Optional[str] = None
+
+    @field_validator('academic_year', mode='before')
+    @classmethod
+    def validate_academic_year(cls, v):
+        return _clean_acad_year(v)
+
+
+class CloneYearClassesBody(CamelModel):
+    source_academic_year: str
+    target_academic_year: str
+    copy_template_items: bool = True
+
+    @field_validator('source_academic_year', 'target_academic_year', mode='before')
+    @classmethod
+    def validate_academic_year(cls, v):
+        return _clean_acad_year(v)
 
 
 class OrgClassCreate(CamelModel):

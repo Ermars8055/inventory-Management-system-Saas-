@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
-  Package, AlertTriangle, XCircle, UserCheck, Truck, CalendarClock, Pill, ShoppingCart, Wallet,
+  Package, AlertTriangle, XCircle, UserCheck, Truck, CalendarClock, Pill, ShoppingCart, Wallet, BarChart3,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -37,6 +37,7 @@ export function DashboardPage() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [fees, setFees] = useState<FeeRecord[]>([]);
+  const [chartView, setChartView] = useState<'timeline' | 'net' | 'category'>('timeline');
 
   useEffect(() => {
     if (!currentOrg) return;
@@ -80,10 +81,63 @@ export function DashboardPage() {
   // Category chart data
   const categoryMap = new Map<string, number>();
   items.forEach((item) => {
-    const cat = item.categoryName;
+    const rawCat = (item.categoryName || '').trim();
+    const cat = rawCat || 'Uncategorized';
     categoryMap.set(cat, (categoryMap.get(cat) || 0) + item.quantity);
   });
-  const chartData = Array.from(categoryMap.entries()).map(([category, count]) => ({ category, count }));
+  const chartData = Array.from(categoryMap.entries())
+    .map(([category, count]) => ({ category, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // Monthly stock movement & time difference calculation
+  const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthlyTimelineMap = new Map<string, { monthKey: string; monthLabel: string; received: number; issued: number; net: number; count: number }>();
+
+  const sortedTx = [...transactions].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+  sortedTx.forEach((tx) => {
+    const ym = tx.date ? tx.date.slice(0, 7) : '';
+    if (!ym || ym.length < 7 || !ym.includes('-')) return;
+
+    if (!monthlyTimelineMap.has(ym)) {
+      const [year, month] = ym.split('-');
+      const monthIdx = parseInt(month, 10) - 1;
+      const monthLabel = `${MONTH_NAMES[monthIdx] ?? month} '${year.slice(2)}`;
+      monthlyTimelineMap.set(ym, {
+        monthKey: ym,
+        monthLabel,
+        received: 0,
+        issued: 0,
+        net: 0,
+        count: 0,
+      });
+    }
+
+    const entry = monthlyTimelineMap.get(ym)!;
+    const qty = Math.abs(tx.quantity);
+    entry.count += 1;
+
+    if (tx.type === 'received' || tx.type === 'returned') {
+      entry.received += qty;
+      entry.net += qty;
+    } else if (tx.type === 'issued' || tx.type === 'damaged') {
+      entry.issued += qty;
+      entry.net -= qty;
+    } else if (tx.type === 'adjusted') {
+      if (tx.quantity >= 0) {
+        entry.received += qty;
+        entry.net += qty;
+      } else {
+        entry.issued += qty;
+        entry.net -= qty;
+      }
+    }
+  });
+
+  const timelineData = Array.from(monthlyTimelineMap.values());
+  const totalInflow = timelineData.reduce((acc, d) => acc + d.received, 0);
+  const totalOutflow = timelineData.reduce((acc, d) => acc + d.issued, 0);
+  const totalNet = totalInflow - totalOutflow;
 
   // Pie chart colors
   const PIE_COLORS = ['#2563eb', '#0891b2', '#16a34a', '#ea580c', '#9333ea', '#6b7280'];
@@ -108,41 +162,232 @@ export function DashboardPage() {
       </div>
 
       <div data-tutorial="charts" className="grid gap-6 lg:grid-cols-3 mb-6">
-        {/* Inventory Overview Chart */}
+        {/* Stock Movement / Time Difference Bar Chart */}
         <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">{t('Inventory Overview')}</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-primary" />
+                {chartView === 'timeline'
+                  ? t('Stock Movement Over Time')
+                  : chartView === 'net'
+                  ? t('Net Stock Difference Over Time')
+                  : t('Stock by Category')}
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {chartView === 'timeline'
+                  ? t('Monthly stock inflow (received) vs outflow (issued)')
+                  : chartView === 'net'
+                  ? t('Net stock volume change per month (Inflow - Outflow)')
+                  : t('Current inventory units across categories')}
+              </p>
+            </div>
+            <div className="flex items-center gap-1 bg-muted/70 p-1 rounded-lg text-xs font-medium">
+              <button
+                type="button"
+                onClick={() => setChartView('timeline')}
+                className={`px-2.5 py-1 rounded-md transition-all ${
+                  chartView === 'timeline'
+                    ? 'bg-background text-foreground shadow-sm font-semibold'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {t('In vs Out')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartView('net')}
+                className={`px-2.5 py-1 rounded-md transition-all ${
+                  chartView === 'net'
+                    ? 'bg-background text-foreground shadow-sm font-semibold'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {t('Net Diff (±)')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartView('category')}
+                className={`px-2.5 py-1 rounded-md transition-all ${
+                  chartView === 'category'
+                    ? 'bg-background text-foreground shadow-sm font-semibold'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {t('Category')}
+              </button>
+            </div>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(214 20% 90%)" vertical={false} />
-                <XAxis dataKey="category" tick={{ fontSize: 12, fill: 'hsl(215 16% 47%)' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 12, fill: 'hsl(215 16% 47%)' }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: '8px',
-                    border: '1px solid hsl(214 20% 89%)',
-                    fontSize: '13px',
-                  }}
-                />
-                <Bar dataKey="count" fill="hsl(221 83% 53%)" radius={[4, 4, 0, 0]} barSize={40} />
-              </BarChart>
-            </ResponsiveContainer>
+            {chartView === 'timeline' && (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={timelineData} margin={{ top: 15, right: 10, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(214 20% 90%)" vertical={false} />
+                  <XAxis dataKey="monthLabel" tick={{ fontSize: 12, fill: 'hsl(215 16% 47%)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: 'hsl(215 16% 47%)' }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: '1px solid hsl(214 20% 89%)',
+                      fontSize: '13px',
+                      backgroundColor: '#ffffff',
+                    }}
+                    formatter={(value: any, name: any) => [`${Number(value).toLocaleString()} units (click to inspect)`, name]}
+                  />
+                  <Legend verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: '8px', fontSize: '12px' }} />
+                  <Bar
+                    dataKey="received"
+                    name={t('Stock In (Received)')}
+                    fill="#10B981"
+                    radius={[4, 4, 0, 0]}
+                    barSize={26}
+                    className="cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={(data: any) => {
+                      if (data?.monthKey) navigate(`/analytics/month/${data.monthKey}`);
+                    }}
+                  />
+                  <Bar
+                    dataKey="issued"
+                    name={t('Stock Out (Issued)')}
+                    fill="#3B82F6"
+                    radius={[4, 4, 0, 0]}
+                    barSize={26}
+                    className="cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={(data: any) => {
+                      if (data?.monthKey) navigate(`/analytics/month/${data.monthKey}`);
+                    }}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+
+            {chartView === 'net' && (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={timelineData} margin={{ top: 15, right: 10, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(214 20% 90%)" vertical={false} />
+                  <XAxis dataKey="monthLabel" tick={{ fontSize: 12, fill: 'hsl(215 16% 47%)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: 'hsl(215 16% 47%)' }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: '1px solid hsl(214 20% 89%)',
+                      fontSize: '13px',
+                      backgroundColor: '#ffffff',
+                    }}
+                    formatter={(value: any) => [
+                      `${Number(value) >= 0 ? '+' : ''}${Number(value).toLocaleString()} units (click to inspect)`,
+                      t('Net Stock Difference'),
+                    ]}
+                  />
+                  <Legend verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: '8px', fontSize: '12px' }} />
+                  <Bar
+                    dataKey="net"
+                    name={t('Net Stock Difference')}
+                    radius={[4, 4, 0, 0]}
+                    barSize={32}
+                    className="cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={(data: any) => {
+                      if (data?.monthKey) navigate(`/analytics/month/${data.monthKey}`);
+                    }}
+                  >
+                    {timelineData.map((entry, index) => (
+                      <Cell key={`net-cell-${index}`} fill={entry.net >= 0 ? '#10B981' : '#EF4444'} className="cursor-pointer hover:opacity-80 transition-opacity" />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+
+            {chartView === 'category' && (
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={chartData} margin={{ top: 15, right: 15, left: -10, bottom: 65 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(214 20% 90%)" vertical={false} />
+                  <XAxis
+                    dataKey="category"
+                    interval={0}
+                    angle={-25}
+                    textAnchor="end"
+                    height={65}
+                    tick={{ fontSize: 11, fill: 'hsl(215 16% 47%)' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis tick={{ fontSize: 12, fill: 'hsl(215 16% 47%)' }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: '1px solid hsl(214 20% 89%)',
+                      fontSize: '13px',
+                      backgroundColor: '#ffffff',
+                    }}
+                    formatter={(value: any) => [`${Number(value).toLocaleString()} units (click to view items)`, t('Total Quantity')]}
+                  />
+                  <Bar
+                    dataKey="count"
+                    fill="hsl(221 83% 53%)"
+                    radius={[4, 4, 0, 0]}
+                    barSize={34}
+                    className="cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={(data: any) => {
+                      if (data?.category) navigate(`/analytics/category/${encodeURIComponent(data.category)}`);
+                    }}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+
+            {/* Time difference metrics banner */}
+            <div className="mt-3 pt-3 border-t border-border/60 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+              <div className="flex items-center gap-4">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+                  <span>{t('Total Inflow')}: <strong className="text-foreground">+{totalInflow.toLocaleString()}</strong></span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" />
+                  <span>{t('Total Outflow')}: <strong className="text-foreground">-{totalOutflow.toLocaleString()}</strong></span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className={`w-2.5 h-2.5 rounded-full inline-block ${totalNet >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                  <span>{t('Net Stock Diff')}: <strong className={totalNet >= 0 ? 'text-emerald-600 font-semibold' : 'text-red-600 font-semibold'}>{totalNet >= 0 ? `+${totalNet.toLocaleString()}` : totalNet.toLocaleString()}</strong></span>
+                </span>
+              </div>
+              <span className="text-[11px] text-muted-foreground/80">
+                {timelineData.length > 0 ? `${timelineData[0].monthLabel} – ${timelineData[timelineData.length - 1].monthLabel}` : ''} ({transactions.length} {t('transactions')})
+              </span>
+            </div>
           </CardContent>
         </Card>
 
         {/* Category Distribution Pie */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{t('Stock Distribution')}</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">{t('Stock Distribution')}</CardTitle>
+              <span className="text-[11px] text-muted-foreground font-normal">{t('Click slice to drilldown')}</span>
+            </div>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <PieChart>
-                <Pie data={chartData} dataKey="count" nameKey="category" cx="50%" cy="50%" outerRadius={90} innerRadius={50} paddingAngle={2}>
+                <Pie
+                  data={chartData}
+                  dataKey="count"
+                  nameKey="category"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={90}
+                  innerRadius={50}
+                  paddingAngle={2}
+                  className="cursor-pointer"
+                  onClick={(entry: any) => {
+                    if (entry?.category) {
+                      navigate(`/analytics/category/${encodeURIComponent(entry.category)}`);
+                    }
+                  }}
+                >
                   {chartData.map((_, idx) => (
-                    <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+                    <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} className="cursor-pointer hover:opacity-80 transition-opacity" />
                   ))}
                 </Pie>
                 <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid hsl(214 20% 89%)', fontSize: '13px' }} />

@@ -44,7 +44,12 @@ export function Header({ onMenuClick, onStartTutorial }: HeaderProps) {
         >
           {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </Button>
-        <Button variant="ghost" size="icon" onClick={onStartTutorial} title="Take the tour">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => window.dispatchEvent(new CustomEvent('stockpilot:toggle-assistant'))}
+          title="Open Pilot Assistant (Help & Guide)"
+        >
           <HelpCircle className="h-5 w-5" />
         </Button>
         <NotificationBell />

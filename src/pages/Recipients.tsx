@@ -18,6 +18,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { Recipient, OrgClass } from '@/types';
+import { capitalizeWords } from '@/lib/formatters';
+import { CountryPhoneInput } from '@/components/ui/country-phone-input';
 
 export function RecipientsPage() {
   const { currentOrg } = useOrganization();
@@ -179,6 +181,7 @@ export function RecipientsPage() {
                 {members.map((r) => (
                   <Card
                     key={r.id}
+                    data-student-card="true"
                     className="cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all"
                     onClick={() => navigate(`/recipients/${r.id}`)}
                   >
@@ -219,7 +222,13 @@ export function RecipientsPage() {
           <form onSubmit={handleAdd} className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label>{t('Full Name')} *</Label>
-              <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t('e.g. Arjun Kumar')} />
+              <Input
+                required
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: capitalizeWords(e.target.value) })}
+                autoCapitalize="words"
+                placeholder={t('e.g. Arjun Kumar')}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -240,20 +249,21 @@ export function RecipientsPage() {
               ) : (
                 <div className="space-y-1.5">
                   <Label>{t(config.groupLabel)}</Label>
-                  <Input value={form.group} onChange={(e) => setForm({ ...form, group: e.target.value })} placeholder={t('e.g. Grade 5-A')} />
+                  <Input
+                    value={form.group}
+                    onChange={(e) => setForm({ ...form, group: capitalizeWords(e.target.value) })}
+                    autoCapitalize="words"
+                    placeholder={t('e.g. Grade 5-A')}
+                  />
                 </div>
               )}
             </div>
             <div className="space-y-1.5">
-              <Label>{t('Contact')} ({t('optional')})</Label>
-              <Input
+              <Label>{t('Contact Phone')} ({t('optional')})</Label>
+              <CountryPhoneInput
                 value={form.contact}
-                placeholder={t('Phone or email')}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  const clean = v.includes('@') ? v.slice(0, 100) : v.replace(/[^\d+\-\s()]/g, '').slice(0, 15);
-                  setForm({ ...form, contact: clean });
-                }}
+                onChange={(val) => setForm({ ...form, contact: val })}
+                placeholder="98765 43210"
               />
             </div>
             <CustomFieldsRenderer

@@ -15,6 +15,8 @@ import { NotFoundPage } from '@/pages/NotFound';
 import { AccessDeniedPage } from '@/pages/AccessDenied';
 import { DashboardPage } from '@/pages/Dashboard';
 import { InventoryPage } from '@/pages/Inventory';
+import { LocationsPage } from '@/pages/Locations';
+import { WarehousesPage } from '@/pages/Warehouses';
 import { ItemDetailPage } from '@/pages/ItemDetail';
 import { TransactionsPage } from '@/pages/Transactions';
 import { VendorsPage } from '@/pages/Vendors';
@@ -53,6 +55,8 @@ import { RecordsPage } from '@/pages/Records';
 import { ProfilePage } from '@/pages/Profile';
 import { TermsPage } from '@/pages/TermsOfService';
 import { PrivacyPage } from '@/pages/PrivacyPolicy';
+import { MonthAnalyticsPage } from '@/pages/analytics/MonthAnalytics';
+import { CategoryAnalyticsPage } from '@/pages/analytics/CategoryAnalytics';
 import { CookieConsent } from '@/components/shared/CookieConsent';
 
 // Loads orgs after auth is ready
@@ -157,8 +161,12 @@ export default function App() {
               <Route element={<ProtectedRoutes />}>
                 <Route element={<AppLayout />}>
                   <Route path="dashboard" element={<DashboardPage />} />
+                  <Route path="analytics/month/:monthKey" element={<MonthAnalyticsPage />} />
+                  <Route path="analytics/category/:categoryName" element={<CategoryAnalyticsPage />} />
                   <Route path="inventory" element={<PermissionGuard permission="inventory:read"><InventoryPage /></PermissionGuard>} />
                   <Route path="inventory/:id" element={<PermissionGuard permission="inventory:read"><ItemDetailPage /></PermissionGuard>} />
+                  <Route path="locations" element={<PermissionGuard permission="inventory:read"><LocationsPage /></PermissionGuard>} />
+                  <Route path="warehouses" element={<PermissionGuard permission="inventory:read"><WarehousesPage /></PermissionGuard>} />
                   <Route path="transactions" element={<PermissionGuard permission="transactions:read"><TransactionsPage /></PermissionGuard>} />
                   <Route path="vendors" element={<PermissionGuard permission="vendors:read"><VendorsPage /></PermissionGuard>} />
                   <Route path="vendors/:id" element={<PermissionGuard permission="vendors:read"><VendorDetailPage /></PermissionGuard>} />

@@ -128,6 +128,8 @@ export interface Item {
   minQuantity?: number;
   reorderQty?: number;
   location: string;
+  locationId?: string;
+  warehouseId?: string;
   status: StockStatus;
   lastUpdated: string;
   variantGroupId?: string;
@@ -273,6 +275,7 @@ export interface Recipient {
   contact?: string;
   extraData?: Record<string, string>;
   classId?: string;     // FK to OrgClass (school-style orgs)
+  status?: 'active' | 'graduated' | 'withdrawn';
 }
 
 // ─── Fee Record ───────────────────────────────────────────────────────────────
@@ -322,6 +325,8 @@ export interface FeeReceipt {
 
 // ─── OrgClass — class-based fee flow ─────────────────────────────────────────
 
+export type EnrollmentActionType = 'enrolled' | 'promoted' | 'section_transfer' | 'retained' | 'graduated' | 'withdrawn';
+
 export interface ClassEnrollmentHistory {
   id: string;
   recipientId: string;
@@ -330,6 +335,43 @@ export interface ClassEnrollmentHistory {
   academicYear?: string;
   joinedAt: string;
   leftAt?: string;
+  actionType?: EnrollmentActionType;
+  fromClassId?: string;
+  fromClassName?: string;
+  reason?: string;
+  performedBy?: string;
+}
+
+export interface BatchClassCreate {
+  grades: string[];
+  sections: string[];
+  academicYear?: string;
+  notes?: string;
+}
+
+export interface CloneYearClassesBody {
+  sourceAcademicYear: string;
+  targetAcademicYear: string;
+  copyTemplateItems?: boolean;
+}
+
+export interface TransferStudentPayload {
+  targetClassId: string;
+  reason?: string;
+  keepFees?: boolean;
+}
+
+export interface StudentPromotionItem {
+  recipientId: string;
+  targetClassId?: string;
+  action?: 'promote' | 'retain' | 'graduate' | 'withdraw';
+  reason?: string;
+}
+
+export interface PromoteClassPayload {
+  targetClassId?: string;
+  studentPromotions?: StudentPromotionItem[];
+  defaultAction?: string;
 }
 
 export interface OrgClassItem {
@@ -644,4 +686,76 @@ export interface Quotation {
   createdAt?: string;
   items: QuotationItem[];
   vendorQuotes: VendorQuote[];
+}
+
+// --- Storage Location System (Physical Places / Rooms) ---
+
+export interface StorageLocation {
+  id: string;
+  organizationId: string;
+  name: string;
+  code?: string;
+  building?: string;
+  floor?: string;
+  type: string;
+  supervisorName?: string;
+  supervisorPhone?: string;
+  maxCapacity?: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  totalItems?: number;
+  totalUnits?: number;
+  availableCapacity?: number;
+  utilizationPct?: number;
+}
+
+export interface StockTransferPayload {
+  itemId: string;
+  fromLocation: string;
+  toLocation: string;
+  quantity: number;
+  notes?: string;
+}
+
+export interface LocationRecommendation {
+  id: string;
+  name: string;
+  building?: string;
+  type: string;
+  currentUnits: number;
+  maxCapacity?: number;
+  availableCapacity?: number;
+  isRecommended: boolean;
+  recommendationReason?: string;
+}
+
+// --- Warehouse System (Central Storage Depots / Facilities with Capacity) ---
+
+export interface Warehouse {
+  id: string;
+  organizationId: string;
+  name: string;
+  code?: string;
+  building?: string;
+  address?: string;
+  supervisorName?: string;
+  supervisorPhone?: string;
+  maxCapacity: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  totalItems?: number;
+  totalUnits?: number;
+  availableCapacity?: number;
+  utilizationPct?: number;
+}
+
+export interface WarehouseTransferPayload {
+  itemId: string;
+  fromWarehouseId?: string;
+  toWarehouseId?: string;
+  toLocationId?: string;
+  quantity: number;
+  notes?: string;
 }

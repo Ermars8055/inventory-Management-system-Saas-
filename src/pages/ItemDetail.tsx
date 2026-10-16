@@ -17,6 +17,8 @@ import { getModuleDef } from '@/data/modules';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAuth } from '@/context/AuthContext';
 import type { Item, StockTransaction, ItemVariantGroup } from '@/types';
+import { LocationSelect } from '@/components/inventory/LocationSelect';
+import { capitalizeWords } from '@/lib/formatters';
 
 const TRANSACTION_LABELS: Record<string, string> = {
   received: 'Received', issued: 'Issued', returned: 'Returned', adjusted: 'Adjusted', damaged: 'Damaged', transferred: 'Transferred',
@@ -147,7 +149,7 @@ export function ItemDetailPage() {
         <div className="grid grid-cols-2 gap-4 lg:col-span-3">
           <Card>
             <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">{t('Current Stock')}</p>
+              <p className="text-sm text-muted-foreground">{t('Total Stock')}</p>
               <p className="text-2xl font-bold mt-1">{item.quantity}</p>
             </CardContent>
           </Card>
@@ -441,7 +443,12 @@ export function ItemDetailPage() {
           <form onSubmit={handleEditSave} className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label>{t('Name')}</Label>
-              <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
+              <Input
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: capitalizeWords(e.target.value) })}
+                autoCapitalize="words"
+                required
+              />
             </div>
             <div className="space-y-1.5">
               <Label>{t('SKU')}</Label>
@@ -450,7 +457,13 @@ export function ItemDetailPage() {
             </div>
             <div className="space-y-1.5">
               <Label>{t('Location')}</Label>
-              <Input value={editForm.location} onChange={(e) => setEditForm({ ...editForm, location: e.target.value })} />
+              <LocationSelect
+                value={editForm.location}
+                onChange={(loc) => setEditForm({ ...editForm, location: loc })}
+                categoryName={item.categoryName}
+                module={item.module}
+                quantity={item.quantity}
+              />
             </div>
             {item.variantGroupId && (
               <div className="space-y-1.5">

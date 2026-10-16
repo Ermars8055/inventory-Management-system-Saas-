@@ -1,5 +1,9 @@
 import os
 import re
+import asyncio
+import logging
+import json
+import urllib.request
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -23,6 +27,8 @@ from .routers import (
     subscriptions,
     procurement,
     maintenance,
+    locations,
+    warehouses,
 )
 from .routers.asset_router import router as asset_router
 from .routers.auth_router import router as auth_router
@@ -41,6 +47,7 @@ from .routers.api_keys import router as api_keys_router
 from .routers.translate import router as translate_router
 from .routers.fees import router as fees_router
 from .routers.item_variants import router as item_variants_router
+from .routers.assistant import router as assistant_router
 
 load_dotenv()
 
@@ -54,7 +61,7 @@ TENANT_DOMAIN = os.getenv("TENANT_DOMAIN", "ermarscastar.in")
 SUBDOMAIN_SUFFIX = f".{SUBDOMAIN_BASE}.{TENANT_DOMAIN}"
 
 # Paths completely exempt from subdomain middleware (no org lookup at all)
-SKIP_SUBDOMAIN_PATHS = {"/health", "/signup", "/signup/check-subdomain",
+SKIP_SUBDOMAIN_PATHS = {"/health", "/health/heartbeat", "/assistant/chat", "/signup", "/signup/check-subdomain",
                         "/subscriptions", "/subscriptions/plans",
                         "/auth/forgot-password", "/auth/reset-password"}
 
@@ -213,8 +220,54 @@ app.include_router(api_keys_router)
 app.include_router(translate_router)
 app.include_router(fees_router)
 app.include_router(item_variants_router)
+app.include_router(locations.router)
+app.include_router(warehouses.router)
+app.include_router(assistant_router)
 
 
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "StockPilot API"}
+
+
+# ─── GlitchTip Heartbeat Uptime Monitor ────────────────────────────────────────
+
+GLITCHTIP_HEARTBEAT_URL = os.getenv(
+    "GLITCHTIP_HEARTBEAT_URL",
+    "https://app.glitchtip.com/api/0/organizations/stockpilot/heartbeat_check/1b153813-a60d-4f75-9e07-a0a706a8d11e/",
+)
+
+def _send_glitchtip_heartbeat() -> dict:
+    req = urllib.request.Request(GLITCHTIP_HEARTBEAT_URL, data=b"", method="POST")
+    req.add_header("User-Agent", "StockPilot-Heartbeat/1.0")
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return json.loads(resp.read().decode())
+
+async def _glitchtip_heartbeat_worker():
+    """Background task to regularly ping GlitchTip Heartbeat uptime monitor every 60s."""
+    if not GLITCHTIP_HEARTBEAT_URL:
+        return
+    await asyncio.sleep(2)
+    while True:
+        try:
+            await asyncio.to_thread(_send_glitchtip_heartbeat)
+        except Exception as e:
+            logging.debug(f"GlitchTip heartbeat ping failed: {e}")
+        await asyncio.sleep(60)
+
+@app.on_event("startup")
+async def start_heartbeat():
+    asyncio.create_task(_glitchtip_heartbeat_worker())
+
+@app.post("/health/heartbeat")
+def trigger_heartbeat():
+    """Manual ping to GlitchTip heartbeat."""
+    if not GLITCHTIP_HEARTBEAT_URL:
+        return {"status": "not_configured"}
+    try:
+        data = _send_glitchtip_heartbeat()
+        return {"status": "ok", "glitchtip_response": data}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+

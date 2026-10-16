@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import SessionWarning from '@/components/shared/SessionWarning';
 import { TutorialOverlay } from '@/components/shared/TutorialOverlay';
+import { PilotAssistant } from '@/components/assistant/PilotAssistant';
 import { useTutorial } from '@/hooks/useTutorial';
 
 export function AppLayout() {
@@ -20,6 +21,7 @@ export function AppLayout() {
         </main>
       </div>
       <SessionWarning />
+      <PilotAssistant />
       {tutorial.isActive && (
         <TutorialOverlay
           step={tutorial.currentStep}

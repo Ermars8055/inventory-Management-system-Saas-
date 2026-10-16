@@ -9,8 +9,10 @@ import type {
   Vendor, User, Role, Recipient, Assignment, Batch, ReceiptTemplate, CustomField, Subscription,
   PurchaseOrder, POLineItem, MaintenanceTicket, Asset, ClassTemplate, ClassTemplateItem,
   Quotation, FeeRecord, FeeReceipt, OrgClass, OrgClassDetail, OrgClassItem,
-  ClassEnrollmentHistory,
+  ClassEnrollmentHistory, BatchClassCreate, CloneYearClassesBody, TransferStudentPayload, PromoteClassPayload,
   ItemVariantGroup, VariantItemCreate, GroupedInventoryRow,
+  StorageLocation, StockTransferPayload, LocationRecommendation,
+  Warehouse, WarehouseTransferPayload,
 } from '@/types';
 
 export const organizationService = {
@@ -424,6 +426,12 @@ export const classService = {
   async create(data: { name: string; academicYear?: string; notes?: string }): Promise<OrgClass> {
     return api.post('/classes', data);
   },
+  async createBatch(data: BatchClassCreate): Promise<{ createdCount: number; skippedCount: number; classes: OrgClass[] }> {
+    return api.post('/classes/batch', data);
+  },
+  async cloneYear(data: CloneYearClassesBody): Promise<{ createdCount: number; skippedCount: number; classes: OrgClass[] }> {
+    return api.post('/classes/clone-year', data);
+  },
   async update(id: string, data: { name?: string; academicYear?: string; notes?: string; status?: string }): Promise<OrgClass> {
     return api.put(`/classes/${id}`, data);
   },
@@ -448,14 +456,18 @@ export const classService = {
   async removeStudent(id: string, recipientId: string): Promise<OrgClassDetail> {
     return api.delete(`/classes/${id}/students/${recipientId}`);
   },
+  async transferStudent(classId: string, recipientId: string, data: TransferStudentPayload): Promise<OrgClassDetail> {
+    return api.post(`/classes/${classId}/students/${recipientId}/transfer`, data);
+  },
   async assignFees(id: string, data?: { recipientId?: string; notes?: string }): Promise<{ created: number; skipped: number }> {
     return api.post(`/classes/${id}/assign-fees`, data ?? {});
   },
   async distributePaid(id: string): Promise<{ distributed: number }> {
     return api.post(`/classes/${id}/distribute-paid`, {});
   },
-  async promoteClass(id: string, targetClassId: string): Promise<{ promoted: number; targetClass: string }> {
-    return api.post(`/classes/${id}/promote`, { targetClassId });
+  async promoteClass(id: string, payload: string | PromoteClassPayload): Promise<{ promoted: number; retained?: number; graduated?: number; withdrawn?: number; targetClass?: string; totalProcessed?: number }> {
+    const body = typeof payload === 'string' ? { targetClassId: payload } : payload;
+    return api.post(`/classes/${id}/promote`, body);
   },
   async getEnrollmentHistory(recipientId: string): Promise<ClassEnrollmentHistory[]> {
     return api.get(`/classes/enrollment-history/${recipientId}`);
@@ -527,3 +539,103 @@ export const recordsService = {
     return api.get(`/audit-log?${p.toString()}`);
   },
 };
+
+export const locationService = {
+  async getAll(params?: { includeInactive?: boolean }): Promise<StorageLocation[]> {
+    const p = new URLSearchParams();
+    if (params?.includeInactive) p.set('include_inactive', 'true');
+    return api.get(`/locations?${p.toString()}`);
+  },
+  async create(data: {
+    name: string;
+    code?: string;
+    building?: string;
+    floor?: string;
+    type?: string;
+    supervisorName?: string;
+    supervisorPhone?: string;
+    maxCapacity?: number;
+  }): Promise<StorageLocation> {
+    return api.post('/locations', data);
+  },
+  async update(id: string, data: Partial<StorageLocation>): Promise<StorageLocation> {
+    return api.put(`/locations/${id}`, data);
+  },
+  async delete(id: string): Promise<{ message: string }> {
+    return api.delete(`/locations/${id}`);
+  },
+  async getItems(id: string): Promise<Item[]> {
+    return api.get(`/locations/${id}/items`);
+  },
+  async transfer(data: StockTransferPayload): Promise<{ success: boolean; message: string }> {
+    return api.post('/locations/transfer', data);
+  },
+  async getRecommendations(params: {
+    categoryId?: string;
+    categoryName?: string;
+    module?: string;
+    quantity?: number;
+  }): Promise<LocationRecommendation[]> {
+    const p = new URLSearchParams();
+    if (params.categoryId) p.set('category_id', params.categoryId);
+    if (params.categoryName) p.set('category_name', params.categoryName);
+    if (params.module) p.set('module', params.module);
+    if (params.quantity) p.set('quantity', String(params.quantity));
+    return api.get(`/locations/recommend?${p.toString()}`);
+  },
+};
+
+export const warehouseService = {
+  async getAll(params?: { includeInactive?: boolean }): Promise<Warehouse[]> {
+    const p = new URLSearchParams();
+    if (params?.includeInactive) p.set('include_inactive', 'true');
+    return api.get(`/warehouses?${p.toString()}`);
+  },
+  async create(data: {
+    name: string;
+    code?: string;
+    building?: string;
+    address?: string;
+    supervisorName?: string;
+    supervisorPhone?: string;
+    maxCapacity?: number;
+  }): Promise<Warehouse> {
+    return api.post('/warehouses', data);
+  },
+  async update(id: string, data: Partial<Warehouse>): Promise<Warehouse> {
+    return api.put(`/warehouses/${id}`, data);
+  },
+  async delete(id: string): Promise<{ message: string }> {
+    return api.delete(`/warehouses/${id}`);
+  },
+  async getItems(id: string): Promise<Item[]> {
+    return api.get(`/warehouses/${id}/items`);
+  },
+  async transfer(data: WarehouseTransferPayload): Promise<{ success: boolean; message: string }> {
+    return api.post('/warehouses/transfer', data);
+  },
+};
+
+export interface AssistantChatPayload {
+  message: string;
+  current_path?: string;
+  api_key?: string;
+  model?: string;
+  history?: { role: 'user' | 'assistant'; content: string }[];
+}
+
+export interface AssistantChatResult {
+  reply: string;
+  actions: { label: string; path?: string }[];
+  model: string;
+  provider: string;
+  is_fallback: boolean;
+}
+
+export const assistantService = {
+  async chat(payload: AssistantChatPayload): Promise<AssistantChatResult> {
+    return api.post('/assistant/chat', payload);
+  },
+};
+
+

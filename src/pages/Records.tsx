@@ -3,10 +3,11 @@ import {
   Package, Users, Wallet, ShoppingCart, Store, Building2, Shield,
   UserCheck, ArrowLeftRight, Layers, Search, Download, ChevronDown,
   ChevronRight, Activity, TrendingUp, CalendarDays, Clock, User,
+  GraduationCap, Sliders, Wrench, FileSpreadsheet, X, RotateCcw,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell,
+  PieChart, Pie, Cell, AreaChart, Area,
 } from 'recharts';
 import { recordsService, type AuditEntry } from '@/services';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -19,21 +20,35 @@ import { useTranslation } from '@/hooks/useTranslation';
 
 // ── Entity config ────────────────────────────────────────────────────────────
 
-const ENTITY: Record<string, { label: string; icon: typeof Package; color: string; dot: string; chart: string }> = {
-  item:           { label: 'Inventory',     icon: Package,         color: 'bg-blue-100 text-blue-800',    dot: 'bg-blue-500',    chart: '#3b82f6' },
-  recipient:      { label: 'Recipient',     icon: Users,           color: 'bg-green-100 text-green-800',  dot: 'bg-green-500',   chart: '#22c55e' },
-  assignment:     { label: 'Assignment',    icon: UserCheck,       color: 'bg-orange-100 text-orange-800',dot: 'bg-orange-500',  chart: '#f97316' },
-  fee_record:     { label: 'Fee',           icon: Wallet,          color: 'bg-amber-100 text-amber-800',  dot: 'bg-amber-500',   chart: '#f59e0b' },
-  purchase_order: { label: 'Purchase Order',icon: ShoppingCart,    color: 'bg-purple-100 text-purple-800',dot: 'bg-purple-500',  chart: '#a855f7' },
-  vendor:         { label: 'Vendor',        icon: Store,           color: 'bg-cyan-100 text-cyan-800',    dot: 'bg-cyan-500',    chart: '#06b6d4' },
-  user:           { label: 'User',          icon: User,            color: 'bg-pink-100 text-pink-800',    dot: 'bg-pink-500',    chart: '#ec4899' },
-  organization:   { label: 'Organization',  icon: Building2,       color: 'bg-indigo-100 text-indigo-800',dot: 'bg-indigo-500',  chart: '#6366f1' },
-  template:       { label: 'Template',      icon: Layers,          color: 'bg-teal-100 text-teal-800',    dot: 'bg-teal-500',    chart: '#14b8a6' },
-  auth:           { label: 'Auth',          icon: Shield,          color: 'bg-gray-100 text-gray-700',    dot: 'bg-gray-400',    chart: '#9ca3af' },
-  stock_transaction: { label: 'Stock',      icon: ArrowLeftRight,  color: 'bg-sky-100 text-sky-800',      dot: 'bg-sky-500',     chart: '#0ea5e9' },
+const ENTITY: Record<string, { label: string; icon: any; color: string; dot: string; chart: string }> = {
+  item:              { label: 'Inventory',        icon: Package,          color: 'bg-blue-100 text-blue-800',     dot: 'bg-blue-500',    chart: '#3b82f6' },
+  recipient:         { label: 'Recipient',        icon: Users,            color: 'bg-green-100 text-green-800',   dot: 'bg-green-500',   chart: '#22c55e' },
+  assignment:        { label: 'Assignment',       icon: UserCheck,        color: 'bg-orange-100 text-orange-800', dot: 'bg-orange-500',  chart: '#f97316' },
+  fee_record:        { label: 'Fee',              icon: Wallet,           color: 'bg-amber-100 text-amber-800',   dot: 'bg-amber-500',   chart: '#f59e0b' },
+  purchase_order:    { label: 'Purchase Order',   icon: ShoppingCart,     color: 'bg-purple-100 text-purple-800', dot: 'bg-purple-500',  chart: '#a855f7' },
+  vendor:            { label: 'Vendor',           icon: Store,            color: 'bg-cyan-100 text-cyan-800',     dot: 'bg-cyan-500',    chart: '#06b6d4' },
+  user:              { label: 'User',             icon: User,             color: 'bg-pink-100 text-pink-800',     dot: 'bg-pink-500',    chart: '#ec4899' },
+  organization:      { label: 'Organization',     icon: Building2,        color: 'bg-indigo-100 text-indigo-800', dot: 'bg-indigo-500',  chart: '#6366f1' },
+  template:          { label: 'Template',         icon: Layers,          color: 'bg-teal-100 text-teal-800',     dot: 'bg-teal-500',    chart: '#14b8a6' },
+  auth:              { label: 'Auth & Security',  icon: Shield,           color: 'bg-slate-100 text-slate-800',   dot: 'bg-slate-500',   chart: '#64748b' },
+  stock_transaction: { label: 'Stock Movement',   icon: ArrowLeftRight,   color: 'bg-sky-100 text-sky-800',       dot: 'bg-sky-500',     chart: '#0ea5e9' },
+  class:             { label: 'Classes & Cohorts',icon: GraduationCap,    color: 'bg-violet-100 text-violet-800', dot: 'bg-violet-500', chart: '#8b5cf6' },
+  variant_group:     { label: 'Item Variants',    icon: Layers,           color: 'bg-rose-100 text-rose-800',     dot: 'bg-rose-500',    chart: '#f43f5e' },
+  modules:           { label: 'Module Settings',  icon: Sliders,          color: 'bg-emerald-100 text-emerald-800',dot: 'bg-emerald-500',chart: '#10b981' },
+  asset:             { label: 'Asset Management', icon: Wrench,           color: 'bg-yellow-100 text-yellow-800', dot: 'bg-yellow-500', chart: '#eab308' },
+  maintenance:       { label: 'Maintenance',      icon: Wrench,           color: 'bg-red-100 text-red-800',       dot: 'bg-red-500',     chart: '#ef4444' },
+  quotation:         { label: 'Quotations',       icon: FileSpreadsheet,  color: 'bg-blue-100 text-blue-900',     dot: 'bg-blue-600',    chart: '#2563eb' },
 };
-const DEFAULT_ENTITY = { label: 'Event', icon: Activity, color: 'bg-slate-100 text-slate-700', dot: 'bg-slate-400', chart: '#94a3b8' };
+const DEFAULT_ENTITY = { label: 'System Event', icon: Activity, color: 'bg-slate-100 text-slate-700', dot: 'bg-slate-400', chart: '#94a3b8' };
 const ecfg = (type: string) => ENTITY[type] ?? DEFAULT_ENTITY;
+
+const USER_ROLES: Record<string, string> = {
+  'Priya Sharma': 'Org Admin',
+  'Anita Verma': 'Staff',
+  'Rajesh Kumar': 'Manager',
+  'Meena Pillai': 'Staff',
+  'Suresh Babu': 'Viewer',
+};
 
 const ACTION_LABELS: Record<string, string> = {
   create: 'Created', update: 'Updated', delete: 'Deleted',
@@ -199,7 +214,16 @@ export function RecordsPage() {
   const [dateTo, setDateTo]     = useState(isoDate(new Date()));
   const [typeFilter, setTypeFilter] = useState('__all__');
   const [actionFilter, setActionFilter] = useState('__all__');
+  const [userFilter, setUserFilter] = useState('__all__');
   const [search, setSearch] = useState('');
+  const [activeRangePreset, setActiveRangePreset] = useState<'7d' | '14d' | '30d' | 'custom'>('30d');
+
+  const setRangePreset = (preset: '7d' | '14d' | '30d') => {
+    setActiveRangePreset(preset);
+    const days = preset === '7d' ? 6 : preset === '14d' ? 13 : 29;
+    setDateFrom(nDaysAgo(days));
+    setDateTo(isoDate(new Date()));
+  };
 
   const fetch = useCallback(async () => {
     setLoading(true);
@@ -219,6 +243,7 @@ export function RecordsPage() {
     let list = entries;
     if (typeFilter !== '__all__') list = list.filter(e => e.entityType === typeFilter);
     if (actionFilter !== '__all__') list = list.filter(e => e.action === actionFilter);
+    if (userFilter !== '__all__') list = list.filter(e => e.userName === userFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(e =>
@@ -230,7 +255,7 @@ export function RecordsPage() {
       );
     }
     return list;
-  }, [entries, typeFilter, actionFilter, search]);
+  }, [entries, typeFilter, actionFilter, userFilter, search]);
 
   // ── KPIs ──
 
@@ -271,6 +296,18 @@ export function RecordsPage() {
       .sort()
       .map(([date, count]) => ({ date, short: fmtDayShort(date), count }));
   }, [filtered, dateFrom, dateTo]);
+
+  const activityStats = useMemo(() => {
+    let peak = { date: '', short: '', count: 0 };
+    let sum = 0;
+    for (const d of activityData) {
+      sum += d.count;
+      if (d.count > peak.count) peak = d;
+    }
+    const days = activityData.length || 1;
+    const avg = (sum / days).toFixed(1);
+    return { peak, avg, total: sum };
+  }, [activityData]);
 
   // ── Entity type breakdown ──
 
@@ -404,62 +441,108 @@ export function RecordsPage() {
 
           {/* Activity trend */}
           <Card>
-            <CardHeader className="pb-2 pt-4 px-4">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-muted-foreground" /> Activity Trend
+            <CardHeader className="pb-2 pt-3 px-4 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <TrendingUp className="h-3.5 w-3.5 text-primary" /> {t('Activity Trend')}
               </CardTitle>
+              <div className="flex items-center gap-1 bg-muted p-0.5 rounded text-[10px] font-medium">
+                {(['7d', '14d', '30d'] as const).map(p => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setRangePreset(p)}
+                    className={`px-1.5 py-0.5 rounded uppercase transition-colors ${
+                      activeRangePreset === p ? 'bg-background shadow-xs font-semibold text-foreground' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
             </CardHeader>
-            <CardContent className="px-2 pb-3">
-              {activityData.length <= 31 ? (
-                <ResponsiveContainer width="100%" height={110}>
-                  <BarChart data={activityData} margin={{ top: 0, right: 4, left: -28, bottom: 0 }}>
-                    <XAxis dataKey="short" tick={{ fontSize: 9 }} interval="preserveStartEnd" />
-                    <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
-                    <Tooltip
-                      contentStyle={{ fontSize: 11 }}
-                      formatter={(v: number) => [v, 'Events']}
-                      labelFormatter={(l) => l}
-                    />
-                    <Bar dataKey="count" fill="#3b82f6" radius={[2, 2, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                // Wider range — simple mini-bars
-                <div className="flex items-end gap-px h-14 w-full">
-                  {activityData.map(d => (
-                    <div
-                      key={d.date}
-                      title={`${d.date}: ${d.count} events`}
-                      className="flex-1 bg-blue-400 rounded-sm min-h-[2px]"
-                      style={{ height: `${Math.max(2, (d.count / maxBarCount) * 56)}px` }}
-                    />
-                  ))}
-                </div>
-              )}
+            <CardContent className="px-3 pb-3 pt-0">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-2 pt-1 border-t border-border/50">
+                <span>{t('Total')}: <strong className="text-foreground">{activityStats.total}</strong></span>
+                <span>{t('Avg')}: <strong className="text-foreground">{activityStats.avg}/d</strong></span>
+                <span>{t('Peak')}: <strong className="text-foreground">{activityStats.peak.count}</strong></span>
+              </div>
+              <ResponsiveContainer width="100%" height={110}>
+                <AreaChart data={activityData} margin={{ top: 5, right: 4, left: -22, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="actGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="short" tick={{ fontSize: 9, fill: 'hsl(215 16% 47%)' }} interval="preserveStartEnd" axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 9, fill: 'hsl(215 16% 47%)' }} allowDecimals={false} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: '6px', fontSize: '11px', padding: '4px 8px' }}
+                    formatter={(v: any) => [`${v} events`, 'Activity']}
+                    labelFormatter={(l) => `${l}`}
+                  />
+                  <Area type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#actGrad)" />
+                </AreaChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
 
           {/* Entity breakdown */}
           {typeBreakdown.length > 0 && (
             <Card>
-              <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-sm font-semibold">By Type</CardTitle>
+              <CardHeader className="pb-2 pt-3 px-4 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Layers className="h-3.5 w-3.5 text-primary" /> {t('By Entity Type')}
+                </CardTitle>
+                {typeFilter !== '__all__' && (
+                  <button
+                    type="button"
+                    onClick={() => setTypeFilter('__all__')}
+                    className="text-[10px] text-primary hover:underline font-medium"
+                  >
+                    {t('Clear filter')}
+                  </button>
+                )}
               </CardHeader>
-              <CardContent className="px-4 pb-4 space-y-2">
-                {typeBreakdown.map(({ type, count, label, color }) => (
-                  <div key={type}>
-                    <div className="flex justify-between text-xs mb-0.5">
-                      <span>{label}</span>
-                      <span className="text-muted-foreground">{count}</span>
+              <CardContent className="px-3 pb-3 space-y-1.5">
+                {typeBreakdown.map(({ type, count, label, color }) => {
+                  const cfg = ecfg(type);
+                  const Icon = cfg.icon;
+                  const pct = Math.round((count / (filtered.length || 1)) * 100);
+                  const isSelected = typeFilter === type;
+                  return (
+                    <div
+                      key={type}
+                      onClick={() => setTypeFilter(prev => prev === type ? '__all__' : type)}
+                      className={`group p-1.5 rounded-md cursor-pointer transition-all border ${
+                        isSelected
+                          ? 'bg-primary/10 border-primary shadow-xs'
+                          : 'border-transparent hover:bg-muted/50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="flex items-center gap-1.5 font-medium truncate">
+                          <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 ${cfg.color}`}>
+                            <Icon className="h-2.5 w-2.5" />
+                          </span>
+                          <span className="truncate">{label}</span>
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                          <span className="text-[10px] text-muted-foreground">{pct}%</span>
+                          <Badge variant={isSelected ? 'default' : 'secondary'} className="text-[10px] h-4 px-1.5 font-semibold">
+                            {count}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-300"
+                          style={{ width: `${pct}%`, backgroundColor: color }}
+                        />
+                      </div>
                     </div>
-                    <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${(count / (typeBreakdown[0]?.count || 1)) * 100}%`, background: color }}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
           )}
@@ -467,16 +550,41 @@ export function RecordsPage() {
           {/* Top actions */}
           {actionBreakdown.length > 0 && (
             <Card>
-              <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-sm font-semibold">By Action</CardTitle>
+              <CardHeader className="pb-2 pt-3 px-4 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Activity className="h-3.5 w-3.5 text-primary" /> {t('By Action')}
+                </CardTitle>
+                {actionFilter !== '__all__' && (
+                  <button
+                    type="button"
+                    onClick={() => setActionFilter('__all__')}
+                    className="text-[10px] text-primary hover:underline font-medium"
+                  >
+                    {t('Clear filter')}
+                  </button>
+                )}
               </CardHeader>
-              <CardContent className="px-4 pb-3 space-y-1">
-                {actionBreakdown.map(({ action, count, label }) => (
-                  <div key={action} className="flex items-center justify-between text-xs py-0.5">
-                    <span className="capitalize">{label}</span>
-                    <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{count}</Badge>
-                  </div>
-                ))}
+              <CardContent className="px-3 pb-3 space-y-1">
+                {actionBreakdown.map(({ action, count, label }) => {
+                  const isSelected = actionFilter === action;
+                  return (
+                    <button
+                      key={action}
+                      type="button"
+                      onClick={() => setActionFilter(prev => prev === action ? '__all__' : action)}
+                      className={`w-full flex items-center justify-between text-xs py-1 px-2 rounded-md transition-colors text-left ${
+                        isSelected
+                          ? 'bg-primary/10 text-primary font-semibold border border-primary/40'
+                          : 'hover:bg-muted/50 text-foreground'
+                      }`}
+                    >
+                      <span className="capitalize truncate">{label}</span>
+                      <Badge variant={isSelected ? 'default' : 'secondary'} className="text-[10px] h-4 px-1.5 shrink-0 ml-2">
+                        {count}
+                      </Badge>
+                    </button>
+                  );
+                })}
               </CardContent>
             </Card>
           )}
@@ -484,20 +592,49 @@ export function RecordsPage() {
           {/* Top users */}
           {topUsers.length > 0 && (
             <Card>
-              <CardHeader className="pb-2 pt-4 px-4">
-                <CardTitle className="text-sm font-semibold">Most Active Users</CardTitle>
+              <CardHeader className="pb-2 pt-3 px-4 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5 text-primary" /> {t('Most Active Users')}
+                </CardTitle>
+                {userFilter !== '__all__' && (
+                  <button
+                    type="button"
+                    onClick={() => setUserFilter('__all__')}
+                    className="text-[10px] text-primary hover:underline font-medium"
+                  >
+                    {t('Clear filter')}
+                  </button>
+                )}
               </CardHeader>
-              <CardContent className="px-4 pb-3 space-y-2">
-                {topUsers.map(([name, count], i) => (
-                  <div key={name} className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground w-4">{i + 1}</span>
-                    <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
-                      {name.charAt(0).toUpperCase()}
+              <CardContent className="px-3 pb-3 space-y-1.5">
+                {topUsers.map(([name, count], i) => {
+                  const role = USER_ROLES[name] || 'Staff';
+                  const pct = Math.round((count / (filtered.length || 1)) * 100);
+                  const isSelected = userFilter === name;
+                  return (
+                    <div
+                      key={name}
+                      onClick={() => setUserFilter(prev => prev === name ? '__all__' : name)}
+                      className={`flex items-center gap-2 p-1.5 rounded-md cursor-pointer transition-all border ${
+                        isSelected
+                          ? 'bg-primary/10 border-primary shadow-xs'
+                          : 'border-transparent hover:bg-muted/50'
+                      }`}
+                    >
+                      <span className="text-[10px] font-bold text-muted-foreground w-3.5">{i + 1}</span>
+                      <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-bold text-primary shrink-0">
+                        {name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate leading-tight">{name}</p>
+                        <p className="text-[10px] text-muted-foreground">{role} · {pct}%</p>
+                      </div>
+                      <Badge variant={isSelected ? 'default' : 'secondary'} className="text-[10px] h-4 px-1.5 font-semibold">
+                        {count}
+                      </Badge>
                     </div>
-                    <span className="text-xs flex-1 truncate">{name}</span>
-                    <span className="text-xs text-muted-foreground">{count}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
           )}
@@ -505,28 +642,69 @@ export function RecordsPage() {
           {/* Pie breakdown */}
           {typeBreakdown.length > 1 && (
             <Card>
-              <CardHeader className="pb-1 pt-4 px-4">
-                <CardTitle className="text-sm font-semibold">Distribution</CardTitle>
+              <CardHeader className="pb-1 pt-3 px-4 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {t('Distribution')}
+                </CardTitle>
+                <span className="text-[11px] text-muted-foreground font-mono">{filtered.length} {t('events')}</span>
               </CardHeader>
-              <CardContent className="pb-3">
-                <ResponsiveContainer width="100%" height={160}>
-                  <PieChart>
-                    <Pie
-                      data={typeBreakdown}
-                      dataKey="count"
-                      nameKey="label"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={40}
-                      outerRadius={65}
-                    >
-                      {typeBreakdown.map(({ type, color }) => (
-                        <Cell key={type} fill={color} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={{ fontSize: 11 }} formatter={(v: number) => [v, 'events']} />
-                  </PieChart>
-                </ResponsiveContainer>
+              <CardContent className="pb-3 pt-1">
+                <div className="relative">
+                  <ResponsiveContainer width="100%" height={140}>
+                    <PieChart>
+                      <Pie
+                        data={typeBreakdown}
+                        dataKey="count"
+                        nameKey="label"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={36}
+                        outerRadius={56}
+                        paddingAngle={2}
+                        className="cursor-pointer"
+                        onClick={(entry: any) => {
+                          if (entry?.type) {
+                            setTypeFilter(prev => prev === entry.type ? '__all__' : entry.type);
+                          }
+                        }}
+                      >
+                        {typeBreakdown.map(({ type, color }) => (
+                          <Cell key={type} fill={color} className="cursor-pointer hover:opacity-80 transition-opacity" />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ borderRadius: '6px', fontSize: '11px', padding: '4px 8px' }} formatter={(v: number) => [`${v} events`, 'Share']} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {/* Center Counter */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-1">
+                    <span className="text-base font-bold leading-none">{filtered.length}</span>
+                    <span className="text-[9px] text-muted-foreground uppercase tracking-wider mt-0.5">{t('Total')}</span>
+                  </div>
+                </div>
+
+                {/* Compact Legend Grid */}
+                <div className="grid grid-cols-2 gap-x-2 gap-y-1 mt-2 pt-2 border-t border-border/60">
+                  {typeBreakdown.slice(0, 6).map(({ type, label, count, color }) => {
+                    const pct = Math.round((count / (filtered.length || 1)) * 100);
+                    const isSelected = typeFilter === type;
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setTypeFilter(prev => prev === type ? '__all__' : type)}
+                        className={`flex items-center justify-between text-[11px] p-1 rounded transition-colors text-left ${
+                          isSelected ? 'bg-primary/10 font-semibold text-primary' : 'hover:bg-muted/50 text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                          <span className="truncate">{label}</span>
+                        </div>
+                        <span className="font-mono text-[10px] shrink-0 ml-1">{pct}%</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </CardContent>
             </Card>
           )}
@@ -534,6 +712,48 @@ export function RecordsPage() {
 
         {/* ── Right: timeline ── */}
         <div className="flex-1 min-w-0">
+          {/* Active Filter Chips */}
+          {(typeFilter !== '__all__' || actionFilter !== '__all__' || userFilter !== '__all__' || search) && (
+            <div className="flex flex-wrap items-center gap-2 p-2 rounded-lg bg-primary/5 border border-primary/20 text-xs mb-3">
+              <span className="font-medium text-foreground">{t('Active Filters')}:</span>
+              {typeFilter !== '__all__' && (
+                <Badge variant="secondary" className="gap-1 bg-background text-foreground border">
+                  <span>Type: {ecfg(typeFilter).label}</span>
+                  <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => setTypeFilter('__all__')} />
+                </Badge>
+              )}
+              {actionFilter !== '__all__' && (
+                <Badge variant="secondary" className="gap-1 bg-background text-foreground border">
+                  <span>Action: {actionLabel(actionFilter)}</span>
+                  <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => setActionFilter('__all__')} />
+                </Badge>
+              )}
+              {userFilter !== '__all__' && (
+                <Badge variant="secondary" className="gap-1 bg-background text-foreground border">
+                  <span>User: {userFilter}</span>
+                  <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => setUserFilter('__all__')} />
+                </Badge>
+              )}
+              {search && (
+                <Badge variant="secondary" className="gap-1 bg-background text-foreground border">
+                  <span>Search: &quot;{search}&quot;</span>
+                  <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => setSearch('')} />
+                </Badge>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setTypeFilter('__all__');
+                  setActionFilter('__all__');
+                  setUserFilter('__all__');
+                  setSearch('');
+                }}
+                className="text-[11px] text-muted-foreground hover:text-foreground underline ml-auto"
+              >
+                {t('Reset all')}
+              </button>
+            </div>
+          )}
           {loading ? (
             <div className="flex items-center justify-center h-40 text-sm text-muted-foreground">
               Loading records…

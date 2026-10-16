@@ -30,6 +30,8 @@ import {
   CalendarRange,
   School,
   Wallet,
+  MapPin,
+  Warehouse,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -64,6 +66,8 @@ export function getNavSections(config?: OrgConfig): NavSection[] {
       title: 'Inventory',
       items: [
         { label: 'Inventory', path: '/inventory', icon: Package, module: 'inventory', permission: 'inventory:read' },
+        { label: 'Places & Rooms', path: '/locations', icon: MapPin, module: 'inventory', permission: 'inventory:read' },
+        { label: 'Warehouses', path: '/warehouses', icon: Warehouse, module: 'inventory', permission: 'inventory:read' },
         { label: 'Stock Transactions', path: '/transactions', icon: ArrowLeftRight, module: 'inventory', permission: 'transactions:read' },
       ],
     },
